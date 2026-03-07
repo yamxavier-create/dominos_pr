@@ -8,7 +8,7 @@ import { ClientGameState, RoundEndPayload, GameEndPayload, PassPayload } from '.
 
 export function useSocket() {
   const navigate = useNavigate()
-  const { setGameState, setRoundEnd, setGameEnd, setLastTileSequence } = useGameStore()
+  const { setGameState, setRoundEnd, setGameEnd, setLastTileSequence, addToScoreHistory, clearScoreHistory } = useGameStore()
   const { setRoom, setMyPlayerIndex, setError, setRoomCode } = useRoomStore()
   const { addPasoNotification, setShowRoundEnd, setShowGameEnd, setSelectedTile } = useUIStore()
 
@@ -43,6 +43,7 @@ export function useSocket() {
 
     socket.on('game:started', ({ gameState }: { gameState: ClientGameState }) => {
       setGameState(gameState)
+      clearScoreHistory()
       navigate('/game')
     })
 
@@ -71,6 +72,8 @@ export function useSocket() {
     socket.on('game:round_ended', (data: RoundEndPayload) => {
       setRoundEnd(data)
       setShowRoundEnd(true)
+      const handNumber = useGameStore.getState().gameState?.handNumber ?? 0
+      addToScoreHistory(data, handNumber)
     })
 
     socket.on('game:game_ended', (data: GameEndPayload) => {
