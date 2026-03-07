@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 02-score-history
 source: 02-01-SUMMARY.md, 02-02-SUMMARY.md
 started: 2026-03-07T00:00:00Z
@@ -53,9 +53,16 @@ skipped: 3
   reason: "User reported: fichas demasiado pequeñas, puntos difíciles de distinguir, tablero ocupa solo una pequeña parte de la pantalla — posible problema de escala/layout/CSS"
   severity: major
   test: 1
-  root_cause: ""
-  artifacts: []
-  missing: []
+  root_cause: "BoardTile.tsx usa TILE_H_W=52/TILE_H_H=26 pero el SVG viewBox es 80×40 — factor de escala 0.65× hace los pips ilegibles. Fix: subir a 80×40 (1:1) o 64×32 (0.8×). Secundario: GameBoard.tsx inicializa dims en {w:600,h:280} causando jitter en primer frame."
+  artifacts:
+    - path: "client/src/components/board/BoardTile.tsx"
+      issue: "TILE_H_W=52, TILE_H_H=26, TILE_V_W=26, TILE_V_H=52 — demasiado pequeño vs viewBox 80×40. Subir a 80×40/40×80 o 64×32/32×64."
+    - path: "client/src/components/board/GameBoard.tsx"
+      issue: "Línea 184: useState({w:600,h:280}) — inicializar a {w:0,h:0} y no renderizar hasta que ResizeObserver dispare con dimensiones reales."
+  missing:
+    - "Aumentar TILE_H_W/TILE_H_H/TILE_V_W/TILE_V_H en BoardTile.tsx (todos los layout coords en GameBoard.tsx se actualizan automáticamente)"
+    - "Posible bump de SNAKE_CAP de 560 a ~620 si se usan tiles de 80px"
+    - "Inicializar dims a {w:0,h:0} en GameBoard.tsx para eliminar jitter en primer render"
   debug_session: ""
 
 - truth: "Al iniciar siguiente juego (host), todos los jugadores transicionan automáticamente a la nueva partida"
@@ -63,7 +70,14 @@ skipped: 3
   reason: "User reported: host ve la nueva partida pero los otros jugadores permanecen en la partida anterior sin ninguna transición"
   severity: blocker
   test: 1
-  root_cause: ""
-  artifacts: []
-  missing: []
+  root_cause: "GameEndModal solo emite room:leave y navega al host a / — nunca emite un evento al servidor para iniciar nueva partida. El servidor no tiene handler game:next_game (game:next_hand rechaza phase=game_end en línea 365). Los otros 3 jugadores quedan bloqueados en el modal sin recibir ningún evento."
+  artifacts:
+    - path: "client/src/components/game/GameEndModal.tsx"
+      issue: "Botón emite room:leave en vez de game:next_game. No hay lógica de waiting para non-hosts (a diferencia de RoundEndModal.tsx)."
+    - path: "server/src/socket/gameHandlers.ts"
+      issue: "Línea 365: guard phase !== round_end bloquea restart post-game. Falta handler game:next_game que resetee estado y llame broadcastState()."
+  missing:
+    - "Nuevo handler game:next_game en gameHandlers.ts que resetee game state y llame broadcastState()"
+    - "GameEndModal: host emite game:next_game; non-hosts ven Waiting for host... (patrón de RoundEndModal)"
+    - "useSocket: limpiar showGameEnd/gameEndData cuando llega game:state_snapshot con phase=playing"
   debug_session: ""
