@@ -15,6 +15,15 @@ export function useSocket() {
   useEffect(() => {
     if (!socket.connected) socket.connect()
 
+    // Re-join room after socket reconnection (new socket ID needs to be registered)
+    socket.on('connect', () => {
+      const roomCode = useRoomStore.getState().roomCode
+      const playerName = useRoomStore.getState().playerName
+      if (roomCode && playerName) {
+        socket.emit('room:rejoin', { roomCode, playerName })
+      }
+    })
+
     socket.on('room:created', ({ roomCode, room, myPlayerIndex }: {
       roomCode: string; room: any; myPlayerIndex: number
     }) => {
@@ -101,6 +110,7 @@ export function useSocket() {
     })
 
     return () => {
+      socket.off('connect')
       socket.off('room:created')
       socket.off('room:joined')
       socket.off('room:updated')

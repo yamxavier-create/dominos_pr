@@ -27,7 +27,24 @@ import {
   handPipSum,
 } from '../game/GameEngine'
 
-function broadcastState(io: Server, game: ServerGameState) {
+/**
+ * Sync game player socket IDs from room players.
+ * Handles cases where sockets reconnected and got new IDs during the game.
+ */
+function syncPlayerSocketIds(game: ServerGameState, rooms: RoomManager) {
+  const room = rooms.getRoom(game.roomCode)
+  if (!room) return
+  for (const rp of room.players) {
+    const gp = game.players.find(p => p.index === rp.seatIndex)
+    if (gp) {
+      gp.socketId = rp.socketId
+      gp.connected = rp.connected
+    }
+  }
+}
+
+function broadcastState(io: Server, game: ServerGameState, rooms?: RoomManager) {
+  if (rooms) syncPlayerSocketIds(game, rooms)
   for (const player of game.players) {
     if (!player.connected) continue
     const clientState = buildClientGameState(game, player.index)
@@ -404,7 +421,8 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     game.handStarterIndex = newStarterIdx
     game.forcedFirstTileId = ''  // no forced tile for subsequent hands
 
-    // Send updated state
+    // Sync socket IDs and send updated state
+    syncPlayerSocketIds(game, rooms)
     for (const player of game.players) {
       const clientState = buildClientGameState(game, player.index)
       io.to(player.socketId).emit('game:state_snapshot', {
@@ -444,12 +462,17 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
       game.players[i].tiles = hands[i]
     }
 
-    // Emit game:started (same event as initial game start) so all clients
-    // handle the new game through the proven path — navigate + clear state
+    // Sync socket IDs from room (handles reconnections during game)
+    syncPlayerSocketIds(game, rooms)
+
+    // Emit game:started using direct socket references (bypasses room addressing)
     for (const player of game.players) {
-      console.log(`[game:next_game] emitting to player ${player.index} (${player.name}): socketId=${player.socketId}, connected=${player.connected}`)
       const clientState = buildClientGameState(game, player.index)
-      io.to(player.socketId).emit('game:started', { gameState: clientState })
+      const targetSocket = io.sockets.sockets.get(player.socketId)
+      console.log(`[game:next_game] player ${player.index} (${player.name}): socketId=${player.socketId}, connected=${player.connected}, socketFound=${!!targetSocket}`)
+      if (targetSocket) {
+        targetSocket.emit('game:started', { gameState: clientState })
+      }
     }
     console.log(`[game:next_game] broadcast complete for room ${roomCode}`)
   })
