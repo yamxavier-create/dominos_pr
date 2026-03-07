@@ -52,6 +52,12 @@ export function useSocket() {
       lastAction,
     }: { gameState: ClientGameState; lastAction: any }) => {
       setGameState(gameState)
+      // New game started — dismiss game-end modal and reset history
+      if (gameState.phase === 'playing' && gameState.handNumber === 1) {
+        setShowGameEnd(false)
+        useGameStore.getState().clearGameEnd()
+        clearScoreHistory()
+      }
       // BUG-03: clear ghost tile selection when turn passes
       if (!gameState.isMyTurn) setSelectedTile(null)
       // BUG-01: use sequence to find newest tile, not array position (left-end plays land at index 0)
