@@ -233,13 +233,14 @@ export function GameBoard({ board, validPlays }: GameBoardProps) {
   `
 
   // Left badge: always to the left of tiles[0] (never flipped, always row 1)
-  const leftBadgeX = Math.max(2, leftItem.pos.x - tileDisplaySize(leftEnd, leftItem.corner).w / 2 - 22)
+  // Badge is w-9 (36px) — offset by full badge width + 4px gap to avoid overlap
+  const leftBadgeX = Math.max(2, leftItem.pos.x - tileDisplaySize(leftEnd, leftItem.corner).w / 2 - 40)
 
   // Right badge: exposed pip side depends on whether last tile is flipped
   // flipped = left-going row → exposed pip (rightPip) displayed on LEFT side
   const rightDisplayW = tileDisplaySize(rightEnd, rightItem.corner).w
   const rightBadgeX = rightItem.flipped
-    ? Math.max(2, rightItem.pos.x - rightDisplayW / 2 - 22)
+    ? Math.max(2, rightItem.pos.x - rightDisplayW / 2 - 40)
     : Math.min(dims.w - 40, rightItem.pos.x + rightDisplayW / 2 + 4)
 
   return (

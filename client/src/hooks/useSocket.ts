@@ -43,6 +43,11 @@ export function useSocket() {
 
     socket.on('game:started', ({ gameState }: { gameState: ClientGameState }) => {
       setGameState(gameState)
+      // Clear any stale end-of-game state (handles both initial start and next-game)
+      setShowGameEnd(false)
+      setShowRoundEnd(false)
+      useGameStore.getState().clearGameEnd()
+      useGameStore.getState().clearRoundEnd()
       clearScoreHistory()
       navigate('/game')
     })
