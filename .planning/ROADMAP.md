@@ -38,7 +38,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   1. During a game, a player can tap the score bar to open a panel showing each completed hand's result (winner, points, running total per team)
   2. Tapping the score bar again (or a close button) dismisses the panel without disrupting the board or any game action
   3. Starting a new game (not a rematch) resets the history panel to empty
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Extend gameStore and uiStore with scoreHistory state and showScoreHistory toggle
+- [ ] 02-02-PLAN.md — Create ScoreHistoryPanel component and add onClick/isOpen affordance to ScorePanel
+- [ ] 02-03-PLAN.md — Wire useSocket.ts and GameTable.tsx, human-verify full flow
 
 ### Phase 3: Rematch Flow
 **Goal**: After a game ends, all four players can agree to rematch and immediately start a new game in the same room without re-sharing the room code
@@ -71,6 +76,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Bug Fixes | 0/TBD | Not started | - |
-| 2. Score History | 0/TBD | Not started | - |
+| 2. Score History | 0/3 | Not started | - |
 | 3. Rematch Flow | 0/TBD | Not started | - |
 | 4. In-Game Chat | 0/TBD | Not started | - |
