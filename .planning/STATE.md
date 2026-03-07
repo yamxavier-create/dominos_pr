@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planning
-stopped_at: Phase 1 context gathered
-last_updated: "2026-03-06T21:50:06.101Z"
-last_activity: 2026-03-06 — Roadmap created; research and requirements complete
+status: Ready to discuss/plan
+stopped_at: Phase 2 context gathered
+last_updated: "2026-03-07T01:15:42.908Z"
+last_activity: 2026-03-06 — Phase 1 complete (BUG-01 through BUG-04 fixed, committed 33780e2)
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
-  percent: 0
+  percent: 25
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** Four friends can start and finish a complete game of Puerto Rican dominoes online, in real time, from any device — without friction.
-**Current focus:** Phase 1 — Bug Fixes
+**Current focus:** Phase 2 — Score History
 
 ## Current Position
 
-Phase: 1 of 4 (Bug Fixes)
+Phase: 2 of 4 (Score History)
 Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-03-06 — Roadmap created; research and requirements complete
+Status: Ready to discuss/plan
+Last activity: 2026-03-06 — Phase 1 complete (BUG-01 through BUG-04 fixed, committed 33780e2)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██░░░░░░░░] 25%
 
 ## Performance Metrics
 
@@ -68,12 +68,11 @@ None yet.
 
 ### Blockers/Concerns
 
-- [Phase 1]: Confirm scope of isHost fix — does it go in the existing `connection:room_info` payload or a new event? Check roomHandlers.ts and roomStore.ts before implementing.
 - [Pre-work]: Confirm rematch score semantics with stakeholder — reset to 0-0 or accumulate session wins? Architectural answer differs.
 - [Pre-work]: Confirm quick reaction preset phrases before building ReactionPicker — server allowlist must match client list.
 
 ## Session Continuity
 
-Last session: 2026-03-06T21:50:06.092Z
-Stopped at: Phase 1 context gathered
-Resume file: .planning/phases/01-bug-fixes/01-CONTEXT.md
+Last session: 2026-03-07T01:15:42.886Z
+Stopped at: Phase 2 context gathered
+Resume file: .planning/phases/02-score-history/02-CONTEXT.md
