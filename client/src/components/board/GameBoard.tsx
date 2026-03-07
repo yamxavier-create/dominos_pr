@@ -232,16 +232,31 @@ export function GameBoard({ board, validPlays }: GameBoardProps) {
     }
   `
 
-  // Left badge: always to the left of tiles[0] (never flipped, always row 1)
-  // Badge is w-9 (36px) — offset by full badge width + 4px gap to avoid overlap
-  const leftBadgeX = Math.max(2, leftItem.pos.x - tileDisplaySize(leftEnd, leftItem.corner).w / 2 - 40)
+  // Badge is w-9 (36px). Position depends on which side the exposed pip faces.
+  // Left end: exposed pip is leftPip. When flipped, it's displayed on the RIGHT physical side.
+  // When corner (vertical), the exposed pip is on top — place badge above.
+  const leftDisplaySize = tileDisplaySize(leftEnd, leftItem.corner)
+  const leftBadgeOnRight = leftItem.flipped  // flipped = right-going row after corner turn
+  const leftBadgeX = leftItem.corner
+    ? leftItem.pos.x - 18  // center badge horizontally on vertical corner tile
+    : leftBadgeOnRight
+      ? Math.min(dims.w - 40, leftItem.pos.x + leftDisplaySize.w / 2 + 4)
+      : Math.max(2, leftItem.pos.x - leftDisplaySize.w / 2 - 40)
+  const leftBadgeY = leftItem.corner
+    ? Math.max(18, leftItem.pos.y - leftDisplaySize.h / 2 - 22)
+    : Math.max(18, Math.min(dims.h - 18, leftItem.pos.y))
 
-  // Right badge: exposed pip side depends on whether last tile is flipped
-  // flipped = left-going row → exposed pip (rightPip) displayed on LEFT side
-  const rightDisplayW = tileDisplaySize(rightEnd, rightItem.corner).w
-  const rightBadgeX = rightItem.flipped
-    ? Math.max(2, rightItem.pos.x - rightDisplayW / 2 - 40)
-    : Math.min(dims.w - 40, rightItem.pos.x + rightDisplayW / 2 + 4)
+  // Right end: exposed pip is rightPip. When flipped, displayed on LEFT physical side.
+  const rightDisplaySize = tileDisplaySize(rightEnd, rightItem.corner)
+  const rightBadgeOnLeft = rightItem.flipped
+  const rightBadgeX = rightItem.corner
+    ? rightItem.pos.x - 18  // center badge horizontally on vertical corner tile
+    : rightBadgeOnLeft
+      ? Math.max(2, rightItem.pos.x - rightDisplaySize.w / 2 - 40)
+      : Math.min(dims.w - 40, rightItem.pos.x + rightDisplaySize.w / 2 + 4)
+  const rightBadgeY = rightItem.corner
+    ? Math.min(dims.h - 18, rightItem.pos.y + rightDisplaySize.h / 2 + 22)
+    : Math.max(18, Math.min(dims.h - 18, rightItem.pos.y))
 
   return (
     <div ref={containerRef} className="w-full h-full overflow-hidden relative">
@@ -266,10 +281,7 @@ export function GameBoard({ board, validPlays }: GameBoardProps) {
         <button
           onClick={() => canPlayLeft && playTileOnEnd('left')}
           className={endBadgeClass(canPlayLeft)}
-          style={{
-            left: leftBadgeX,
-            top: Math.max(18, Math.min(dims.h - 18, leftItem.pos.y)),
-          }}
+          style={{ left: leftBadgeX, top: leftBadgeY }}
         >
           {board.leftEnd}
         </button>
@@ -280,10 +292,7 @@ export function GameBoard({ board, validPlays }: GameBoardProps) {
         <button
           onClick={() => canPlayRight && playTileOnEnd('right')}
           className={endBadgeClass(canPlayRight)}
-          style={{
-            left: rightBadgeX,
-            top: Math.max(18, Math.min(dims.h - 18, rightItem.pos.y)),
-          }}
+          style={{ left: rightBadgeX, top: rightBadgeY }}
         >
           {board.rightEnd}
         </button>

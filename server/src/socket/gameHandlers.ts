@@ -447,9 +447,10 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     // Emit game:started (same event as initial game start) so all clients
     // handle the new game through the proven path — navigate + clear state
     for (const player of game.players) {
-      if (!player.connected) continue
+      console.log(`[game:next_game] emitting to player ${player.index} (${player.name}): socketId=${player.socketId}, connected=${player.connected}`)
       const clientState = buildClientGameState(game, player.index)
       io.to(player.socketId).emit('game:started', { gameState: clientState })
     }
+    console.log(`[game:next_game] broadcast complete for room ${roomCode}`)
   })
 }
