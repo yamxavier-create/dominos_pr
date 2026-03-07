@@ -14,9 +14,9 @@
 
 ### Score History
 
-- [ ] **SCORE-01**: Usuario puede ver el marcador acumulado por equipo desglosado mano a mano durante el juego
-- [ ] **SCORE-02**: El panel de historial se abre y cierra tocando el score bar durante la partida
-- [ ] **SCORE-03**: El historial se reinicia al inicio de cada nueva partida
+- [x] **SCORE-01**: Usuario puede ver el marcador acumulado por equipo desglosado mano a mano durante el juego
+- [x] **SCORE-02**: El panel de historial se abre y cierra tocando el score bar durante la partida
+- [x] **SCORE-03**: El historial se reinicia al inicio de cada nueva partida
 
 ### Rematch
 
@@ -75,9 +75,9 @@ Actualizado durante la creación del roadmap.
 | BUG-02 | Phase 1 | Pending |
 | BUG-03 | Phase 1 | Pending |
 | BUG-04 | Phase 1 | Pending |
-| SCORE-01 | Phase 2 | Pending |
-| SCORE-02 | Phase 2 | Pending |
-| SCORE-03 | Phase 2 | Pending |
+| SCORE-01 | Phase 2 | Complete |
+| SCORE-02 | Phase 2 | Complete |
+| SCORE-03 | Phase 2 | Complete |
 | REM-01 | Phase 3 | Pending |
 | REM-02 | Phase 3 | Pending |
 | REM-03 | Phase 3 | Pending |
