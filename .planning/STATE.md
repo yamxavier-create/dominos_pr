@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to discuss/plan
-stopped_at: Completed 02-score-history-02-PLAN.md
-last_updated: "2026-03-07T01:40:08.982Z"
+stopped_at: Completed 02-04-PLAN.md
+last_updated: "2026-03-07T19:08:19.407Z"
 last_activity: 2026-03-06 — Phase 1 complete (BUG-01 through BUG-04 fixed, committed 33780e2)
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 3
-  completed_plans: 2
+  total_plans: 5
+  completed_plans: 3
   percent: 25
 ---
 
@@ -52,6 +52,7 @@ Progress: [██░░░░░░░░] 25%
 *Updated after each plan completion*
 | Phase 02-score-history P01 | 1 | 2 tasks | 2 files |
 | Phase 02-score-history P02 | 2 | 2 tasks | 2 files |
+| Phase 02-score-history P04 | 2min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -66,6 +67,7 @@ Recent decisions affecting current work:
 - [Phase 02-score-history]: ScoreHistoryEntry defined in gameStore.ts (not types/game.ts) as a store-layer concern; handNumber captured at add-time not derivable from array length
 - [Phase 02-score-history]: ScoreHistoryPanel is a pure display component — all state via props, no store imports
 - [Phase 02-score-history]: onClick/isOpen on ScorePanel are optional to preserve backward compatibility with existing callers
+- [Phase 02-score-history]: Tile dims set to 80x40 (1:1 SVG viewBox); containerRef on all early-return paths for ResizeObserver
 
 ### Pending Todos
 
@@ -78,6 +80,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-07T01:40:08.971Z
-Stopped at: Completed 02-score-history-02-PLAN.md
+Last session: 2026-03-07T19:08:19.396Z
+Stopped at: Completed 02-04-PLAN.md
 Resume file: None
