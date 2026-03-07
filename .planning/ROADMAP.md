@@ -76,6 +76,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Bug Fixes | 0/TBD | Not started | - |
-| 2. Score History | 1/3 | In Progress|  |
+| 2. Score History | 2/3 | In Progress|  |
 | 3. Rematch Flow | 0/TBD | Not started | - |
 | 4. In-Game Chat | 0/TBD | Not started | - |
