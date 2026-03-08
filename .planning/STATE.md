@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** Four friends can start and finish a complete game of Puerto Rican dominoes online, in real time, from any device — without friction.
-**Current focus:** Phase 2 — Score History
+**Current focus:** Phase 3 — Rematch Flow
 
 ## Current Position
 
-Phase: 2 of 4 (Score History)
-Plan: 0 of TBD in current phase
-Status: Ready to discuss/plan
-Last activity: 2026-03-06 — Phase 1 complete (BUG-01 through BUG-04 fixed, committed 33780e2)
+Phase: 3 of 4 (Rematch Flow)
+Plan: 1 of 2 in current phase
+Status: In Progress
+Last activity: 2026-03-08 — Phase 3 Plan 1 complete (rematch vote data layer)
 
 Progress: [██░░░░░░░░] 25%
 
@@ -56,6 +56,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase 02-score-history P04 | 2min | 2 tasks | 2 files |
 | Phase 02-score-history P05 | 2min | 2 tasks | 3 files |
 | Phase 02-score-history P03 | 3min | 3 tasks | 2 files |
+| Phase 03-rematch-flow P01 | 2min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,8 @@ Recent decisions affecting current work:
 - [Phase 02-score-history]: Tile dims set to 80x40 (1:1 SVG viewBox); containerRef on all early-return paths for ResizeObserver
 - [Phase 02-score-history]: gamePassCount reset to 0 on new game; modal dismissal driven by state_snapshot phase detection
 - [Phase 02-score-history]: handNumber captured via useGameStore.getState() synchronously in round_ended handler
+- [Phase 03-rematch-flow]: checkRematchCancellation exported as helper from gameHandlers for index.ts disconnect handler
+- [Phase 03-rematch-flow]: Rematch resets scores to 0-0, same seats, winner starts freely (same as next_game)
 
 ### Pending Todos
 
@@ -91,6 +94,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-08T20:16:13.955Z
-Stopped at: Phase 3 context gathered
-Resume file: .planning/phases/03-rematch-flow/03-CONTEXT.md
+Last session: 2026-03-08T20:28:54Z
+Stopped at: Completed 03-01-PLAN.md
+Resume file: .planning/phases/03-rematch-flow/03-01-SUMMARY.md

@@ -106,5 +106,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 0.5. Game Flow Bugs | 4/4 | ✓ Complete | 2026-03-08 |
 | 1. Bug Fixes | 0/1 | Not started | - |
 | 2. Score History | 5/5 | Complete   | 2026-03-08 |
-| 3. Rematch Flow | 0/2 | Not started | - |
+| 3. Rematch Flow | 1/2 | In Progress|  |
 | 4. In-Game Chat | 0/TBD | Not started | - |

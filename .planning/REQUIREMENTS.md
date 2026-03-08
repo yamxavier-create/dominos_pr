@@ -27,12 +27,12 @@
 
 ### Rematch
 
-- [ ] **REM-01**: Usuario ve un botón "Revancha" en el modal de fin de juego
-- [ ] **REM-02**: La revancha requiere que los 4 jugadores acepten (el servidor gestiona el consenso)
+- [x] **REM-01**: Usuario ve un botón "Revancha" en el modal de fin de juego
+- [x] **REM-02**: La revancha requiere que los 4 jugadores acepten (el servidor gestiona el consenso)
 - [ ] **REM-03**: Usuario ve un contador en vivo "X/4 listos" mientras espera que todos voten
-- [ ] **REM-04**: La revancha reinicia los puntajes a 0-0 (juego completamente nuevo)
-- [ ] **REM-05**: Los asientos y equipos se mantienen iguales en la revancha (sin barajar)
-- [ ] **REM-06**: Si un jugador se desconecta durante la votación de revancha, la revancha se cancela y todos son notificados
+- [x] **REM-04**: La revancha reinicia los puntajes a 0-0 (juego completamente nuevo)
+- [x] **REM-05**: Los asientos y equipos se mantienen iguales en la revancha (sin barajar)
+- [x] **REM-06**: Si un jugador se desconecta durante la votación de revancha, la revancha se cancela y todos son notificados
 
 ### Chat
 
@@ -89,12 +89,12 @@ Actualizado durante la creación del roadmap.
 | SCORE-01 | Phase 2 | Complete |
 | SCORE-02 | Phase 2 | Complete |
 | SCORE-03 | Phase 2 | Complete |
-| REM-01 | Phase 3 | Pending |
-| REM-02 | Phase 3 | Pending |
+| REM-01 | Phase 3 | Complete |
+| REM-02 | Phase 3 | Complete |
 | REM-03 | Phase 3 | Pending |
-| REM-04 | Phase 3 | Pending |
-| REM-05 | Phase 3 | Pending |
-| REM-06 | Phase 3 | Pending |
+| REM-04 | Phase 3 | Complete |
+| REM-05 | Phase 3 | Complete |
+| REM-06 | Phase 3 | Complete |
 | CHAT-01 | Phase 4 | Pending |
 | CHAT-02 | Phase 4 | Pending |
 | CHAT-03 | Phase 4 | Pending |
