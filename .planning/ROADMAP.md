@@ -94,7 +94,11 @@ Plans:
   3. When the chat panel is closed, an unread-message badge shows the count of messages received since the panel was last open
   4. A player who reconnects mid-game sees the last 50 messages sent in the room — they are not dropped into a silent conversation
   5. The server silently enforces rate limiting (5 messages / 10 seconds) and sanitizes all message content before broadcast
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Server chat handler + client state/socket wiring (rate limiting, sanitization, history, uiStore, useSocket)
+- [ ] 04-02-PLAN.md — Chat UI components (ChatPanel, ChatButton, ReactionPicker) and GamePage integration
 
 ## Progress
 
@@ -107,4 +111,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. Bug Fixes | 0/1 | Not started | - |
 | 2. Score History | 5/5 | Complete   | 2026-03-08 |
 | 3. Rematch Flow | 2/2 | Complete   | 2026-03-08 |
-| 4. In-Game Chat | 0/TBD | Not started | - |
+| 4. In-Game Chat | 0/2 | Not started | - |
