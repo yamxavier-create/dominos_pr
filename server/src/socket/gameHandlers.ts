@@ -25,6 +25,7 @@ import {
   isChuchazo,
   buildClientGameState,
   handPipSum,
+  calculateBlockedResult200,
 } from '../game/GameEngine'
 
 /**
@@ -78,9 +79,14 @@ function broadcastStateWithAction(
 function processAutoPassCascade(
   io: Server,
   game: ServerGameState,
-  startPlayerIndex: number
+  startPlayerIndex: number,
+  tilePlayerIndex: number
 ): boolean {
   let idx = startPlayerIndex
+  // Modo 200: partner of the tile player gets pass protection (no bonus).
+  // If the next opponent also passes, the deferred pass counts retroactively.
+  let deferredPartnerPass = false
+  const partnerOfTilePlayer = (tilePlayerIndex + 2) % 4
 
   for (let i = 0; i < 4; i++) {
     const validPlays = getValidPlays(
@@ -99,22 +105,50 @@ function processAutoPassCascade(
     // Auto-pass this player
     let passBonusAwarded: number | null = null
     if (game.gameMode === 'modo200') {
-      passBonusAwarded = game.gamePassCount === 0 ? 2 : 1
-      const updatedScores = applyPassBonus200(game.scores, idx, game.gamePassCount)
-      game.scores = updatedScores
-      game.gamePassCount++
+      const isPartnerPass = idx === partnerOfTilePlayer
 
-      // Check if pass bonus triggered game over in Modo 200
-      if (scoresReachedTarget(game.scores, game.targetScore)) {
-        game.currentPlayerIndex = idx
-        game.consecutivePasses++
-        game.handPassCount++
-        io.to(game.roomCode).emit('game:player_passed', {
-          playerIndex: idx,
-          playerName: game.players[idx].name,
-          passBonusAwarded,
-        })
-        return handleGameEnd(io, game)
+      if (isPartnerPass && !deferredPartnerPass) {
+        // Partner protection: defer this pass (no bonus awarded)
+        deferredPartnerPass = true
+        // passBonusAwarded stays null
+      } else {
+        // If there's a deferred partner pass, apply it now (opponent passed after partner)
+        if (deferredPartnerPass) {
+          const deferredScores = applyPassBonus200(game.scores, partnerOfTilePlayer, game.gamePassCount)
+          game.scores = deferredScores
+          game.gamePassCount++
+          deferredPartnerPass = false
+
+          if (scoresReachedTarget(game.scores, game.targetScore)) {
+            game.currentPlayerIndex = idx
+            game.consecutivePasses++
+            game.handPassCount++
+            io.to(game.roomCode).emit('game:player_passed', {
+              playerIndex: idx,
+              playerName: game.players[idx].name,
+              passBonusAwarded: null,
+            })
+            return handleGameEnd(io, game)
+          }
+        }
+
+        // Apply this pass bonus normally
+        passBonusAwarded = game.gamePassCount === 0 ? 2 : 1
+        const updatedScores = applyPassBonus200(game.scores, idx, game.gamePassCount)
+        game.scores = updatedScores
+        game.gamePassCount++
+
+        if (scoresReachedTarget(game.scores, game.targetScore)) {
+          game.currentPlayerIndex = idx
+          game.consecutivePasses++
+          game.handPassCount++
+          io.to(game.roomCode).emit('game:player_passed', {
+            playerIndex: idx,
+            playerName: game.players[idx].name,
+            passBonusAwarded,
+          })
+          return handleGameEnd(io, game)
+        }
       }
     }
 
@@ -141,30 +175,63 @@ function processAutoPassCascade(
 }
 
 function handleBlockedGame(io: Server, game: ServerGameState): boolean {
-  const result = calculateBlockedResult(game.players)
-  const rawPips = result.pointsScored
-  const pointsScored = game.gameMode === 'modo200' ? Math.round(rawPips / 10) : rawPips
-  let winningTeam = result.winningTeam
+  const isModo200 = game.gameMode === 'modo200'
   let gameOver = false
-  let updatedScores = { ...game.scores }
 
+  // Modo 200: +2 for team that caused the block (last tile player)
+  let blockBonusPoints = 0
+  if (isModo200) {
+    const lastTile = game.board.tiles.reduce((a, b) => a.sequence > b.sequence ? a : b)
+    const blockingTeam = playerTeam(lastTile.playedByIndex)
+    blockBonusPoints = 2
+    const blockResult = applyScore(game.scores, blockingTeam, 2, game.targetScore)
+    game.scores = blockResult.updatedScores
+    if (blockResult.gameOver) gameOver = true
+  }
+
+  // Determine winner — Modo 200 uses individual pips, Modo 500 uses team sums
+  let winnerIndex: number | null = null
+  let winningTeam: 0 | 1 | null
+  let rawPips: number
+  let pointsScored: number
+
+  if (isModo200) {
+    const result = calculateBlockedResult200(game.players)
+    winnerIndex = result.winnerIndex
+    winningTeam = result.winningTeam
+    rawPips = result.pointsScored
+    pointsScored = Math.round(rawPips / 10)
+  } else {
+    const result = calculateBlockedResult(game.players)
+    winningTeam = result.winningTeam
+    rawPips = result.pointsScored
+    pointsScored = rawPips
+  }
+
+  // Apply winner's points
+  let updatedScores = { ...game.scores }
   if (winningTeam !== null) {
     const scoreResult = applyScore(game.scores, winningTeam, pointsScored, game.targetScore)
     updatedScores = scoreResult.updatedScores
-    gameOver = scoreResult.gameOver
+    if (scoreResult.gameOver) gameOver = true
     game.scores = updatedScores
   }
+
+  // Winner of blocked hand starts next (individual winner in Modo 200)
+  const nextStarter = winnerIndex ?? game.handStarterIndex
+  game.handStarterIndex = nextStarter
+  if (gameOver) game.gameWinnerIndex = nextStarter
 
   game.phase = gameOver ? 'game_end' : 'round_end'
 
   io.to(game.roomCode).emit('game:round_ended', {
     reason: 'blocked',
-    winnerIndex: null,
+    winnerIndex,
     winningTeam,
     rawPipCount: rawPips,
     pointsFromPips: pointsScored,
-    bonusPoints: 0,
-    totalPointsScored: pointsScored,
+    bonusPoints: blockBonusPoints,
+    totalPointsScored: pointsScored + blockBonusPoints,
     remainingTiles: game.players.map(p => ({
       playerIndex: p.index,
       playerName: p.name,
@@ -174,7 +241,7 @@ function handleBlockedGame(io: Server, game: ServerGameState): boolean {
     isCapicu: false,
     isChuchazo: false,
     scores: updatedScores,
-    nextStarterIndex: game.handStarterIndex,
+    nextStarterIndex: nextStarter,
   })
 
   if (gameOver) {
@@ -192,6 +259,7 @@ function handleBlockedGame(io: Server, game: ServerGameState): boolean {
 
 function handleGameEnd(io: Server, game: ServerGameState): boolean {
   game.phase = 'game_end'
+  game.gameWinnerIndex = game.handStarterIndex
   const winTeam = game.scores.team0 >= game.targetScore ? 0 : 1
   io.to(game.roomCode).emit('game:game_ended', {
     winningTeam: winTeam,
@@ -199,6 +267,27 @@ function handleGameEnd(io: Server, game: ServerGameState): boolean {
     totalRounds: game.handNumber,
   })
   return true
+}
+
+/**
+ * Check if a disconnecting player should cancel an active rematch vote.
+ * Called from the main disconnect handler in index.ts.
+ */
+export function checkRematchCancellation(
+  io: Server,
+  room: { roomCode: string; rematchVotes: number[]; game: ServerGameState | null },
+  disconnectedSocketId: string
+): void {
+  if (!room.game || !room.rematchVotes || room.rematchVotes.length === 0) return
+
+  const player = room.game.players.find(p => p.socketId === disconnectedSocketId)
+  if (!player) return
+
+  io.to(room.roomCode).emit('game:rematch_cancelled', {
+    disconnectedPlayerIndex: player.index,
+    disconnectedPlayerName: player.name,
+  })
+  room.rematchVotes = []
 }
 
 export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomManager) {
@@ -243,10 +332,12 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
       handStarterIndex: starterIdx,
       firstPlayMade: false,
       forcedFirstTileId: forcedTile.id,
+      gameWinnerIndex: starterIdx,
     }
 
     room.game = game
     room.status = 'in_game'
+    room.rematchVotes = []
 
     // Send personalised game state to each player
     for (const player of game.players) {
@@ -318,6 +409,9 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
       )
       game.scores = updatedScores
       game.phase = gameOver ? 'game_end' : 'round_end'
+      // Winner of this hand starts the next hand/game
+      game.handStarterIndex = player.index
+      if (gameOver) game.gameWinnerIndex = player.index
 
       // Broadcast final state before emitting round_ended
       broadcastStateWithAction(io, game, {
@@ -367,7 +461,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
 
     // Process auto-pass cascade for next player(s)
     const nextIdx = nextPlayerIndex(player.index)
-    const ended = processAutoPassCascade(io, game, nextIdx)
+    const ended = processAutoPassCascade(io, game, nextIdx, player.index)
     if (!ended) {
       broadcastState(io, game)
     }
@@ -443,7 +537,9 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     // Shuffle and deal fresh tiles
     const tiles = shuffleTiles(generateDoubleSixSet())
     const { hands } = dealTiles(tiles)
-    const { playerIndex, tile: forcedTile } = findFirstPlayer(hands)
+
+    // Winner of the previous game starts the next game, plays any tile freely
+    const nextStarter = game.gameWinnerIndex
 
     // Reset full game state (scores, hand number, pass counts)
     game.phase = 'playing'
@@ -454,26 +550,80 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     game.handPassCount = 0
     game.gamePassCount = 0
     game.firstPlayMade = false
-    game.currentPlayerIndex = playerIndex
-    game.handStarterIndex = playerIndex
-    game.forcedFirstTileId = forcedTile.id
+    game.currentPlayerIndex = nextStarter
+    game.handStarterIndex = nextStarter
+    game.gameWinnerIndex = nextStarter
+    game.forcedFirstTileId = ''  // no forced tile — winner plays freely
 
     for (let i = 0; i < 4; i++) {
       game.players[i].tiles = hands[i]
     }
 
+    room.rematchVotes = []
+
     // Sync socket IDs from room (handles reconnections during game)
     syncPlayerSocketIds(game, rooms)
 
-    // Emit game:started using direct socket references (bypasses room addressing)
+    // Send personalised game state to each player
     for (const player of game.players) {
       const clientState = buildClientGameState(game, player.index)
-      const targetSocket = io.sockets.sockets.get(player.socketId)
-      console.log(`[game:next_game] player ${player.index} (${player.name}): socketId=${player.socketId}, connected=${player.connected}, socketFound=${!!targetSocket}`)
-      if (targetSocket) {
-        targetSocket.emit('game:started', { gameState: clientState })
-      }
+      io.to(player.socketId).emit('game:started', { gameState: clientState })
     }
-    console.log(`[game:next_game] broadcast complete for room ${roomCode}`)
+  })
+
+  socket.on('game:rematch_vote', ({ roomCode }: { roomCode: string }) => {
+    const room = rooms.getRoom(roomCode)
+    if (!room?.game) return
+    if (room.game.phase !== 'game_end') return
+
+    const game = room.game
+    const player = game.players.find(p => p.socketId === socket.id)
+    if (!player) return
+
+    if (!room.rematchVotes) room.rematchVotes = []
+    if (room.rematchVotes.includes(player.index)) return
+
+    room.rematchVotes.push(player.index)
+
+    io.to(roomCode).emit('game:rematch_vote_update', {
+      votes: room.rematchVotes,
+      playerNames: game.players.map(p => p.name),
+    })
+
+    if (room.rematchVotes.length === 4) {
+      io.to(roomCode).emit('game:rematch_accepted', {})
+
+      setTimeout(() => {
+        // Reuse next_game logic: shuffle, deal, reset scores, same seats
+        const tiles = shuffleTiles(generateDoubleSixSet())
+        const { hands } = dealTiles(tiles)
+        const nextStarter = game.gameWinnerIndex
+
+        game.phase = 'playing'
+        game.handNumber = 1
+        game.scores = { team0: 0, team1: 0 }
+        game.board = { tiles: [], leftEnd: null, rightEnd: null }
+        game.consecutivePasses = 0
+        game.handPassCount = 0
+        game.gamePassCount = 0
+        game.firstPlayMade = false
+        game.currentPlayerIndex = nextStarter
+        game.handStarterIndex = nextStarter
+        game.gameWinnerIndex = nextStarter
+        game.forcedFirstTileId = ''
+
+        for (let i = 0; i < 4; i++) {
+          game.players[i].tiles = hands[i]
+        }
+
+        room.rematchVotes = []
+        syncPlayerSocketIds(game, rooms)
+
+        for (const p of game.players) {
+          const clientState = buildClientGameState(game, p.index)
+          io.to(p.socketId).emit('game:started', { gameState: clientState })
+        }
+      }, 2000)
+    }
   })
 }

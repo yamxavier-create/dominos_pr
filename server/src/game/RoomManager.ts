@@ -32,6 +32,7 @@ export class RoomManager {
       status: 'waiting',
       game: null,
       lastActivity: Date.now(),
+      rematchVotes: [],
     }
     this.rooms.set(roomCode, room)
     this.socketToRoom.set(socketId, roomCode)
@@ -117,6 +118,27 @@ export class RoomManager {
 
   registerSocket(socketId: string, roomCode: string) {
     this.socketToRoom.set(socketId, roomCode)
+  }
+
+  swapSeats(socketId: string, seatA: number, seatB: number): Room | null {
+    const room = this.getRoomBySocket(socketId)
+    if (!room) return null
+    if (room.status !== 'waiting') return null
+    if (room.hostSocketId !== socketId) return null
+    if (seatA === seatB) return null
+
+    const playerA = room.players.find(p => p.seatIndex === seatA)
+    const playerB = room.players.find(p => p.seatIndex === seatB)
+    if (!playerA || !playerB) return null
+
+    playerA.seatIndex = seatB
+    playerB.seatIndex = seatA
+    // Keep host reference pointing to seat 0
+    const newSeat0 = room.players.find(p => p.seatIndex === 0)
+    if (newSeat0) room.hostSocketId = newSeat0.socketId
+
+    room.lastActivity = Date.now()
+    return room
   }
 
   getRoomInfo(room: Room) {
