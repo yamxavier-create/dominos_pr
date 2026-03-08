@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to discuss/plan
-stopped_at: Completed 01-bug-fixes-01-PLAN.md
-last_updated: "2026-03-08T17:28:38.260Z"
+stopped_at: Completed 02-score-history-03-PLAN.md
+last_updated: "2026-03-08T17:53:01.425Z"
 last_activity: 2026-03-06 — Phase 1 complete (BUG-01 through BUG-04 fixed, committed 33780e2)
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 6
-  completed_plans: 5
+  completed_plans: 6
   percent: 25
 ---
 
@@ -55,6 +55,7 @@ Progress: [██░░░░░░░░] 25%
 | Phase 02-score-history P02 | 2 | 2 tasks | 2 files |
 | Phase 02-score-history P04 | 2min | 2 tasks | 2 files |
 | Phase 02-score-history P05 | 2min | 2 tasks | 3 files |
+| Phase 02-score-history P03 | 3min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,7 @@ Recent decisions affecting current work:
 - [Phase 02-score-history]: onClick/isOpen on ScorePanel are optional to preserve backward compatibility with existing callers
 - [Phase 02-score-history]: Tile dims set to 80x40 (1:1 SVG viewBox); containerRef on all early-return paths for ResizeObserver
 - [Phase 02-score-history]: gamePassCount reset to 0 on new game; modal dismissal driven by state_snapshot phase detection
+- [Phase 02-score-history]: handNumber captured via useGameStore.getState() synchronously in round_ended handler
 
 ### Pending Todos
 
@@ -83,6 +85,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-08T17:25:32Z
-Stopped at: Completed 01-bug-fixes-01-PLAN.md
+Last session: 2026-03-08T17:53:01.412Z
+Stopped at: Completed 02-score-history-03-PLAN.md
 Resume file: None

@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 0.5: Game Flow Bugs** - Cuatro bugs críticos de flujo de juego arreglados: segundo juego bloqueado, turno inicial incorrecto, tablero no responsivo, ficha atascada en tablero vacío
 - [ ] **Phase 1: Bug Fixes** - Fix four prerequisite bugs that block correct rematch UI, chat input, and animation behavior
-- [ ] **Phase 2: Score History** - Add a collapsible per-hand score log accessible from the score bar during a game
+- [x] **Phase 2: Score History** - Add a collapsible per-hand score log accessible from the score bar during a game (completed 2026-03-08)
 - [ ] **Phase 3: Rematch Flow** - Let all four players agree to rematch in the same room without re-sharing the code
 - [ ] **Phase 4: In-Game Chat** - Add a slide-in chat panel with free text messages and quick reactions
 
@@ -101,6 +101,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 0.5. Game Flow Bugs | 4/4 | ✓ Complete | 2026-03-08 |
 | 1. Bug Fixes | 0/1 | Not started | - |
-| 2. Score History | 2/5 | In Progress | - |
+| 2. Score History | 5/5 | Complete   | 2026-03-08 |
 | 3. Rematch Flow | 0/TBD | Not started | - |
 | 4. In-Game Chat | 0/TBD | Not started | - |
