@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { socket } from '../socket'
 import { useGameStore } from '../store/gameStore'
 import { useRoomStore } from '../store/roomStore'
-import { useUIStore } from '../store/uiStore'
+import { useUIStore, ChatMessage } from '../store/uiStore'
 import { ClientGameState, RoundEndPayload, GameEndPayload, PassPayload, RematchVoteUpdate, RematchCancelled } from '../types/game'
 
 export function useSocket() {
@@ -65,6 +65,7 @@ export function useSocket() {
       useGameStore.getState().clearRoundEnd()
       clearScoreHistory()
       clearRematchState()
+      useUIStore.getState().clearChatState()
       navigate('/game')
     })
 
@@ -129,6 +130,14 @@ export function useSocket() {
       }, 2500)
     })
 
+    socket.on('chat:message', (msg: ChatMessage) => {
+      useUIStore.getState().addChatMessage(msg)
+    })
+
+    socket.on('chat:history', ({ messages }: { messages: ChatMessage[] }) => {
+      useUIStore.getState().setChatMessages(messages)
+    })
+
     socket.on('connection:player_disconnected', ({ playerIndex, playerName }: { playerIndex: number; playerName: string }) => {
       console.log(`Player ${playerName} (${playerIndex}) disconnected`)
     })
@@ -152,6 +161,8 @@ export function useSocket() {
       socket.off('game:rematch_vote_update')
       socket.off('game:rematch_accepted')
       socket.off('game:rematch_cancelled')
+      socket.off('chat:message')
+      socket.off('chat:history')
       socket.off('connection:player_disconnected')
       socket.off('connection:player_reconnected')
     }
