@@ -5,7 +5,7 @@ milestone_name: milestone
 status: Ready to discuss/plan
 stopped_at: Completed quick-1-PLAN.md
 last_updated: "2026-03-08T18:18:07.775Z"
-last_activity: 2026-03-06 — Phase 1 complete (BUG-01 through BUG-04 fixed, committed 33780e2)
+last_activity: 2026-03-08 - Completed quick task 1: Fix board end indicators overlapping tiles at corners and enforce minimum 2 tiles between direction changes
 progress:
   total_phases: 5
   completed_phases: 2
@@ -82,6 +82,12 @@ None yet.
 
 - [Pre-work]: Confirm rematch score semantics with stakeholder — reset to 0-0 or accumulate session wins? Architectural answer differs.
 - [Pre-work]: Confirm quick reaction preset phrases before building ReactionPicker — server allowlist must match client list.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 1 | Fix board end indicators overlapping tiles at corners and enforce minimum 2 tiles between direction changes | 2026-03-08 | fd2afaa | [1-fix-board-end-indicators-overlapping-til](./quick/1-fix-board-end-indicators-overlapping-til/) |
 
 ## Session Continuity
 
