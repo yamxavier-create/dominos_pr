@@ -269,7 +269,7 @@ export function GameBoard({ board, validPlays }: GameBoardProps) {
       ? Math.min(dims.w - 40, leftItem.pos.x + leftDisplaySize.w / 2 + 4)
       : Math.max(2, leftItem.pos.x - leftDisplaySize.w / 2 - 40)
   const leftBadgeY = leftItem.corner
-    ? Math.max(18, leftItem.pos.y - leftDisplaySize.h / 2 - 22)
+    ? Math.max(18, leftItem.pos.y - leftDisplaySize.h / 2 - 40)
     : Math.max(18, Math.min(dims.h - 18, leftItem.pos.y))
 
   // Right end: exposed pip is rightPip. When flipped, displayed on LEFT physical side.
@@ -281,7 +281,7 @@ export function GameBoard({ board, validPlays }: GameBoardProps) {
       ? Math.max(2, rightItem.pos.x - rightDisplaySize.w / 2 - 40)
       : Math.min(dims.w - 40, rightItem.pos.x + rightDisplaySize.w / 2 + 4)
   const rightBadgeY = rightItem.corner
-    ? Math.min(dims.h - 18, rightItem.pos.y + rightDisplaySize.h / 2 + 22)
+    ? Math.min(dims.h - 18, rightItem.pos.y + rightDisplaySize.h / 2 + 40)
     : Math.max(18, Math.min(dims.h - 18, rightItem.pos.y))
 
   return (
