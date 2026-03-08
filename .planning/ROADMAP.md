@@ -111,4 +111,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. Bug Fixes | 0/1 | Not started | - |
 | 2. Score History | 5/5 | Complete   | 2026-03-08 |
 | 3. Rematch Flow | 2/2 | Complete   | 2026-03-08 |
-| 4. In-Game Chat | 0/2 | Not started | - |
+| 4. In-Game Chat | 1/2 | In Progress|  |
