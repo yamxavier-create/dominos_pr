@@ -139,6 +139,10 @@ export function GameTable() {
         {/* Board center */}
         <div className="relative overflow-hidden w-full h-full">
           <GameBoard board={board} validPlays={validPlays} />
+          <TurnIndicator
+            playerName={currentPlayerName}
+            isMyTurn={isMyTurn}
+          />
         </div>
 
         {/* Right opponent */}
@@ -188,10 +192,6 @@ export function GameTable() {
       </div>
 
       {/* Overlays */}
-      <TurnIndicator
-        playerName={currentPlayerName}
-        isMyTurn={isMyTurn}
-      />
       <RoundEndModal />
       <GameEndModal />
     </div>

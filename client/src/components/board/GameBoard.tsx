@@ -61,8 +61,9 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
     let x = anchorW / 2 + GAP  // cursor starts at anchor's right edge
     let y = 0
     let dir = 1
-    let rowMaxH = anchorH  // anchor is in row 0, count its height for wrap spacing
-    let tilesInRow = 1  // anchor counts as first tile in row
+    let rowMaxH = anchorH
+    let tilesInRow = 0  // don't count anchor — need 2 tiles before first corner
+    let pendingCorner = false  // true = next tile is the 2nd vertical tile of a corner pair
 
     for (let i = anchorIdx + 1; i < n; i++) {
       const { w: tileW, h: tileH } = tileSize(tiles[i])
@@ -70,18 +71,46 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
       let cx: number
       let isCorner = false
 
-      if (dir === 1) {
+      if (pendingCorner) {
+        // 2nd tile of the corner pair — flush against the 1st corner tile (no gap)
+        isCorner = true
+        const effW = isHorizontal ? TILE_V_W : tileW
+        const effH = isHorizontal ? TILE_V_H : tileH
+        const prevCorner = raw[i - 1]
+        const prevH = tileDisplaySize(tiles[i - 1], cornerFlags[i - 1]).h
+        cx = prevCorner.x
+        const tileY = prevCorner.y + prevH / 2 + effH / 2  // center of 2nd corner tile
+        // Place the 2nd corner tile at its true center
+        raw[i] = { x: cx, y: tileY }
+        cornerFlags[i] = true
+        flippedFlags[i] = false
+        // New horizontal row aligns with the bottom pip of this corner tile
+        y = tileY + (effH - TILE_H_H) / 2
+        // Now start the new horizontal row
+        if (dir === -1) {
+          x = cx - effW / 2 - GAP
+        } else {
+          x = cx + effW / 2 + GAP
+        }
+        rowMaxH = TILE_H_H
+        tilesInRow = 0
+        pendingCorner = false
+        continue  // already placed raw[i], skip the common assignment below
+      } else if (dir === 1) {
         cx = x + tileW / 2
         if (cx + tileW / 2 + EDGE_PAD > half && tilesInRow >= 2) {
+          // 1st corner tile — at end of row, top pip aligned with row
           isCorner = true
           const effW = isHorizontal ? TILE_V_W : tileW
           const effH = isHorizontal ? TILE_V_H : tileH
-          cx = Math.min(raw[i - 1].x, half - EDGE_PAD - effW / 2)
-          y += rowMaxH / 2 + effH / 2 + GAP
+          const prevW = tileDisplaySize(tiles[i - 1], cornerFlags[i - 1]).w
+          cx = raw[i - 1].x + prevW / 2 + effW / 2
+          cx = Math.min(cx, half - EDGE_PAD - effW / 2)
+          // Top pip aligns with row center, tile extends downward
+          y += (effH - TILE_H_H) / 2
           rowMaxH = effH
           dir = -1
-          x = cx - effW / 2 - GAP
-          tilesInRow = 1
+          pendingCorner = true
         } else {
           rowMaxH = Math.max(rowMaxH, tileH)
           x = cx + tileW / 2 + GAP
@@ -90,15 +119,18 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
       } else {
         cx = x - tileW / 2
         if (cx - tileW / 2 - EDGE_PAD < -half && tilesInRow >= 2) {
+          // 1st corner tile — at end of row, top pip aligned with row
           isCorner = true
           const effW = isHorizontal ? TILE_V_W : tileW
           const effH = isHorizontal ? TILE_V_H : tileH
-          cx = Math.max(raw[i - 1].x, -half + EDGE_PAD + effW / 2)
-          y += rowMaxH / 2 + effH / 2 + GAP
+          const prevW = tileDisplaySize(tiles[i - 1], cornerFlags[i - 1]).w
+          cx = raw[i - 1].x - prevW / 2 - effW / 2
+          cx = Math.max(cx, -half + EDGE_PAD + effW / 2)
+          // Top pip aligns with row center, tile extends downward
+          y += (effH - TILE_H_H) / 2
           rowMaxH = effH
           dir = 1
-          x = cx + effW / 2 + GAP
-          tilesInRow = 1
+          pendingCorner = true
         } else {
           rowMaxH = Math.max(rowMaxH, tileH)
           x = cx - tileW / 2 - GAP
@@ -121,7 +153,8 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
     let y = 0
     let dir = -1
     let rowMaxH = anchorH
-    let tilesInRow = 1  // anchor counts as first tile in row
+    let tilesInRow = 0  // don't count anchor — need 2 tiles before first corner
+    let pendingCorner = false  // true = next tile is the 2nd vertical tile of a corner pair
 
     for (let i = anchorIdx - 1; i >= 0; i--) {
       const { w: tileW, h: tileH } = tileSize(tiles[i])
@@ -129,18 +162,46 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
       let cx: number
       let isCorner = false
 
-      if (dir === -1) {
+      if (pendingCorner) {
+        // 2nd tile of the corner pair — flush against the 1st corner tile (no gap)
+        isCorner = true
+        const effW = isHorizontal ? TILE_V_W : tileW
+        const effH = isHorizontal ? TILE_V_H : tileH
+        const prevCorner = raw[i + 1]
+        const prevH = tileDisplaySize(tiles[i + 1], cornerFlags[i + 1]).h
+        cx = prevCorner.x
+        const tileY = prevCorner.y - prevH / 2 - effH / 2  // center of 2nd corner tile
+        // Place the 2nd corner tile at its true center
+        raw[i] = { x: cx, y: tileY }
+        cornerFlags[i] = true
+        flippedFlags[i] = false
+        // New horizontal row aligns with the top pip of this corner tile
+        y = tileY - (effH - TILE_H_H) / 2
+        // Now start the new horizontal row
+        if (dir === 1) {
+          x = cx + effW / 2 + GAP
+        } else {
+          x = cx - effW / 2 - GAP
+        }
+        rowMaxH = TILE_H_H
+        tilesInRow = 0
+        pendingCorner = false
+        continue  // already placed raw[i], skip the common assignment below
+      } else if (dir === -1) {
         cx = x - tileW / 2
         if (cx - tileW / 2 - EDGE_PAD < -half && tilesInRow >= 2) {
+          // 1st corner tile — at end of row, bottom pip aligned with row
           isCorner = true
           const effW = isHorizontal ? TILE_V_W : tileW
           const effH = isHorizontal ? TILE_V_H : tileH
-          cx = Math.max(raw[i + 1].x, -half + EDGE_PAD + effW / 2)
-          y -= rowMaxH / 2 + effH / 2 + GAP  // wrap UP
+          const prevW = tileDisplaySize(tiles[i + 1], cornerFlags[i + 1]).w
+          cx = raw[i + 1].x - prevW / 2 - effW / 2
+          cx = Math.max(cx, -half + EDGE_PAD + effW / 2)
+          // Bottom pip aligns with row center, tile extends upward
+          y -= (effH - TILE_H_H) / 2
           rowMaxH = effH
           dir = 1
-          x = cx + effW / 2 + GAP
-          tilesInRow = 1
+          pendingCorner = true
         } else {
           rowMaxH = Math.max(rowMaxH, tileH)
           x = cx - tileW / 2 - GAP
@@ -149,15 +210,18 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
       } else {
         cx = x + tileW / 2
         if (cx + tileW / 2 + EDGE_PAD > half && tilesInRow >= 2) {
+          // 1st corner tile — at end of row, bottom pip aligned with row
           isCorner = true
           const effW = isHorizontal ? TILE_V_W : tileW
           const effH = isHorizontal ? TILE_V_H : tileH
-          cx = Math.min(raw[i + 1].x, half - EDGE_PAD - effW / 2)
-          y -= rowMaxH / 2 + effH / 2 + GAP  // wrap UP
+          const prevW = tileDisplaySize(tiles[i + 1], cornerFlags[i + 1]).w
+          cx = raw[i + 1].x + prevW / 2 + effW / 2
+          cx = Math.min(cx, half - EDGE_PAD - effW / 2)
+          // Bottom pip aligns with row center, tile extends upward
+          y -= (effH - TILE_H_H) / 2
           rowMaxH = effH
           dir = -1
-          x = cx - effW / 2 - GAP
-          tilesInRow = 1
+          pendingCorner = true
         } else {
           rowMaxH = Math.max(rowMaxH, tileH)
           x = cx + tileW / 2 + GAP
@@ -261,28 +325,29 @@ export function GameBoard({ board, validPlays }: GameBoardProps) {
   // Badge is w-9 (36px). Position depends on which side the exposed pip faces.
   // Left end: exposed pip is leftPip. When flipped, it's displayed on the RIGHT physical side.
   // When corner (vertical), the exposed pip is on top — place badge above.
+  const BADGE_OFF = 8  // gap between tile edge and badge edge
   const leftDisplaySize = tileDisplaySize(leftEnd, leftItem.corner)
   const leftBadgeOnRight = leftItem.flipped  // flipped = right-going row after corner turn
   const leftBadgeX = leftItem.corner
-    ? leftItem.pos.x - 18  // center badge horizontally on vertical corner tile
+    ? leftItem.pos.x + leftDisplaySize.w / 2 + BADGE_OFF  // to the right of corner tile
     : leftBadgeOnRight
-      ? Math.min(dims.w - 40, leftItem.pos.x + leftDisplaySize.w / 2 + 4)
-      : Math.max(2, leftItem.pos.x - leftDisplaySize.w / 2 - 40)
+      ? leftItem.pos.x + leftDisplaySize.w / 2 + BADGE_OFF
+      : Math.max(2, leftItem.pos.x - leftDisplaySize.w / 2 - 36 - BADGE_OFF)
   const leftBadgeY = leftItem.corner
-    ? Math.max(18, leftItem.pos.y - leftDisplaySize.h / 2 - 40)
-    : Math.max(18, Math.min(dims.h - 18, leftItem.pos.y))
+    ? leftItem.pos.y - leftDisplaySize.h / 4  // at exposed (top) pip center
+    : leftItem.pos.y
 
   // Right end: exposed pip is rightPip. When flipped, displayed on LEFT physical side.
   const rightDisplaySize = tileDisplaySize(rightEnd, rightItem.corner)
   const rightBadgeOnLeft = rightItem.flipped
   const rightBadgeX = rightItem.corner
-    ? rightItem.pos.x - 18  // center badge horizontally on vertical corner tile
+    ? rightItem.pos.x + rightDisplaySize.w / 2 + BADGE_OFF  // to the right of corner tile
     : rightBadgeOnLeft
-      ? Math.max(2, rightItem.pos.x - rightDisplaySize.w / 2 - 40)
-      : Math.min(dims.w - 40, rightItem.pos.x + rightDisplaySize.w / 2 + 4)
+      ? Math.max(2, rightItem.pos.x - rightDisplaySize.w / 2 - 36 - BADGE_OFF)
+      : rightItem.pos.x + rightDisplaySize.w / 2 + BADGE_OFF
   const rightBadgeY = rightItem.corner
-    ? Math.min(dims.h - 18, rightItem.pos.y + rightDisplaySize.h / 2 + 40)
-    : Math.max(18, Math.min(dims.h - 18, rightItem.pos.y))
+    ? rightItem.pos.y + rightDisplaySize.h / 4  // at exposed (bottom) pip center
+    : rightItem.pos.y
 
   return (
     <div ref={containerRef} className="w-full h-full overflow-hidden relative">
