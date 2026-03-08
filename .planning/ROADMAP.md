@@ -78,7 +78,11 @@ Plans:
   2. Every player sees a live "X/4 listos" counter update in real time as votes come in
   3. When all four votes are cast, the game resets to 0-0 with the same seats and teams — no one needs to navigate away or re-enter a code
   4. If a player disconnects while voting, the rematch is cancelled and all remaining players see a notification
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Server rematch vote consensus, client types/state, and socket event handlers
+- [ ] 03-02-PLAN.md — GameEndModal UI with Revancha button, vote counter, celebration, and disconnect handling
 
 ### Phase 4: In-Game Chat
 **Goal**: Players can send text messages and quick reactions to each other during a game, and reconnecting players receive recent chat history
@@ -102,5 +106,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 0.5. Game Flow Bugs | 4/4 | ✓ Complete | 2026-03-08 |
 | 1. Bug Fixes | 0/1 | Not started | - |
 | 2. Score History | 5/5 | Complete   | 2026-03-08 |
-| 3. Rematch Flow | 0/TBD | Not started | - |
+| 3. Rematch Flow | 0/2 | Not started | - |
 | 4. In-Game Chat | 0/TBD | Not started | - |
