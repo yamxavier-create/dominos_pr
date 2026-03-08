@@ -12,12 +12,31 @@ This milestone layers three social features — score history, rematch, and in-g
 
 Decimal phases appear between their surrounding integers in numeric order.
 
+- [x] **Phase 0.5: Game Flow Bugs** - Cuatro bugs críticos de flujo de juego arreglados: segundo juego bloqueado, turno inicial incorrecto, tablero no responsivo, ficha atascada en tablero vacío
 - [ ] **Phase 1: Bug Fixes** - Fix four prerequisite bugs that block correct rematch UI, chat input, and animation behavior
 - [ ] **Phase 2: Score History** - Add a collapsible per-hand score log accessible from the score bar during a game
 - [ ] **Phase 3: Rematch Flow** - Let all four players agree to rematch in the same room without re-sharing the code
 - [ ] **Phase 4: In-Game Chat** - Add a slide-in chat panel with free text messages and quick reactions
 
 ## Phase Details
+
+### Phase 0.5: Game Flow Bugs ✓ COMPLETE (2026-03-08)
+**Goal**: El juego fluye correctamente entre manos y partidas — el jugador correcto comienza, las fichas se pueden colocar siempre, y el tablero es visible en cualquier tamaño de pantalla
+**Depends on**: Nothing
+**Requirements**: BUG-05, BUG-06, BUG-07, BUG-08
+**Success Criteria** (what must be TRUE):
+  1. Al terminar un juego, el ganador puede iniciar el segundo juego tirando cualquier ficha (sin buscar el 6-6)
+  2. Quien gana una mano tirando su última ficha es quien comienza la siguiente mano
+  3. En tranque, quien tiene menos pips es quien comienza la siguiente mano
+  4. El tablero escala para caber en cualquier tamaño de ventana (móvil, tablet, desktop)
+  5. El primer tile de cualquier juego/mano siempre se puede colocar con un solo click
+**Fixed files**:
+  - `server/src/game/GameState.ts` — added `gameWinnerIndex` field
+  - `server/src/game/GameEngine.ts` — `getValidPlays` returns all tiles freely when `forcedFirstTileId = ''`
+  - `server/src/socket/gameHandlers.ts` — `game:next_game` uses winner; `played_out` updates `handStarterIndex`
+  - `client/src/components/board/GameBoard.tsx` — scale transform for responsive board
+  - `client/src/hooks/useGameActions.ts` — empty board plays directly to 'right'
+  - `client/src/hooks/useSocket.ts` — clears `selectedTileId` on `game:started`
 
 ### Phase 1: Bug Fixes
 **Goal**: The game has a stable, correct baseline that won't break rematch UI, chat input, or tile animations
@@ -28,7 +47,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. The host indicator is correct after host promotion — the promoted player sees host-gated UI, the original seat-0 player does not
   3. When the turn passes to another player, any previously selected tile is deselected — no ghost selection persists
   4. The server starts cleanly with no dynamic-require warning; the reconnect path can be safely extended
-**Plans**: TBD
+**Plans**: 1 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Validate all four bug fixes (BUG-01 through BUG-04) via type-check and runtime smoke test
 
 ### Phase 2: Score History
 **Goal**: Players can see the accumulated per-hand score log at any point during a game without leaving the game view
@@ -77,7 +99,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Bug Fixes | 0/TBD | Not started | - |
-| 2. Score History | 2/5 | In Progress|  |
+| 0.5. Game Flow Bugs | 4/4 | ✓ Complete | 2026-03-08 |
+| 1. Bug Fixes | 0/1 | Not started | - |
+| 2. Score History | 2/5 | In Progress | - |
 | 3. Rematch Flow | 0/TBD | Not started | - |
 | 4. In-Game Chat | 0/TBD | Not started | - |
