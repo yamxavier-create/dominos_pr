@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { useGameStore } from '../../store/gameStore'
 import { useUIStore } from '../../store/uiStore'
 import { useRoomStore } from '../../store/roomStore'
@@ -6,10 +7,22 @@ import { socket } from '../../socket'
 export function GameEndModal() {
   const gameEndData = useGameStore(s => s.gameEndData)
   const showGameEnd = useUIStore(s => s.showGameEnd)
+  const rematchVotes = useUIStore(s => s.rematchVotes)
+  const rematchPlayerNames = useUIStore(s => s.rematchPlayerNames)
+  const rematchCancelled = useUIStore(s => s.rematchCancelled)
   const myPlayerIndex = useRoomStore(s => s.myPlayerIndex)
   const roomCode = useRoomStore(s => s.roomCode)
-  const room = useRoomStore(s => s.room)
-  const isHost = room?.hostSocketId === socket.id
+
+  const [showRevancha, setShowRevancha] = useState(false)
+
+  useEffect(() => {
+    if (!showGameEnd) {
+      setShowRevancha(false)
+      return
+    }
+    const timer = setTimeout(() => setShowRevancha(true), 2500)
+    return () => clearTimeout(timer)
+  }, [showGameEnd])
 
   if (!showGameEnd || !gameEndData) return null
 
@@ -17,10 +30,17 @@ export function GameEndModal() {
   const weWon = gameEndData.winningTeam === myTeam
   const winTeamColor = gameEndData.winningTeam === 0 ? '#22C55E' : '#F97316'
 
-  const handlePlayAgain = () => {
-    socket.emit('game:next_game', { roomCode })
-    // Modal will close when state_snapshot with phase=playing arrives in useSocket
+  const hasVoted = rematchVotes.includes(myPlayerIndex ?? -1)
+  const allVoted = rematchVotes.length === 4
+
+  const handleRematchVote = () => {
+    socket.emit('game:rematch_vote', { roomCode })
   }
+
+  // Team labels relative to player
+  const team0Label = myTeam === 0 ? 'Nosotros' : 'Ellos'
+  const team1Label = myTeam === 1 ? 'Nosotros' : 'Ellos'
+  const winnerText = weWon ? 'Nosotros ganamos el partido' : 'Ellos ganaron el partido'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
@@ -44,7 +64,7 @@ export function GameEndModal() {
               {weWon ? '¡Ganamos!' : 'Perdimos'}
             </h1>
             <p className="font-body text-white/60 mt-2 text-sm">
-              {gameEndData.winningTeam === 0 ? 'Equipo A' : 'Equipo B'} ganó el partido
+              {winnerText}
             </p>
           </div>
 
@@ -53,14 +73,14 @@ export function GameEndModal() {
             <p className="font-body text-white/40 text-xs mb-4 uppercase tracking-wider">Marcador Final</p>
             <div className="flex justify-around items-center">
               <div className="text-center">
-                <p className="font-body text-sm mb-1" style={{ color: '#22C55E' }}>Equipo A</p>
+                <p className="font-body text-sm mb-1" style={{ color: '#22C55E' }}>{team0Label}</p>
                 <p className={`font-header text-5xl leading-none ${gameEndData.winningTeam === 0 ? 'text-gold' : 'text-white/40'}`}>
                   {gameEndData.finalScores.team0}
                 </p>
               </div>
               <div className="font-body text-white/20 text-2xl">vs</div>
               <div className="text-center">
-                <p className="font-body text-sm mb-1" style={{ color: '#F97316' }}>Equipo B</p>
+                <p className="font-body text-sm mb-1" style={{ color: '#F97316' }}>{team1Label}</p>
                 <p className={`font-header text-5xl leading-none ${gameEndData.winningTeam === 1 ? 'text-gold' : 'text-white/40'}`}>
                   {gameEndData.finalScores.team1}
                 </p>
@@ -71,20 +91,80 @@ export function GameEndModal() {
             </p>
           </div>
 
-          {/* Play again */}
+          {/* Rematch voting section */}
           <div className="px-6 pb-8 pt-2">
-            {isHost ? (
+            {/* Revancha button */}
+            <div
+              className="transition-opacity duration-500"
+              style={{ opacity: showRevancha ? 1 : 0, pointerEvents: showRevancha ? 'auto' : 'none' }}
+            >
               <button
-                onClick={handlePlayAgain}
-                className="w-full text-white font-body font-bold py-4 rounded-xl transition-all hover:opacity-90 active:scale-95 text-lg"
+                onClick={handleRematchVote}
+                disabled={hasVoted || allVoted || !!rematchCancelled}
+                className="w-full text-white font-body font-bold py-4 rounded-xl transition-all hover:opacity-90 active:scale-95 text-lg disabled:opacity-60 disabled:cursor-default disabled:active:scale-100"
                 style={{ background: 'linear-gradient(135deg, #22C55E, #16a34a)' }}
               >
-                Jugar de Nuevo
+                {hasVoted ? '✓ Listo' : 'Revancha'}
               </button>
-            ) : (
-              <p className="text-center font-body text-white/40 text-sm py-4">
-                Esperando al host...
-              </p>
+            </div>
+
+            {/* Vote counter and player list */}
+            {rematchVotes.length > 0 && !allVoted && (
+              <div className="mt-4">
+                <p className="font-body text-white/60 text-sm mb-2">
+                  {rematchVotes.length}/4 listos
+                </p>
+                <div className="space-y-1">
+                  {rematchPlayerNames.map((name, idx) => {
+                    const voted = rematchVotes.includes(idx)
+                    const disconnected = rematchCancelled?.playerIndex === idx
+                    return (
+                      <div key={idx} className="flex items-center justify-between px-4 py-1">
+                        <span className="font-body text-white/70 text-sm">{name}</span>
+                        {disconnected ? (
+                          <span className="text-red-400 font-bold">✕</span>
+                        ) : voted ? (
+                          <span
+                            className="transition-transform duration-200 inline-block text-green-400 font-bold"
+                            style={{ transform: 'scale(1)' }}
+                          >
+                            ✓
+                          </span>
+                        ) : (
+                          <span className="text-white/30 text-sm">...</span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Celebration */}
+            {allVoted && !rematchCancelled && (
+              <div className="mt-4">
+                <p
+                  className="font-header text-3xl text-gold transition-transform duration-300"
+                  style={{ animation: 'scale-in 300ms ease-out forwards' }}
+                >
+                  ¡Revancha! 🔥
+                </p>
+                <style>{`
+                  @keyframes scale-in {
+                    from { transform: scale(0); opacity: 0; }
+                    to { transform: scale(1); opacity: 1; }
+                  }
+                `}</style>
+              </div>
+            )}
+
+            {/* Disconnect cancellation */}
+            {rematchCancelled && (
+              <div className="mt-4 bg-red-900/40 border border-red-500/30 rounded-lg px-4 py-3">
+                <p className="font-body text-red-300 text-sm">
+                  {rematchCancelled.playerName} se desconecto. Revancha cancelada.
+                </p>
+              </div>
             )}
           </div>
         </div>
