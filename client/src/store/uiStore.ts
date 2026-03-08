@@ -12,6 +12,10 @@ interface UIStore {
   showScoreHistory: boolean
   // Sound
   soundEnabled: boolean
+  // Rematch voting
+  rematchVotes: number[]
+  rematchPlayerNames: string[]
+  rematchCancelled: { playerIndex: number; playerName: string } | null
 
   setSelectedTile: (id: string | null) => void
   addPasoNotification: (payload: PassPayload) => void
@@ -20,6 +24,9 @@ interface UIStore {
   setShowGameEnd: (v: boolean) => void
   setShowScoreHistory: (v: boolean) => void
   toggleSound: () => void
+  setRematchVotes: (votes: number[], playerNames: string[]) => void
+  setRematchCancelled: (data: { playerIndex: number; playerName: string } | null) => void
+  clearRematchState: () => void
 }
 
 export const useUIStore = create<UIStore>(set => ({
@@ -29,6 +36,9 @@ export const useUIStore = create<UIStore>(set => ({
   showGameEnd: false,
   showScoreHistory: false,
   soundEnabled: true,
+  rematchVotes: [],
+  rematchPlayerNames: [],
+  rematchCancelled: null,
 
   setSelectedTile: selectedTileId => set({ selectedTileId }),
 
@@ -46,4 +56,7 @@ export const useUIStore = create<UIStore>(set => ({
   setShowGameEnd: showGameEnd => set({ showGameEnd }),
   setShowScoreHistory: showScoreHistory => set({ showScoreHistory }),
   toggleSound: () => set(state => ({ soundEnabled: !state.soundEnabled })),
+  setRematchVotes: (votes, playerNames) => set({ rematchVotes: votes, rematchPlayerNames: playerNames }),
+  setRematchCancelled: rematchCancelled => set({ rematchCancelled }),
+  clearRematchState: () => set({ rematchVotes: [], rematchPlayerNames: [], rematchCancelled: null }),
 }))
