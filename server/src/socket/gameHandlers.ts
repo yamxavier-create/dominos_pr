@@ -338,6 +338,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     room.game = game
     room.status = 'in_game'
     room.rematchVotes = []
+    room.chatHistory = []
 
     // Send personalised game state to each player
     for (const player of game.players) {

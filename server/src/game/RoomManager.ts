@@ -33,6 +33,7 @@ export class RoomManager {
       game: null,
       lastActivity: Date.now(),
       rematchVotes: [],
+      chatHistory: [],
     }
     this.rooms.set(roomCode, room)
     this.socketToRoom.set(socketId, roomCode)

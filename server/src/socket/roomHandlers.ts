@@ -82,6 +82,23 @@ export function registerRoomHandlers(socket: Socket, io: Server, rooms: RoomMana
     socket.join(roomCode)
     rooms.registerSocket(socket.id, roomCode)
     console.log(`[room:rejoin] ${playerName} reconnected to ${roomCode}: ${oldSocketId} → ${socket.id}`)
+
+    // Send chat history on reconnect
+    if (room.chatHistory?.length) {
+      socket.emit('chat:history', { messages: room.chatHistory })
+    }
+  })
+
+  socket.on('room:swap_seats', ({ seatA, seatB }: { seatA: number; seatB: number }) => {
+    const room = rooms.swapSeats(socket.id, seatA, seatB)
+    if (!room) return
+    // Notify all players of updated room info AND their new seat index
+    for (const p of room.players) {
+      io.to(p.socketId).emit('room:seat_swapped', {
+        room: rooms.getRoomInfo(room),
+        myPlayerIndex: p.seatIndex,
+      })
+    }
   })
 
   socket.on('room:leave', () => {

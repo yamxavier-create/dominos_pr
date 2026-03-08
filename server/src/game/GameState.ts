@@ -83,6 +83,18 @@ export interface Room {
   game: ServerGameState | null
   lastActivity: number        // Date.now() for cleanup
   rematchVotes: number[]      // playerIndex values who voted for rematch
+  chatHistory: ChatMessage[]  // last 50 messages, cleared on game start
+}
+
+// ─── Chat ────────────────────────────────────────────────────────────────────
+
+export interface ChatMessage {
+  id: string
+  playerIndex: number
+  playerName: string
+  content: string
+  type: 'text' | 'reaction'
+  timestamp: number
 }
 
 // ─── Socket Payloads (Server → Client) ────────────────────────────────────────
