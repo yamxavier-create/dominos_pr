@@ -62,6 +62,7 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
     let y = 0
     let dir = 1
     let rowMaxH = anchorH  // anchor is in row 0, count its height for wrap spacing
+    let tilesInRow = 1  // anchor counts as first tile in row
 
     for (let i = anchorIdx + 1; i < n; i++) {
       const { w: tileW, h: tileH } = tileSize(tiles[i])
@@ -71,7 +72,7 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
 
       if (dir === 1) {
         cx = x + tileW / 2
-        if (cx + tileW / 2 + EDGE_PAD > half) {
+        if (cx + tileW / 2 + EDGE_PAD > half && tilesInRow >= 2) {
           isCorner = true
           const effW = isHorizontal ? TILE_V_W : tileW
           const effH = isHorizontal ? TILE_V_H : tileH
@@ -80,13 +81,15 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
           rowMaxH = effH
           dir = -1
           x = cx - effW / 2 - GAP
+          tilesInRow = 1
         } else {
           rowMaxH = Math.max(rowMaxH, tileH)
           x = cx + tileW / 2 + GAP
+          tilesInRow++
         }
       } else {
         cx = x - tileW / 2
-        if (cx - tileW / 2 - EDGE_PAD < -half) {
+        if (cx - tileW / 2 - EDGE_PAD < -half && tilesInRow >= 2) {
           isCorner = true
           const effW = isHorizontal ? TILE_V_W : tileW
           const effH = isHorizontal ? TILE_V_H : tileH
@@ -95,9 +98,11 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
           rowMaxH = effH
           dir = 1
           x = cx + effW / 2 + GAP
+          tilesInRow = 1
         } else {
           rowMaxH = Math.max(rowMaxH, tileH)
           x = cx - tileW / 2 - GAP
+          tilesInRow++
         }
       }
 
@@ -116,6 +121,7 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
     let y = 0
     let dir = -1
     let rowMaxH = anchorH
+    let tilesInRow = 1  // anchor counts as first tile in row
 
     for (let i = anchorIdx - 1; i >= 0; i--) {
       const { w: tileW, h: tileH } = tileSize(tiles[i])
@@ -125,7 +131,7 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
 
       if (dir === -1) {
         cx = x - tileW / 2
-        if (cx - tileW / 2 - EDGE_PAD < -half) {
+        if (cx - tileW / 2 - EDGE_PAD < -half && tilesInRow >= 2) {
           isCorner = true
           const effW = isHorizontal ? TILE_V_W : tileW
           const effH = isHorizontal ? TILE_V_H : tileH
@@ -134,13 +140,15 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
           rowMaxH = effH
           dir = 1
           x = cx + effW / 2 + GAP
+          tilesInRow = 1
         } else {
           rowMaxH = Math.max(rowMaxH, tileH)
           x = cx - tileW / 2 - GAP
+          tilesInRow++
         }
       } else {
         cx = x + tileW / 2
-        if (cx + tileW / 2 + EDGE_PAD > half) {
+        if (cx + tileW / 2 + EDGE_PAD > half && tilesInRow >= 2) {
           isCorner = true
           const effW = isHorizontal ? TILE_V_W : tileW
           const effH = isHorizontal ? TILE_V_H : tileH
@@ -149,9 +157,11 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
           rowMaxH = effH
           dir = -1
           x = cx - effW / 2 - GAP
+          tilesInRow = 1
         } else {
           rowMaxH = Math.max(rowMaxH, tileH)
           x = cx + tileW / 2 + GAP
+          tilesInRow++
         }
       }
 
@@ -215,6 +225,22 @@ export function GameBoard({ board, validPlays }: GameBoardProps) {
 
   const layout = computeSnakeLayout(board.tiles, dims.w, dims.h)
 
+  // Compute bounding box of all tiles to determine if scaling is needed
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+  board.tiles.forEach((bt, idx) => {
+    const { pos } = layout[idx]
+    const corner = layout[idx].corner
+    const { w, h } = tileDisplaySize(bt, corner)
+    minX = Math.min(minX, pos.x - w / 2)
+    minY = Math.min(minY, pos.y - h / 2)
+    maxX = Math.max(maxX, pos.x + w / 2)
+    maxY = Math.max(maxY, pos.y + h / 2)
+  })
+  const BADGE_MARGIN = 48 // space for end badges
+  const contentW = maxX - minX + BADGE_MARGIN * 2
+  const contentH = maxY - minY + BADGE_MARGIN * 2
+  const scale = Math.min(1, dims.w / contentW, dims.h / contentH)
+
   const leftEnd = board.tiles[0]
   const rightEnd = board.tiles[board.tiles.length - 1]
   const leftItem = layout[0]
@@ -260,43 +286,52 @@ export function GameBoard({ board, validPlays }: GameBoardProps) {
 
   return (
     <div ref={containerRef} className="w-full h-full overflow-hidden relative">
-      {/* Tiles */}
-      {board.tiles.map((bt, idx) => {
-        const { pos, flipped, corner } = layout[idx]
-        if (!pos) return null
-        const { w, h } = tileDisplaySize(bt, corner)
-        return (
-          <div
-            key={bt.tile.id}
-            className="absolute"
-            style={{ left: pos.x - w / 2, top: pos.y - h / 2, width: w, height: h }}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          transform: scale < 1 ? `scale(${scale})` : undefined,
+          transformOrigin: 'center center',
+        }}
+      >
+        {/* Tiles */}
+        {board.tiles.map((bt, idx) => {
+          const { pos, flipped, corner } = layout[idx]
+          if (!pos) return null
+          const { w, h } = tileDisplaySize(bt, corner)
+          return (
+            <div
+              key={bt.tile.id}
+              className="absolute"
+              style={{ left: pos.x - w / 2, top: pos.y - h / 2, width: w, height: h }}
+            >
+              <BoardTileItem boardTile={bt} isNew={bt.sequence === lastTileSequence} flipped={flipped} corner={corner} />
+            </div>
+          )
+        })}
+
+        {/* Left-end badge */}
+        {leftItem && board.leftEnd !== null && (
+          <button
+            onClick={() => canPlayLeft && playTileOnEnd('left')}
+            className={endBadgeClass(canPlayLeft)}
+            style={{ left: leftBadgeX, top: leftBadgeY }}
           >
-            <BoardTileItem boardTile={bt} isNew={bt.sequence === lastTileSequence} flipped={flipped} corner={corner} />
-          </div>
-        )
-      })}
+            {board.leftEnd}
+          </button>
+        )}
 
-      {/* Left-end badge */}
-      {leftItem && board.leftEnd !== null && (
-        <button
-          onClick={() => canPlayLeft && playTileOnEnd('left')}
-          className={endBadgeClass(canPlayLeft)}
-          style={{ left: leftBadgeX, top: leftBadgeY }}
-        >
-          {board.leftEnd}
-        </button>
-      )}
-
-      {/* Right-end badge */}
-      {rightItem && board.rightEnd !== null && (
-        <button
-          onClick={() => canPlayRight && playTileOnEnd('right')}
-          className={endBadgeClass(canPlayRight)}
-          style={{ left: rightBadgeX, top: rightBadgeY }}
-        >
-          {board.rightEnd}
-        </button>
-      )}
+        {/* Right-end badge */}
+        {rightItem && board.rightEnd !== null && (
+          <button
+            onClick={() => canPlayRight && playTileOnEnd('right')}
+            className={endBadgeClass(canPlayRight)}
+            style={{ left: rightBadgeX, top: rightBadgeY }}
+          >
+            {board.rightEnd}
+          </button>
+        )}
+      </div>
     </div>
   )
 }
