@@ -5,12 +5,19 @@
 
 ## v1 Requirements
 
+### Game Flow Bugs (fixed 2026-03-08)
+
+- [x] **BUG-05**: El segundo juego no puede comenzar — `game:next_game` siempre buscaba el 6-6 en vez de usar el ganador del juego anterior como primer jugador libre
+- [x] **BUG-06**: El jugador incorrecto comenzaba la siguiente mano/juego — `game.handStarterIndex` no se actualizaba cuando un jugador ganaba tirando su última ficha (`played_out`); solo se actualizaba en tranques
+- [x] **BUG-07**: Tablero no responsivo — fichas se salían del área visible en ventanas pequeñas, móviles y tablets; el board ahora escala con `transform: scale()` para caber en cualquier tamaño
+- [x] **BUG-08**: Ficha seleccionada pero no se podía colocar en tablero vacío — cuando el tablero está vacío no existen badges de extremo para clickear; ahora se juega directamente al 'right' sin requerir selección de extremo
+
 ### Bug Fixes (prerequisite)
 
-- [ ] **BUG-01**: Animación de tile va al tile correcto cuando se juega en el extremo izquierdo del tablero (actualmente selecciona el último elemento del array en lugar del tile con mayor sequence)
-- [ ] **BUG-02**: El indicador de host se determina correctamente desde el servidor, no asumiendo que seat 0 siempre es el host (fix para el modal "Siguiente Mano" y base para el flow de Revancha)
-- [ ] **BUG-03**: `selectedTileId` se limpia cuando el turno cambia a otro jugador (previene conflicto con el input de chat)
-- [ ] **BUG-04**: El `require()` dinámico en `roomHandlers.ts:36` se convierte a import estático (prerequisito para agregar lógica de reconexión a chat e historial)
+- [x] **BUG-01**: Animación de tile va al tile correcto cuando se juega en el extremo izquierdo del tablero (actualmente selecciona el último elemento del array en lugar del tile con mayor sequence)
+- [x] **BUG-02**: El indicador de host se determina correctamente desde el servidor, no asumiendo que seat 0 siempre es el host (fix para el modal "Siguiente Mano" y base para el flow de Revancha)
+- [x] **BUG-03**: `selectedTileId` se limpia cuando el turno cambia a otro jugador (previene conflicto con el input de chat)
+- [x] **BUG-04**: El `require()` dinámico en `roomHandlers.ts:36` se convierte a import estático (prerequisito para agregar lógica de reconexión a chat e historial)
 
 ### Score History
 
@@ -71,10 +78,14 @@ Actualizado durante la creación del roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BUG-01 | Phase 1 | Pending |
-| BUG-02 | Phase 1 | Pending |
-| BUG-03 | Phase 1 | Pending |
-| BUG-04 | Phase 1 | Pending |
+| BUG-05 | Phase 0.5 | Complete |
+| BUG-06 | Phase 0.5 | Complete |
+| BUG-07 | Phase 0.5 | Complete |
+| BUG-08 | Phase 0.5 | Complete |
+| BUG-01 | Phase 1 | Complete |
+| BUG-02 | Phase 1 | Complete |
+| BUG-03 | Phase 1 | Complete |
+| BUG-04 | Phase 1 | Complete |
 | SCORE-01 | Phase 2 | Complete |
 | SCORE-02 | Phase 2 | Complete |
 | SCORE-03 | Phase 2 | Complete |
