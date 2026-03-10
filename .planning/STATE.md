@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Completed 04-02-PLAN.md
-last_updated: "2026-03-10T18:07:06.301Z"
+last_updated: "2026-03-10T18:22:33.381Z"
 last_activity: 2026-03-08 — Chat data pipeline (server handler + client state)
 progress:
   total_phases: 5
@@ -81,6 +81,7 @@ Recent decisions affecting current work:
 - [Phase 03]: Team labels changed from Equipo A/B to Nosotros/Ellos (relative to player)
 - [Phase 03]: All-player Revancha button replaces host-only Jugar de Nuevo
 - [Phase 04]: ChatMessage interface duplicated in client/server (no shared types package)
+- [Phase 04-in-game-chat]: Emoji-only reactions (21 total) instead of text phrases; rate limit raised to 15/10s; removed allowlist validation
 
 ### Pending Todos
 
@@ -99,6 +100,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-10T18:07:06.291Z
+Last session: 2026-03-10T18:22:33.120Z
 Stopped at: Completed 04-02-PLAN.md
 Resume file: None
