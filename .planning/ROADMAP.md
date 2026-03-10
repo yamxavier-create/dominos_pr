@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 1: Bug Fixes** - Fix four prerequisite bugs that block correct rematch UI, chat input, and animation behavior
 - [x] **Phase 2: Score History** - Add a collapsible per-hand score log accessible from the score bar during a game (completed 2026-03-08)
 - [x] **Phase 3: Rematch Flow** - Let all four players agree to rematch in the same room without re-sharing the code (completed 2026-03-08)
-- [ ] **Phase 4: In-Game Chat** - Add a slide-in chat panel with free text messages and quick reactions
+- [x] **Phase 4: In-Game Chat** - Add a slide-in chat panel with free text messages and quick reactions (completed 2026-03-10)
 
 ## Phase Details
 
@@ -111,4 +111,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. Bug Fixes | 0/1 | Not started | - |
 | 2. Score History | 5/5 | Complete   | 2026-03-08 |
 | 3. Rematch Flow | 2/2 | Complete   | 2026-03-08 |
-| 4. In-Game Chat | 1/2 | In Progress|  |
+| 4. In-Game Chat | 2/2 | Complete   | 2026-03-10 |
