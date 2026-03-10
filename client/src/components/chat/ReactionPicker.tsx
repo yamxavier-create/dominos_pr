@@ -2,6 +2,7 @@ import { socket } from '../../socket'
 
 export const QUICK_REACTIONS = [
   '🔥', '😂', '💀', '🫡', '👏', '😤', '🤙', '😎', '🎯', '🤡',
+  '🥶', '😈', '💯', '🫶', '🤯', '👀', '🙏', '⚡', '🏆', '😏', '🫠',
 ] as const
 
 export function ReactionPicker() {
