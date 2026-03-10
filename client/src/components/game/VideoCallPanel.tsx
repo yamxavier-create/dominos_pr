@@ -3,6 +3,7 @@ import { useCallStore } from '../../store/callStore'
 import { useRoomStore } from '../../store/roomStore'
 import { socket } from '../../socket'
 import { ClientPlayer } from '../../types/game'
+import { joinCallRef } from '../../hooks/useWebRTC'
 
 interface VideoCallPanelProps {
   players: (ClientPlayer | undefined)[]
@@ -128,10 +129,24 @@ function SingleTile({ player, playerIndex, isMe, isCurrentTurn, stream, micMuted
 
 export function VideoCallPanel({ players, myPlayerIndex, currentPlayerIndex }: VideoCallPanelProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const [joining, setJoining] = useState(false)
   const localStream = useCallStore(s => s.localStream)
   const remoteStreams = useCallStore(s => s.remoteStreams)
   const mutedPeers = useCallStore(s => s.mutedPeers)
   const cameraOffPeers = useCallStore(s => s.cameraOffPeers)
+  const myAudioEnabled = useCallStore(s => s.myAudioEnabled)
+  const myVideoEnabled = useCallStore(s => s.myVideoEnabled)
+
+  const inCall = myAudioEnabled || myVideoEnabled
+
+  const handleJoin = async (audio: boolean, video: boolean) => {
+    setJoining(true)
+    try {
+      await joinCallRef.current?.(audio, video)
+    } finally {
+      setJoining(false)
+    }
+  }
 
   // Order: me first, then others in seat order
   const orderedIndices = [
@@ -177,7 +192,31 @@ export function VideoCallPanel({ players, myPlayerIndex, currentPlayerIndex }: V
           pointerEvents: isOpen ? 'auto' : 'none',
         }}
       >
-        {isOpen && orderedIndices.map(idx => {
+        {isOpen && !inCall && (
+          <div className="flex flex-col gap-2 py-2">
+            <p className="text-white/60 text-xs text-center leading-snug px-1">
+              No te uniste a la llamada en el lobby
+            </p>
+            <button
+              onClick={() => handleJoin(true, true)}
+              disabled={joining}
+              className="w-full rounded-lg py-2 text-white text-xs font-bold transition-colors disabled:opacity-50"
+              style={{ background: '#22C55E' }}
+            >
+              {joining ? 'Conectando...' : '📷 Cámara + Mic'}
+            </button>
+            <button
+              onClick={() => handleJoin(true, false)}
+              disabled={joining}
+              className="w-full rounded-lg py-2 text-white text-xs font-bold transition-colors disabled:opacity-50"
+              style={{ background: 'rgba(255,255,255,0.12)' }}
+            >
+              {joining ? 'Conectando...' : '🎤 Solo Mic'}
+            </button>
+          </div>
+        )}
+
+        {isOpen && inCall && orderedIndices.map(idx => {
           const player = players[idx]
           if (!player) return null
           const isMe = idx === myPlayerIndex

@@ -149,6 +149,28 @@ export function useWebRTC() {
     getCallStore().resetCallState()
   }, [])
 
+  // Join call mid-game: acquire media, create PCs for all other players
+  const joinCall = useCallback(async (audio: boolean, video: boolean) => {
+    getCallStore().setMyLobbyOpt(audio, video)
+    socket.emit('webrtc:lobby_opt', { roomCode, audio, video })
+
+    const stream = await navigator.mediaDevices.getUserMedia({ video, audio }).catch(async () => {
+      // fallback: audio only
+      if (video && audio) return navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => null)
+      return null
+    })
+
+    if (!stream) return
+    localStreamRef.current = stream
+    getCallStore().setLocalStream(stream)
+
+    // Connect to all other players (they may or may not have cameras — signal handler will handle incoming offers)
+    for (let i = 0; i < 4; i++) {
+      if (i === myPlayerIndex) continue
+      if (!pcsRef.current[i]) createPC(i)
+    }
+  }, [myPlayerIndex, roomCode, createPC])
+
   // Initialize: get media, create PCs for all opted-in peers, register socket handler
   useEffect(() => {
     let mounted = true
@@ -179,20 +201,27 @@ export function useWebRTC() {
 
     init()
 
-    // Register signal handler — expose via ref so useSocket can call it
+    // Register signal handler and joinCall — expose via refs so other components can call them
     signalHandlerRef.current = handleSignal
+    joinCallRef.current = joinCall
 
     return () => {
       mounted = false
+      joinCallRef.current = null
       cleanup()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  return { handleSignal, cleanup }
+  return { handleSignal, cleanup, joinCall }
 }
 
 // Shared ref so useSocket.ts can route 'webrtc:signal' events to the hook instance
 export const signalHandlerRef = {
   current: null as ((data: { from: number; desc?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit }) => void) | null
+}
+
+// Shared ref so VideoCallPanel can trigger mid-game join
+export const joinCallRef = {
+  current: null as ((audio: boolean, video: boolean) => Promise<void>) | null
 }
