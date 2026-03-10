@@ -33,9 +33,13 @@ function SingleTile({ player, playerIndex, isMe, isCurrentTurn, stream, micMuted
   const color = teamColor(playerIndex)
 
   useEffect(() => {
-    if (videoRef.current) videoRef.current.srcObject = stream ?? null
+    if (!videoRef.current) return
+    // React doesn't sync the `muted` prop to the DOM attribute — set it imperatively
+    videoRef.current.muted = isMe
+    videoRef.current.srcObject = stream ?? null
+    if (stream) videoRef.current.play().catch(() => {})
     return () => { if (videoRef.current) videoRef.current.srcObject = null }
-  }, [stream])
+  }, [stream, isMe])
 
   const handleToggleMic = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -74,7 +78,6 @@ function SingleTile({ player, playerIndex, isMe, isCurrentTurn, stream, micMuted
             ref={videoRef}
             autoPlay
             playsInline
-            muted={isMe}
             className="w-full h-full object-cover"
           />
         ) : (
