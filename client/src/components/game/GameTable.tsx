@@ -6,7 +6,8 @@ import { getPosition } from '../../hooks/usePlayerPositions'
 import { GameBoard } from '../board/GameBoard'
 import { PlayerHand } from '../player/PlayerHand'
 import { OpponentHand } from '../player/OpponentHand'
-import { PlayerSeat } from '../player/PlayerSeat'
+import { VideoTile } from '../player/VideoTile'
+import { useCallStore } from '../../store/callStore'
 import { TurnIndicator } from '../player/TurnIndicator'
 import { ScorePanel } from './ScorePanel'
 import { ScoreHistoryPanel } from './ScoreHistoryPanel'
@@ -30,6 +31,11 @@ export function GameTable() {
   const showScoreHistory = useUIStore(s => s.showScoreHistory)
   const setShowScoreHistory = useUIStore(s => s.setShowScoreHistory)
   const showRoundEnd = useUIStore(s => s.showRoundEnd)
+
+  const localStream = useCallStore(s => s.localStream)
+  const remoteStreams = useCallStore(s => s.remoteStreams)
+  const mutedPeers = useCallStore(s => s.mutedPeers)
+  const cameraOffPeers = useCallStore(s => s.cameraOffPeers)
 
   useEffect(() => {
     if (showRoundEnd) setShowScoreHistory(false)
@@ -101,10 +107,15 @@ export function GameTable() {
         <div className="flex flex-col items-center justify-start pt-1 gap-1 relative">
           {topPlayer && (
             <>
-              <PlayerSeat
+              <VideoTile
                 player={topPlayer}
+                playerIndex={topIndex}
+                isMe={false}
                 isCurrentTurn={currentPlayerIndex === topIndex}
                 position={getPosition(topIndex, myPlayerIndex)}
+                stream={remoteStreams[topIndex] ?? null}
+                micMuted={mutedPeers[topIndex] ?? false}
+                cameraOff={cameraOffPeers[topIndex] ?? false}
                 {...teamInfo(topIndex)}
               />
               <OpponentHand player={topPlayer} position="top" />
@@ -122,10 +133,15 @@ export function GameTable() {
         <div className="flex flex-col items-center justify-center gap-1 px-1 relative">
           {leftPlayer && (
             <>
-              <PlayerSeat
+              <VideoTile
                 player={leftPlayer}
+                playerIndex={leftIndex}
+                isMe={false}
                 isCurrentTurn={currentPlayerIndex === leftIndex}
                 position={getPosition(leftIndex, myPlayerIndex)}
+                stream={remoteStreams[leftIndex] ?? null}
+                micMuted={mutedPeers[leftIndex] ?? false}
+                cameraOff={cameraOffPeers[leftIndex] ?? false}
                 {...teamInfo(leftIndex)}
               />
               <OpponentHand player={leftPlayer} position="left" />
@@ -149,10 +165,15 @@ export function GameTable() {
         <div className="flex flex-col items-center justify-center gap-1 px-1 relative">
           {rightPlayer && (
             <>
-              <PlayerSeat
+              <VideoTile
                 player={rightPlayer}
+                playerIndex={rightIndex}
+                isMe={false}
                 isCurrentTurn={currentPlayerIndex === rightIndex}
                 position={getPosition(rightIndex, myPlayerIndex)}
+                stream={remoteStreams[rightIndex] ?? null}
+                micMuted={mutedPeers[rightIndex] ?? false}
+                cameraOff={cameraOffPeers[rightIndex] ?? false}
                 {...teamInfo(rightIndex)}
               />
               <OpponentHand player={rightPlayer} position="right" />
@@ -169,10 +190,15 @@ export function GameTable() {
         {/* My hand (bottom) */}
         <div className="flex flex-col items-center justify-end pb-2 gap-1 relative">
           {myPlayer && (
-            <PlayerSeat
+            <VideoTile
               player={myPlayer}
+              playerIndex={myPlayerIndex}
+              isMe={true}
               isCurrentTurn={isMyTurn}
               position="bottom"
+              stream={localStream}
+              micMuted={false}
+              cameraOff={false}
               {...teamInfo(myPlayerIndex)}
             />
           )}
