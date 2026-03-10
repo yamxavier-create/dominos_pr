@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-02-PLAN.md
-last_updated: "2026-03-10T20:58:47.074Z"
+stopped_at: Completed 05-03-PLAN.md
+last_updated: "2026-03-10T21:01:25.579Z"
 last_activity: 2026-03-08 — Chat data pipeline (server handler + client state)
 progress:
   total_phases: 6
   completed_phases: 4
   total_plans: 15
-  completed_plans: 12
+  completed_plans: 13
   percent: 90
 ---
 
@@ -61,6 +61,7 @@ Progress: [█████████░] 90%
 | Phase 04 P01 | 3min | 2 tasks | 8 files |
 | Phase 05 P01 | 4 | 2 tasks | 3 files |
 | Phase 05 P02 | 5 | 2 tasks | 2 files |
+| Phase 05 P03 | 5 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -91,6 +92,7 @@ Recent decisions affecting current work:
 - [Phase 05]: webrtc:lobby_opt uses room.players (RoomPlayer[]) not room.game.players since lobby opt fires before game starts
 - [Phase 05]: RTCSessionDescriptionInit typed as unknown on server — server never interprets SDP/ICE, avoids browser DOM type dependency
 - [Phase 05]: Mic/camera icons placed inside existing player row using e.stopPropagation() on own-player buttons to avoid triggering host seat-swap logic
+- [Phase 05]: signalHandlerRef module-level export routes webrtc:signal events to useWebRTC instance without prop drilling
 
 ### Pending Todos
 
@@ -109,6 +111,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-10T20:58:42.046Z
-Stopped at: Completed 05-02-PLAN.md
+Last session: 2026-03-10T21:01:20.877Z
+Stopped at: Completed 05-03-PLAN.md
 Resume file: None
