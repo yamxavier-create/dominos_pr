@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useRoomStore } from '../../store/roomStore'
 import { useGameActions } from '../../hooks/useGameActions'
 import { socket } from '../../socket'
+import { useCallStore } from '../../store/callStore'
 
 const teamColors = ['#22C55E', '#F97316', '#22C55E', '#F97316']
 const seatLabels = ['Host', 'Jugador 2', 'Jugador 3', 'Jugador 4']
@@ -9,9 +10,25 @@ const teamLabels = ['A', 'B', 'A', 'B']
 
 export function RoomLobby() {
   const room = useRoomStore(s => s.room)
+  const roomCode = useRoomStore(s => s.roomCode)
   const myPlayerIndex = useRoomStore(s => s.myPlayerIndex)
   const { startGame } = useGameActions()
   const [selectedSeat, setSelectedSeat] = useState<number | null>(null)
+  const myAudioEnabled = useCallStore(s => s.myAudioEnabled)
+  const myVideoEnabled = useCallStore(s => s.myVideoEnabled)
+  const lobbyOpts = useCallStore(s => s.lobbyOpts)
+
+  const handleToggleAudio = () => {
+    const newAudio = !myAudioEnabled
+    useCallStore.getState().setMyLobbyOpt(newAudio, myVideoEnabled)
+    socket.emit('webrtc:lobby_opt', { roomCode, audio: newAudio, video: myVideoEnabled })
+  }
+
+  const handleToggleVideo = () => {
+    const newVideo = !myVideoEnabled
+    useCallStore.getState().setMyLobbyOpt(myAudioEnabled, newVideo)
+    socket.emit('webrtc:lobby_opt', { roomCode, audio: myAudioEnabled, video: newVideo })
+  }
 
   if (!room) return null
 
@@ -102,7 +119,53 @@ export function RoomLobby() {
                   )}
                 </div>
                 {player && (
-                  <span className="w-2 h-2 rounded-full bg-primary shrink-0" />
+                  <div className="flex items-center gap-1 shrink-0">
+                    {/* Mic icon */}
+                    {isMe ? (
+                      <button
+                        onClick={e => { e.stopPropagation(); handleToggleAudio() }}
+                        title={myAudioEnabled ? 'Micrófono activado' : 'Micrófono desactivado'}
+                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', lineHeight: 1 }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={myAudioEnabled ? '#F5C518' : 'rgba(255,255,255,0.3)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                          <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                          <line x1="12" y1="19" x2="12" y2="23" />
+                          <line x1="8" y1="23" x2="16" y2="23" />
+                          {!myAudioEnabled && <line x1="4" y1="4" x2="20" y2="20" stroke="rgba(255,255,255,0.3)" />}
+                        </svg>
+                      </button>
+                    ) : (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={lobbyOpts[seatIndex]?.audio ? '#F5C518' : 'rgba(255,255,255,0.3)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                        <line x1="12" y1="19" x2="12" y2="23" />
+                        <line x1="8" y1="23" x2="16" y2="23" />
+                        {!lobbyOpts[seatIndex]?.audio && <line x1="4" y1="4" x2="20" y2="20" stroke="rgba(255,255,255,0.3)" />}
+                      </svg>
+                    )}
+                    {/* Camera icon */}
+                    {isMe ? (
+                      <button
+                        onClick={e => { e.stopPropagation(); handleToggleVideo() }}
+                        title={myVideoEnabled ? 'Cámara activada' : 'Cámara desactivada'}
+                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', lineHeight: 1 }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={myVideoEnabled ? '#F5C518' : 'rgba(255,255,255,0.3)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polygon points="23 7 16 12 23 17 23 7" />
+                          <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                          {!myVideoEnabled && <line x1="4" y1="4" x2="20" y2="20" stroke="rgba(255,255,255,0.3)" />}
+                        </svg>
+                      </button>
+                    ) : (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={lobbyOpts[seatIndex]?.video ? '#F5C518' : 'rgba(255,255,255,0.3)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="23 7 16 12 23 17 23 7" />
+                        <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                        {!lobbyOpts[seatIndex]?.video && <line x1="4" y1="4" x2="20" y2="20" stroke="rgba(255,255,255,0.3)" />}
+                      </svg>
+                    )}
+                    <span className="w-2 h-2 rounded-full bg-primary" />
+                  </div>
                 )}
               </div>
             </div>
