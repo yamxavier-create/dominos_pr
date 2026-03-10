@@ -3,8 +3,6 @@ import { RoomManager } from '../game/RoomManager'
 import { ChatMessage } from '../game/GameState'
 import { randomUUID } from 'crypto'
 
-const QUICK_REACTIONS = ['🔥', '😂', '💀', '🫡', '👏', '😤', '🤙', '😎', '🎯', '🤡', '🥶', '😈', '💯', '🫶', '🤯', '👀', '🙏', '🤬', '🏆', '😏', '🫠']
-
 const RATE_LIMIT_WINDOW = 10_000 // 10 seconds
 const RATE_LIMIT_MAX = 15
 
@@ -36,8 +34,6 @@ export function registerChatHandlers(socket: Socket, io: Server, rooms: RoomMana
     let content = message.replace(/<[^>]*>/g, '').trim().slice(0, 200)
     if (!content) return
 
-    // Validate reactions against allowlist
-    if (type === 'reaction' && !QUICK_REACTIONS.includes(content)) return
 
     const chatMessage: ChatMessage = {
       id: randomUUID(),
