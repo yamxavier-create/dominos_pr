@@ -538,6 +538,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     }
 
     room.rematchVotes = []
+    room.chatHistory = []
 
     // Sync socket IDs from room (handles reconnections during game)
     syncPlayerSocketIds(game, rooms)
@@ -595,6 +596,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
         }
 
         room.rematchVotes = []
+        room.chatHistory = []
         syncPlayerSocketIds(game, rooms)
 
         for (const p of game.players) {
