@@ -4,6 +4,7 @@ import { socket } from '../socket'
 import { useGameStore } from '../store/gameStore'
 import { useRoomStore } from '../store/roomStore'
 import { useUIStore, ChatMessage } from '../store/uiStore'
+import { useCallStore } from '../store/callStore'
 import { ClientGameState, RoundEndPayload, GameEndPayload, PassPayload, RematchVoteUpdate, RematchCancelled } from '../types/game'
 
 export function useSocket() {
@@ -130,6 +131,10 @@ export function useSocket() {
       }, 2500)
     })
 
+    socket.on('webrtc:lobby_updated', ({ from, audio, video }: { from: number; audio: boolean; video: boolean }) => {
+      useCallStore.getState().setPeerLobbyOpt(from, audio, video)
+    })
+
     socket.on('chat:message', (msg: ChatMessage) => {
       useUIStore.getState().addChatMessage(msg)
     })
@@ -161,6 +166,7 @@ export function useSocket() {
       socket.off('game:rematch_vote_update')
       socket.off('game:rematch_accepted')
       socket.off('game:rematch_cancelled')
+      socket.off('webrtc:lobby_updated')
       socket.off('chat:message')
       socket.off('chat:history')
       socket.off('connection:player_disconnected')
