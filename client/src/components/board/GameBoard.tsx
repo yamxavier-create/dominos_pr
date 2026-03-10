@@ -79,7 +79,7 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
         const prevCorner = raw[i - 1]
         const prevH = tileDisplaySize(tiles[i - 1], cornerFlags[i - 1]).h
         cx = prevCorner.x
-        const tileY = prevCorner.y + prevH / 2 + effH / 2  // center of 2nd corner tile
+        const tileY = prevCorner.y + prevH / 2 + effH / 2  // center of 2nd corner tile (with gap)
         // Place the 2nd corner tile at its true center
         raw[i] = { x: cx, y: tileY }
         cornerFlags[i] = true
@@ -99,13 +99,12 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
       } else if (dir === 1) {
         cx = x + tileW / 2
         if (cx + tileW / 2 + EDGE_PAD > half && tilesInRow >= 2) {
-          // 1st corner tile — at end of row, top pip aligned with row
+          // 1st corner tile — placed flush against previous tile, extends downward
           isCorner = true
           const effW = isHorizontal ? TILE_V_W : tileW
           const effH = isHorizontal ? TILE_V_H : tileH
           const prevW = tileDisplaySize(tiles[i - 1], cornerFlags[i - 1]).w
           cx = raw[i - 1].x + prevW / 2 + effW / 2
-          cx = Math.min(cx, half - EDGE_PAD - effW / 2)
           // Top pip aligns with row center, tile extends downward
           y += (effH - TILE_H_H) / 2
           rowMaxH = effH
@@ -119,13 +118,12 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
       } else {
         cx = x - tileW / 2
         if (cx - tileW / 2 - EDGE_PAD < -half && tilesInRow >= 2) {
-          // 1st corner tile — at end of row, top pip aligned with row
+          // 1st corner tile — placed flush against previous tile, extends downward
           isCorner = true
           const effW = isHorizontal ? TILE_V_W : tileW
           const effH = isHorizontal ? TILE_V_H : tileH
           const prevW = tileDisplaySize(tiles[i - 1], cornerFlags[i - 1]).w
           cx = raw[i - 1].x - prevW / 2 - effW / 2
-          cx = Math.max(cx, -half + EDGE_PAD + effW / 2)
           // Top pip aligns with row center, tile extends downward
           y += (effH - TILE_H_H) / 2
           rowMaxH = effH
@@ -170,7 +168,7 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
         const prevCorner = raw[i + 1]
         const prevH = tileDisplaySize(tiles[i + 1], cornerFlags[i + 1]).h
         cx = prevCorner.x
-        const tileY = prevCorner.y - prevH / 2 - effH / 2  // center of 2nd corner tile
+        const tileY = prevCorner.y - prevH / 2 - effH / 2  // center of 2nd corner tile (with gap)
         // Place the 2nd corner tile at its true center
         raw[i] = { x: cx, y: tileY }
         cornerFlags[i] = true
@@ -190,13 +188,12 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
       } else if (dir === -1) {
         cx = x - tileW / 2
         if (cx - tileW / 2 - EDGE_PAD < -half && tilesInRow >= 2) {
-          // 1st corner tile — at end of row, bottom pip aligned with row
+          // 1st corner tile — placed flush against previous tile, extends upward
           isCorner = true
           const effW = isHorizontal ? TILE_V_W : tileW
           const effH = isHorizontal ? TILE_V_H : tileH
           const prevW = tileDisplaySize(tiles[i + 1], cornerFlags[i + 1]).w
           cx = raw[i + 1].x - prevW / 2 - effW / 2
-          cx = Math.max(cx, -half + EDGE_PAD + effW / 2)
           // Bottom pip aligns with row center, tile extends upward
           y -= (effH - TILE_H_H) / 2
           rowMaxH = effH
@@ -210,13 +207,12 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
       } else {
         cx = x + tileW / 2
         if (cx + tileW / 2 + EDGE_PAD > half && tilesInRow >= 2) {
-          // 1st corner tile — at end of row, bottom pip aligned with row
+          // 1st corner tile — placed flush against previous tile, extends upward
           isCorner = true
           const effW = isHorizontal ? TILE_V_W : tileW
           const effH = isHorizontal ? TILE_V_H : tileH
           const prevW = tileDisplaySize(tiles[i + 1], cornerFlags[i + 1]).w
           cx = raw[i + 1].x + prevW / 2 + effW / 2
-          cx = Math.min(cx, half - EDGE_PAD - effW / 2)
           // Bottom pip aligns with row center, tile extends upward
           y -= (effH - TILE_H_H) / 2
           rowMaxH = effH
@@ -368,7 +364,7 @@ export function GameBoard({ board, validPlays }: GameBoardProps) {
             <div
               key={bt.tile.id}
               className="absolute"
-              style={{ left: pos.x - w / 2, top: pos.y - h / 2, width: w, height: h }}
+              style={{ left: pos.x - w / 2, top: pos.y - h / 2, width: w, height: h, overflow: 'hidden' }}
             >
               <BoardTileItem boardTile={bt} isNew={bt.sequence === lastTileSequence} flipped={flipped} corner={corner} />
             </div>

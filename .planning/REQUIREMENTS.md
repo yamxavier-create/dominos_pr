@@ -38,10 +38,10 @@
 
 - [x] **CHAT-01**: Usuario puede enviar mensajes de texto libre en la sala (máximo 200 caracteres)
 - [x] **CHAT-02**: Los mensajes aparecen en el panel de chat para todos los jugadores de la sala en tiempo real
-- [ ] **CHAT-03**: Usuario puede enviar una reacción rápida con un click — opciones: "¡Capicú!", "¡Trancado!", "¡Buena jugada!", "¡Mala suerte!", "🔥", "🤡"
-- [ ] **CHAT-04**: El botón de chat muestra un badge con el número de mensajes no leídos cuando el panel está cerrado
+- [x] **CHAT-03**: Usuario puede enviar una reacción rápida con un click — opciones: "¡Capicú!", "¡Trancado!", "¡Buena jugada!", "¡Mala suerte!", "🔥", "🤡"
+- [x] **CHAT-04**: El botón de chat muestra un badge con el número de mensajes no leídos cuando el panel está cerrado
 - [x] **CHAT-05**: Al reconectarse, el usuario recibe el historial de los últimos 50 mensajes de la sala
-- [x] **CHAT-06**: El servidor aplica rate limiting: máximo 5 mensajes por jugador cada 10 segundos
+- [x] **CHAT-06**: El servidor aplica rate limiting: máximo 15 mensajes por jugador cada 10 segundos
 - [x] **CHAT-07**: Los mensajes son sanitizados en el servidor antes de ser retransmitidos (previene XSS)
 
 ## v2 Requirements
@@ -97,8 +97,8 @@ Actualizado durante la creación del roadmap.
 | REM-06 | Phase 3 | Complete |
 | CHAT-01 | Phase 4 | Complete |
 | CHAT-02 | Phase 4 | Complete |
-| CHAT-03 | Phase 4 | Pending |
-| CHAT-04 | Phase 4 | Pending |
+| CHAT-03 | Phase 4 | Complete |
+| CHAT-04 | Phase 4 | Complete |
 | CHAT-05 | Phase 4 | Complete |
 | CHAT-06 | Phase 4 | Complete |
 | CHAT-07 | Phase 4 | Complete |
