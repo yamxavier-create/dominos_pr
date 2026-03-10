@@ -3,10 +3,10 @@ import { RoomManager } from '../game/RoomManager'
 import { ChatMessage } from '../game/GameState'
 import { randomUUID } from 'crypto'
 
-const QUICK_REACTIONS = ['¡Capicú!', '¡Trancado!', '¡Buena jugada!', '¡Mala suerte!', '🔥', '🤡']
+const QUICK_REACTIONS = ['🔥', '😂', '💀', '🫡', '👏', '😤', '🤙', '😎', '🎯', '🤡']
 
 const RATE_LIMIT_WINDOW = 10_000 // 10 seconds
-const RATE_LIMIT_MAX = 5
+const RATE_LIMIT_MAX = 15
 
 // Rate limiter: socket.id -> timestamps of recent messages
 const rateLimits = new Map<string, number[]>()
