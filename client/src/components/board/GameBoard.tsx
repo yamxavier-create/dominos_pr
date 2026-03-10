@@ -64,6 +64,8 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
     let rowMaxH = anchorH
     let tilesInRow = 0  // don't count anchor — need 2 tiles before first corner
     let pendingCorner = false  // true = next tile is the 2nd vertical tile of a corner pair
+    // When a double acts as the corner tile, the new-row y is deferred until after raw[i] is set
+    let postCornerY: number | null = null
 
     for (let i = anchorIdx + 1; i < n; i++) {
       const { w: tileW, h: tileH } = tileSize(tiles[i])
@@ -79,7 +81,7 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
         const prevCorner = raw[i - 1]
         const prevH = tileDisplaySize(tiles[i - 1], cornerFlags[i - 1]).h
         cx = prevCorner.x
-        const tileY = prevCorner.y + prevH / 2 + effH / 2  // center of 2nd corner tile (with gap)
+        const tileY = prevCorner.y + prevH / 2 + effH / 2  // center of 2nd corner tile (flush)
         // Place the 2nd corner tile at its true center
         raw[i] = { x: cx, y: tileY }
         cornerFlags[i] = true
@@ -109,7 +111,16 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
           y += (effH - TILE_H_H) / 2
           rowMaxH = effH
           dir = -1
-          pendingCorner = true
+          if (isHorizontal) {
+            pendingCorner = true  // horizontal tile rotated: needs 2nd corner connector
+          } else {
+            // Double (already vertical): acts as the full corner by itself
+            // New row starts directly below it — set after raw[i] is written
+            postCornerY = y + TILE_V_H / 2 + TILE_H_H / 2
+            x = cx - effW / 2 - GAP  // cursor for new leftward row
+            rowMaxH = TILE_H_H
+            tilesInRow = 0
+          }
         } else {
           rowMaxH = Math.max(rowMaxH, tileH)
           x = cx + tileW / 2 + GAP
@@ -128,7 +139,15 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
           y += (effH - TILE_H_H) / 2
           rowMaxH = effH
           dir = 1
-          pendingCorner = true
+          if (isHorizontal) {
+            pendingCorner = true  // horizontal tile rotated: needs 2nd corner connector
+          } else {
+            // Double (already vertical): acts as the full corner by itself
+            postCornerY = y + TILE_V_H / 2 + TILE_H_H / 2
+            x = cx + effW / 2 + GAP  // cursor for new rightward row
+            rowMaxH = TILE_H_H
+            tilesInRow = 0
+          }
         } else {
           rowMaxH = Math.max(rowMaxH, tileH)
           x = cx - tileW / 2 - GAP
@@ -139,6 +158,11 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
       raw[i] = { x: cx, y }
       cornerFlags[i] = isCorner
       flippedFlags[i] = !isCorner && dir === -1
+
+      if (postCornerY !== null) {
+        y = postCornerY
+        postCornerY = null
+      }
     }
   }
 
@@ -153,6 +177,7 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
     let rowMaxH = anchorH
     let tilesInRow = 0  // don't count anchor — need 2 tiles before first corner
     let pendingCorner = false  // true = next tile is the 2nd vertical tile of a corner pair
+    let postCornerY: number | null = null
 
     for (let i = anchorIdx - 1; i >= 0; i--) {
       const { w: tileW, h: tileH } = tileSize(tiles[i])
@@ -168,7 +193,7 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
         const prevCorner = raw[i + 1]
         const prevH = tileDisplaySize(tiles[i + 1], cornerFlags[i + 1]).h
         cx = prevCorner.x
-        const tileY = prevCorner.y - prevH / 2 - effH / 2  // center of 2nd corner tile (with gap)
+        const tileY = prevCorner.y - prevH / 2 - effH / 2  // center of 2nd corner tile (flush)
         // Place the 2nd corner tile at its true center
         raw[i] = { x: cx, y: tileY }
         cornerFlags[i] = true
@@ -198,7 +223,15 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
           y -= (effH - TILE_H_H) / 2
           rowMaxH = effH
           dir = 1
-          pendingCorner = true
+          if (isHorizontal) {
+            pendingCorner = true
+          } else {
+            // Double: acts as full corner, new row continues above it
+            postCornerY = y - TILE_V_H / 2 - TILE_H_H / 2
+            x = cx + effW / 2 + GAP  // cursor for new rightward row
+            rowMaxH = TILE_H_H
+            tilesInRow = 0
+          }
         } else {
           rowMaxH = Math.max(rowMaxH, tileH)
           x = cx - tileW / 2 - GAP
@@ -217,7 +250,15 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
           y -= (effH - TILE_H_H) / 2
           rowMaxH = effH
           dir = -1
-          pendingCorner = true
+          if (isHorizontal) {
+            pendingCorner = true
+          } else {
+            // Double: acts as full corner, new row continues above it
+            postCornerY = y - TILE_V_H / 2 - TILE_H_H / 2
+            x = cx - effW / 2 - GAP  // cursor for new leftward row
+            rowMaxH = TILE_H_H
+            tilesInRow = 0
+          }
         } else {
           rowMaxH = Math.max(rowMaxH, tileH)
           x = cx + tileW / 2 + GAP
@@ -228,6 +269,11 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
       raw[i] = { x: cx, y }
       cornerFlags[i] = isCorner
       flippedFlags[i] = !isCorner && dir === 1
+
+      if (postCornerY !== null) {
+        y = postCornerY
+        postCornerY = null
+      }
     }
   }
 
