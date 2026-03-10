@@ -5,6 +5,7 @@ import { useGameStore } from '../store/gameStore'
 import { useRoomStore } from '../store/roomStore'
 import { useUIStore, ChatMessage } from '../store/uiStore'
 import { useCallStore } from '../store/callStore'
+import { signalHandlerRef } from './useWebRTC'
 import { ClientGameState, RoundEndPayload, GameEndPayload, PassPayload, RematchVoteUpdate, RematchCancelled } from '../types/game'
 
 export function useSocket() {
@@ -135,6 +136,17 @@ export function useSocket() {
       useCallStore.getState().setPeerLobbyOpt(from, audio, video)
     })
 
+    // Route WebRTC signaling to the hook instance
+    socket.on('webrtc:signal', (data: { from: number; desc?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit }) => {
+      signalHandlerRef.current?.(data)
+    })
+
+    // Update peer mute/camera state in callStore
+    socket.on('webrtc:peer_toggle', ({ from, micMuted, cameraOff }: { from: number; micMuted: boolean; cameraOff: boolean }) => {
+      useCallStore.getState().setPeerMuted(from, micMuted)
+      useCallStore.getState().setPeerCameraOff(from, cameraOff)
+    })
+
     socket.on('chat:message', (msg: ChatMessage) => {
       useUIStore.getState().addChatMessage(msg)
     })
@@ -167,6 +179,8 @@ export function useSocket() {
       socket.off('game:rematch_accepted')
       socket.off('game:rematch_cancelled')
       socket.off('webrtc:lobby_updated')
+      socket.off('webrtc:signal')
+      socket.off('webrtc:peer_toggle')
       socket.off('chat:message')
       socket.off('chat:history')
       socket.off('connection:player_disconnected')
