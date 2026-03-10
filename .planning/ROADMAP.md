@@ -112,14 +112,14 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 2. Score History | 5/5 | Complete   | 2026-03-08 |
 | 3. Rematch Flow | 2/2 | Complete   | 2026-03-08 |
 | 4. In-Game Chat | 2/2 | Complete   | 2026-03-10 |
-| 5. Video & Audio Call | 1/5 | In Progress|  |
+| 5. Video & Audio Call | 2/5 | In Progress|  |
 
 ### Phase 5: Video & Audio Call — Players can see and talk to each other in real time via WebRTC while playing
 
 **Goal:** Players can see and hear each other via native WebRTC video/audio call running alongside the game — using existing player seat positions for video tiles, with camera/mic opt-in set in the lobby before the game starts
 **Requirements**: CALL-01, CALL-02, CALL-03, CALL-04, CALL-05, CALL-06
 **Depends on:** Phase 4
-**Plans:** 1/5 plans executed
+**Plans:** 2/5 plans executed
 
 Plans:
 - [ ] 05-01-PLAN.md — callStore (Zustand) + webrtcHandlers.ts signaling relay + register in handlers.ts
