@@ -83,9 +83,9 @@ function processAutoPassCascade(
   tilePlayerIndex: number
 ): boolean {
   let idx = startPlayerIndex
-  // Modo 200: partner of the tile player gets pass protection (no bonus).
-  // If the next opponent also passes, the deferred pass counts retroactively.
-  let deferredPartnerPass = false
+  // Modo 200: the partner of the tile player gets pass protection.
+  // If the partner has to pass right after an opponent passes, that pass never
+  // counts as a point — it was caused by their own teammate's play.
   const partnerOfTilePlayer = (tilePlayerIndex + 2) % 4
 
   for (let i = 0; i < 4; i++) {
@@ -107,32 +107,8 @@ function processAutoPassCascade(
     if (game.gameMode === 'modo200') {
       const isPartnerPass = idx === partnerOfTilePlayer
 
-      if (isPartnerPass && !deferredPartnerPass) {
-        // Partner protection: defer this pass (no bonus awarded)
-        deferredPartnerPass = true
-        // passBonusAwarded stays null
-      } else {
-        // If there's a deferred partner pass, apply it now (opponent passed after partner)
-        if (deferredPartnerPass) {
-          const deferredScores = applyPassBonus200(game.scores, partnerOfTilePlayer, game.gamePassCount)
-          game.scores = deferredScores
-          game.gamePassCount++
-          deferredPartnerPass = false
-
-          if (scoresReachedTarget(game.scores, game.targetScore)) {
-            game.currentPlayerIndex = idx
-            game.consecutivePasses++
-            game.handPassCount++
-            io.to(game.roomCode).emit('game:player_passed', {
-              playerIndex: idx,
-              playerName: game.players[idx].name,
-              passBonusAwarded: null,
-            })
-            return handleGameEnd(io, game)
-          }
-        }
-
-        // Apply this pass bonus normally
+      if (!isPartnerPass) {
+        // Normal opponent pass: award bonus
         passBonusAwarded = game.gamePassCount === 0 ? 2 : 1
         const updatedScores = applyPassBonus200(game.scores, idx, game.gamePassCount)
         game.scores = updatedScores
@@ -150,6 +126,7 @@ function processAutoPassCascade(
           return handleGameEnd(io, game)
         }
       }
+      // Partner pass: no bonus, no gamePassCount increment — pass is free
     }
 
     game.consecutivePasses++
