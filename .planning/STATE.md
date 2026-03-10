@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 5 context gathered
-last_updated: "2026-03-10T20:03:49.995Z"
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-03-10T20:55:40.383Z"
 last_activity: 2026-03-08 — Chat data pipeline (server handler + client state)
 progress:
   total_phases: 6
   completed_phases: 4
-  total_plans: 10
-  completed_plans: 10
+  total_plans: 15
+  completed_plans: 11
   percent: 90
 ---
 
@@ -59,6 +59,7 @@ Progress: [█████████░] 90%
 | Phase 03-rematch-flow P01 | 2min | 2 tasks | 7 files |
 | Phase 03 P02 | 2min | 2 tasks | 1 files |
 | Phase 04 P01 | 3min | 2 tasks | 8 files |
+| Phase 05 P01 | 4 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -86,6 +87,8 @@ Recent decisions affecting current work:
 - [Phase 03]: All-player Revancha button replaces host-only Jugar de Nuevo
 - [Phase 04]: ChatMessage interface duplicated in client/server (no shared types package)
 - [Phase 04-in-game-chat]: Emoji-only reactions (21 total) instead of text phrases; rate limit raised to 15/10s; removed allowlist validation
+- [Phase 05]: webrtc:lobby_opt uses room.players (RoomPlayer[]) not room.game.players since lobby opt fires before game starts
+- [Phase 05]: RTCSessionDescriptionInit typed as unknown on server — server never interprets SDP/ICE, avoids browser DOM type dependency
 
 ### Pending Todos
 
@@ -104,6 +107,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-10T20:03:49.973Z
-Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-video-audio-call-players-can-see-and-talk-to-each-other-in-real-time-via-webrtc-while-playing/05-CONTEXT.md
+Last session: 2026-03-10T20:55:40.370Z
+Stopped at: Completed 05-01-PLAN.md
+Resume file: None
