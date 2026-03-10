@@ -127,7 +127,7 @@ function SingleTile({ player, playerIndex, isMe, isCurrentTurn, stream, micMuted
 }
 
 export function VideoCallPanel({ players, myPlayerIndex, currentPlayerIndex }: VideoCallPanelProps) {
-  const [isOpen, setIsOpen] = useState(true)
+  const [isOpen, setIsOpen] = useState(false)
   const localStream = useCallStore(s => s.localStream)
   const remoteStreams = useCallStore(s => s.remoteStreams)
   const mutedPeers = useCallStore(s => s.mutedPeers)
