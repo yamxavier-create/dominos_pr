@@ -149,6 +149,20 @@ export function useWebRTC() {
     getCallStore().resetCallState()
   }, [])
 
+  // Called when a remote peer announces they joined the call — refresh the PC so they can connect
+  const handlePeerJoined = useCallback((peerIndex: number) => {
+    const { myAudioEnabled, myVideoEnabled } = getCallStore()
+    if (!myAudioEnabled && !myVideoEnabled) return  // we're not in the call, nothing to do
+    // Close stale PC if any, then create a fresh one so negotiation starts clean
+    const old = pcsRef.current[peerIndex]
+    if (old) {
+      old.close()
+      delete pcsRef.current[peerIndex]
+      getCallStore().setRemoteStream(peerIndex, null)
+    }
+    createPC(peerIndex)
+  }, [createPC])
+
   // Join call mid-game: acquire media, create PCs for all other players
   const joinCall = useCallback(async (audio: boolean, video: boolean) => {
     getCallStore().setMyLobbyOpt(audio, video)
@@ -204,10 +218,12 @@ export function useWebRTC() {
     // Register signal handler and joinCall — expose via refs so other components can call them
     signalHandlerRef.current = handleSignal
     joinCallRef.current = joinCall
+    peerJoinedCallRef.current = handlePeerJoined
 
     return () => {
       mounted = false
       joinCallRef.current = null
+      peerJoinedCallRef.current = null
       cleanup()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -224,4 +240,9 @@ export const signalHandlerRef = {
 // Shared ref so VideoCallPanel can trigger mid-game join
 export const joinCallRef = {
   current: null as ((audio: boolean, video: boolean) => Promise<void>) | null
+}
+
+// Shared ref so useSocket can notify when a peer joins/re-announces in the call
+export const peerJoinedCallRef = {
+  current: null as ((peerIndex: number) => void) | null
 }

@@ -5,7 +5,7 @@ import { useGameStore } from '../store/gameStore'
 import { useRoomStore } from '../store/roomStore'
 import { useUIStore, ChatMessage } from '../store/uiStore'
 import { useCallStore } from '../store/callStore'
-import { signalHandlerRef } from './useWebRTC'
+import { signalHandlerRef, peerJoinedCallRef } from './useWebRTC'
 import { ClientGameState, RoundEndPayload, GameEndPayload, PassPayload, RematchVoteUpdate, RematchCancelled } from '../types/game'
 
 export function useSocket() {
@@ -134,6 +134,7 @@ export function useSocket() {
 
     socket.on('webrtc:lobby_updated', ({ from, audio, video }: { from: number; audio: boolean; video: boolean }) => {
       useCallStore.getState().setPeerLobbyOpt(from, audio, video)
+      if (audio || video) peerJoinedCallRef.current?.(from)
     })
 
     // Route WebRTC signaling to the hook instance
