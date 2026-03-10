@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-05-PLAN.md Task 1; awaiting human verification at checkpoint
-last_updated: "2026-03-10T21:06:14.885Z"
+stopped_at: Completed 05-05-PLAN.md — Phase 5 complete, human-approved
+last_updated: "2026-03-10T23:43:38.239Z"
 last_activity: 2026-03-08 — Chat data pipeline (server handler + client state)
 progress:
   total_phases: 6
@@ -97,6 +97,8 @@ Recent decisions affecting current work:
 - [Phase 05]: signalHandlerRef module-level export routes webrtc:signal events to useWebRTC instance without prop drilling
 - [Phase 05]: VideoTile uses text labels instead of emoji for button icons to avoid cross-platform rendering issues
 - [Phase 05]: No type errors found — both workspaces compiled clean on first pass
+- [Phase 05]: VideoCallPanel replaces inline VideoTile usage — collapsible side panel keeps game table layout clean
+- [Phase 05]: joinCall and handlePeerJoined added to useWebRTC; peerJoinedCallRef wired in useSocket on webrtc:lobby_updated
 
 ### Pending Todos
 
@@ -115,6 +117,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-10T21:06:14.873Z
-Stopped at: Completed 05-05-PLAN.md Task 1; awaiting human verification at checkpoint
+Last session: 2026-03-10T23:43:38.226Z
+Stopped at: Completed 05-05-PLAN.md — Phase 5 complete, human-approved
 Resume file: None
