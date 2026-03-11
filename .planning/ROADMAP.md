@@ -100,6 +100,16 @@ Plans:
 - [ ] 04-01-PLAN.md — Server chat handler + client state/socket wiring (rate limiting, sanitization, history, uiStore, useSocket)
 - [ ] 04-02-PLAN.md — Chat UI components (ChatPanel, ChatButton, ReactionPicker) and GamePage integration
 
+### Phase 6: Chat Bug Fixes & Verification
+**Goal:** Close all audit gaps for Phase 4 — fix stale chat history bug, create missing VERIFICATION.md, and formally close provenance gaps for CHAT-03 and CHAT-04
+**Gap Closure:** Closes gaps from v1.0 audit
+**Depends on:** Phase 4
+**Requirements:** CHAT-03, CHAT-04, CHAT-05
+**Success Criteria** (what must be TRUE):
+  1. `room.chatHistory = []` is set in both the `game:next_game` path and the rematch consensus path — a reconnecting player never sees messages from a previous game
+  2. VERIFICATION.md exists for Phase 04 and confirms CHAT-01 through CHAT-07 satisfied
+  3. CHAT-03 (ReactionPicker) and CHAT-04 (unread badge) are formally documented as complete with code evidence
+
 ## Progress
 
 **Execution Order:**
@@ -113,6 +123,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 3. Rematch Flow | 2/2 | Complete   | 2026-03-08 |
 | 4. In-Game Chat | 2/2 | Complete   | 2026-03-10 |
 | 5. Video & Audio Call | 5/5 | Complete   | 2026-03-10 |
+| 6. Chat Bug Fixes & Verification | 0/0 | Not started | - |
 
 ### Phase 5: Video & Audio Call — Players can see and talk to each other in real time via WebRTC while playing
 
