@@ -109,6 +109,10 @@ Plans:
   1. `room.chatHistory = []` is set in both the `game:next_game` path and the rematch consensus path — a reconnecting player never sees messages from a previous game
   2. VERIFICATION.md exists for Phase 04 and confirms CHAT-01 through CHAT-07 satisfied
   3. CHAT-03 (ReactionPicker) and CHAT-04 (unread badge) are formally documented as complete with code evidence
+**Plans:** 1 plan
+
+Plans:
+- [ ] 06-01-PLAN.md — Rewrite 04-VERIFICATION.md with correct requirement IDs and write Phase 06 VERIFICATION.md
 
 ## Progress
 
@@ -123,7 +127,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 3. Rematch Flow | 2/2 | Complete   | 2026-03-08 |
 | 4. In-Game Chat | 2/2 | Complete   | 2026-03-10 |
 | 5. Video & Audio Call | 5/5 | Complete   | 2026-03-10 |
-| 6. Chat Bug Fixes & Verification | 0/0 | Not started | - |
+| 6. Chat Bug Fixes & Verification | 0/1 | Not started | - |
 
 ### Phase 5: Video & Audio Call — Players can see and talk to each other in real time via WebRTC while playing
 
