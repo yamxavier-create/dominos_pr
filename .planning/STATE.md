@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 07-03-PLAN.md
-last_updated: "2026-03-12T20:50:17.413Z"
-last_activity: 2026-03-12 — Completed 07-01 server types and engine functions
+stopped_at: Completed 07-02-PLAN.md
+last_updated: "2026-03-12T20:52:35.064Z"
+last_activity: 2026-03-12 — Completed 07-03 client types, state, and layout
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 20
-  completed_plans: 18
-  percent: 85
+  completed_plans: 19
+  percent: 90
 ---
 
 # Project State
@@ -67,6 +67,7 @@ Progress: [█████████░] 90%
 | Phase 06 P01 | 2min | 2 tasks | 2 files |
 | Phase 07 P01 | 9min | 2 tasks | 4 files |
 | Phase 07 P03 | 2min | 2 tasks | 4 files |
+| Phase 07 P02 | 3min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -107,6 +108,8 @@ Recent decisions affecting current work:
 - [Phase 07]: applyPassBonus200 unchanged -- partner protection in gameHandlers.ts not pure function
 - [Phase 07]: handleBoneyardDraw does surgical update rather than full state replacement since state_snapshot follows
 - [Phase 07]: playerCount default=4 on usePlayerPositions/getPosition for backward-compatible 2/4 layout
+- [Phase 07]: No RoomManager changes needed -- 2-or-4 validation at game:start, max 4 cap at join unchanged
+- [Phase 07]: Boneyard draws emit per-tile game:boneyard_draw events with split emit (tile to drawer, null to opponents)
 
 ### Pending Todos
 
@@ -125,6 +128,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T20:50:00Z
-Stopped at: Completed 07-03-PLAN.md
+Last session: 2026-03-12T20:52:35.053Z
+Stopped at: Completed 07-02-PLAN.md
 Resume file: None

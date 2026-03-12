@@ -112,9 +112,9 @@ Actualizado durante la creación del roadmap.
 | CHAT-05 | Phase 4 | Complete |
 | CHAT-06 | Phase 4 | Complete |
 | CHAT-07 | Phase 4 | Complete |
-| TWO-01 | Phase 7 | Pending |
+| TWO-01 | Phase 7 | Complete |
 | TWO-02 | Phase 7 | Complete |
-| TWO-03 | Phase 7 | Pending |
+| TWO-03 | Phase 7 | Complete |
 | TWO-04 | Phase 7 | Complete |
 | TWO-05 | Phase 7 | Complete |
 | TWO-06 | Phase 7 | Complete |
