@@ -6,7 +6,7 @@ import { useRoomStore } from '../store/roomStore'
 import { useUIStore, ChatMessage } from '../store/uiStore'
 import { useCallStore } from '../store/callStore'
 import { signalHandlerRef, peerJoinedCallRef } from './useWebRTC'
-import { ClientGameState, RoundEndPayload, GameEndPayload, PassPayload, RematchVoteUpdate, RematchCancelled } from '../types/game'
+import { ClientGameState, RoundEndPayload, GameEndPayload, PassPayload, RematchVoteUpdate, RematchCancelled, BoneyardDrawPayload } from '../types/game'
 
 export function useSocket() {
   const navigate = useNavigate()
@@ -104,6 +104,13 @@ export function useSocket() {
       }, 2500)
     })
 
+    socket.on('game:boneyard_draw', (payload: BoneyardDrawPayload) => {
+      const myIdx = useRoomStore.getState().myPlayerIndex
+      if (myIdx !== null && myIdx !== undefined) {
+        useGameStore.getState().handleBoneyardDraw(payload, myIdx)
+      }
+    })
+
     socket.on('game:round_ended', (data: RoundEndPayload) => {
       setRoundEnd(data)
       setShowRoundEnd(true)
@@ -174,6 +181,7 @@ export function useSocket() {
       socket.off('game:started')
       socket.off('game:state_snapshot')
       socket.off('game:player_passed')
+      socket.off('game:boneyard_draw')
       socket.off('game:round_ended')
       socket.off('game:game_ended')
       socket.off('game:rematch_vote_update')
