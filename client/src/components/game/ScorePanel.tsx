@@ -12,12 +12,18 @@ interface ScorePanelProps {
 }
 
 export function ScorePanel({ scores, players, myPlayerIndex, gameMode, targetScore, handNumber, onClick, isOpen }: ScorePanelProps) {
-  const teamA = [players[0], players[2]].filter(Boolean)
-  const teamB = [players[1], players[3]].filter(Boolean)
+  const is2Player = players.length === 2
+
+  const teamA = is2Player ? [players[0]].filter(Boolean) : [players[0], players[2]].filter(Boolean)
+  const teamB = is2Player ? [players[1]].filter(Boolean) : [players[1], players[3]].filter(Boolean)
 
   const myTeam = myPlayerIndex % 2 === 0 ? 0 : 1
-  const teamALabel = myTeam === 0 ? 'Nosotros' : 'Ellos'
-  const teamBLabel = myTeam === 1 ? 'Nosotros' : 'Ellos'
+  const teamALabel = is2Player
+    ? (players[0]?.name ?? 'J1')
+    : myTeam === 0 ? 'Nosotros' : 'Ellos'
+  const teamBLabel = is2Player
+    ? (players[1]?.name ?? 'J2')
+    : myTeam === 1 ? 'Nosotros' : 'Ellos'
 
   const pctA = Math.min((scores.team0 / targetScore) * 100, 100)
   const pctB = Math.min((scores.team1 / targetScore) * 100, 100)
@@ -42,7 +48,7 @@ export function ScorePanel({ scores, players, myPlayerIndex, gameMode, targetSco
       <div className="flex-1 min-w-0">
         <div className="flex justify-between items-center mb-1">
           <span className="font-body text-xs font-semibold truncate" style={{ color: '#22C55E' }}>
-            {teamALabel}: {teamA.map(p => p?.name).filter(Boolean).join(' & ')}
+            {is2Player ? teamALabel : `${teamALabel}: ${teamA.map(p => p?.name).filter(Boolean).join(' & ')}`}
           </span>
           <span className="font-header text-xl text-white ml-2 shrink-0 leading-none">{scores.team0}</span>
         </div>
@@ -60,7 +66,7 @@ export function ScorePanel({ scores, players, myPlayerIndex, gameMode, targetSco
       <div className="flex-1 min-w-0">
         <div className="flex justify-between items-center mb-1">
           <span className="font-body text-xs font-semibold truncate" style={{ color: '#F97316' }}>
-            {teamBLabel}: {teamB.map(p => p?.name).filter(Boolean).join(' & ')}
+            {is2Player ? teamBLabel : `${teamBLabel}: ${teamB.map(p => p?.name).filter(Boolean).join(' & ')}`}
           </span>
           <span className="font-header text-xl text-white ml-2 shrink-0 leading-none">{scores.team1}</span>
         </div>

@@ -4,9 +4,12 @@ interface ScoreHistoryPanelProps {
   isOpen: boolean
   entries: ScoreHistoryEntry[]
   myPlayerIndex: number
+  playerCount?: number
+  playerNames?: string[]
 }
 
-export function ScoreHistoryPanel({ isOpen, entries, myPlayerIndex }: ScoreHistoryPanelProps) {
+export function ScoreHistoryPanel({ isOpen, entries, myPlayerIndex, playerCount = 4, playerNames }: ScoreHistoryPanelProps) {
+  const is2Player = playerCount === 2
   const myTeam = myPlayerIndex % 2 === 0 ? 0 : 1
 
   return (
@@ -23,6 +26,8 @@ export function ScoreHistoryPanel({ isOpen, entries, myPlayerIndex }: ScoreHisto
             const winLabel =
               entry.data.winningTeam === null
                 ? 'Trancado'
+                : is2Player
+                ? (playerNames?.[entry.data.winningTeam] ?? 'Ganador')
                 : entry.data.winningTeam === myTeam
                 ? 'Nosotros'
                 : 'Ellos'

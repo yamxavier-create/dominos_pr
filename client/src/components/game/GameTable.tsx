@@ -94,6 +94,8 @@ export function GameTable() {
         isOpen={showScoreHistory}
         entries={scoreHistory}
         myPlayerIndex={myPlayerIndex}
+        playerCount={playerCount}
+        playerNames={players.map(p => p.name)}
       />
 
       {/* Main table area */}

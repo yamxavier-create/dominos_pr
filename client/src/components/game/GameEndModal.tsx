@@ -26,21 +26,31 @@ export function GameEndModal() {
 
   if (!showGameEnd || !gameEndData) return null
 
+  const gameState = useGameStore(s => s.gameState)
+  const playerCount = gameState?.playerCount ?? 4
+  const is2Player = playerCount === 2
+
   const myTeam = (myPlayerIndex ?? 0) % 2 === 0 ? 0 : 1
   const weWon = gameEndData.winningTeam === myTeam
   const winTeamColor = gameEndData.winningTeam === 0 ? '#22C55E' : '#F97316'
 
   const hasVoted = rematchVotes.includes(myPlayerIndex ?? -1)
-  const allVoted = rematchVotes.length === 4
+  const allVoted = rematchVotes.length === playerCount
 
   const handleRematchVote = () => {
     socket.emit('game:rematch_vote', { roomCode })
   }
 
   // Team labels relative to player
-  const team0Label = myTeam === 0 ? 'Nosotros' : 'Ellos'
-  const team1Label = myTeam === 1 ? 'Nosotros' : 'Ellos'
-  const winnerText = weWon ? 'Nosotros ganamos el partido' : 'Ellos ganaron el partido'
+  const team0Label = is2Player
+    ? (rematchPlayerNames[0] ?? gameState?.players[0]?.name ?? 'J1')
+    : myTeam === 0 ? 'Nosotros' : 'Ellos'
+  const team1Label = is2Player
+    ? (rematchPlayerNames[1] ?? gameState?.players[1]?.name ?? 'J2')
+    : myTeam === 1 ? 'Nosotros' : 'Ellos'
+  const winnerText = is2Player
+    ? (weWon ? '¡Ganaste el partido!' : 'Perdiste el partido')
+    : (weWon ? 'Nosotros ganamos el partido' : 'Ellos ganaron el partido')
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
@@ -61,7 +71,7 @@ export function GameEndModal() {
           >
             <div className="text-6xl mb-3">{weWon ? '🏆' : '🤝'}</div>
             <h1 className="font-header text-5xl text-gold leading-none">
-              {weWon ? '¡Ganamos!' : 'Perdimos'}
+              {weWon ? (is2Player ? '¡Ganaste!' : '¡Ganamos!') : (is2Player ? 'Perdiste' : 'Perdimos')}
             </h1>
             <p className="font-body text-white/60 mt-2 text-sm">
               {winnerText}
@@ -112,7 +122,7 @@ export function GameEndModal() {
             {rematchVotes.length > 0 && !allVoted && (
               <div className="mt-4">
                 <p className="font-body text-white/60 text-sm mb-2">
-                  {rematchVotes.length}/4 listos
+                  {rematchVotes.length}/{playerCount} listos
                 </p>
                 <div className="space-y-1">
                   {rematchPlayerNames.map((name, idx) => {

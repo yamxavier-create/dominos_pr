@@ -28,6 +28,8 @@ export function RoundEndModal() {
     clearRoundEnd()
   }
 
+  const playerCount = gameState?.playerCount ?? 4
+  const is2Player = playerCount === 2
   const myTeam = (myPlayerIndex ?? 0) % 2 === 0 ? 0 : 1
   const weWon = roundEndData.winningTeam === myTeam
   const blocked = roundEndData.reason === 'blocked'
@@ -54,12 +56,16 @@ export function RoundEndModal() {
           ) : weWon ? (
             <>
               <div className="text-4xl mb-1">🎉</div>
-              <h2 className="font-header text-3xl text-gold">¡Ganamos esta mano!</h2>
+              <h2 className="font-header text-3xl text-gold">
+                {is2Player ? '¡Ganaste esta mano!' : '¡Ganamos esta mano!'}
+              </h2>
             </>
           ) : (
             <>
               <div className="text-4xl mb-1">😤</div>
-              <h2 className="font-header text-3xl text-accent">Perdimos esta mano</h2>
+              <h2 className="font-header text-3xl text-accent">
+                {is2Player ? 'Perdiste esta mano' : 'Perdimos esta mano'}
+              </h2>
             </>
           )}
         </div>
@@ -136,12 +142,16 @@ export function RoundEndModal() {
         <div className="px-6 py-3 border-t border-white/10 bg-black/20">
           <div className="flex justify-around text-center">
             <div>
-              <p className="font-body text-xs mb-0.5" style={{ color: '#22C55E' }}>Equipo A</p>
+              <p className="font-body text-xs mb-0.5" style={{ color: '#22C55E' }}>
+                {is2Player ? (gameState?.players[0]?.name ?? 'J1') : 'Equipo A'}
+              </p>
               <p className="font-header text-2xl text-white">{roundEndData.scores.team0}</p>
             </div>
             <div className="text-white/20 font-body self-center">vs</div>
             <div>
-              <p className="font-body text-xs mb-0.5" style={{ color: '#F97316' }}>Equipo B</p>
+              <p className="font-body text-xs mb-0.5" style={{ color: '#F97316' }}>
+                {is2Player ? (gameState?.players[1]?.name ?? 'J2') : 'Equipo B'}
+              </p>
               <p className="font-header text-2xl text-white">{roundEndData.scores.team1}</p>
             </div>
           </div>
