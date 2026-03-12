@@ -34,7 +34,8 @@ export function RoomLobby() {
 
   const isHost = myPlayerIndex === 0
   const playerCount = room.players.filter(p => p.connected).length
-  const canStart = playerCount === 4
+  const canStart = playerCount === 2 || playerCount === 4
+  const is2PlayerLobby = playerCount <= 2
 
   const handleSeatClick = (seatIndex: number) => {
     if (!isHost) return
@@ -173,13 +174,17 @@ export function RoomLobby() {
         })}
       </div>
 
-      {/* Teams legend */}
+      {/* Teams legend / mode indicator */}
       <div className="flex flex-col items-center gap-1.5 text-xs font-body">
-        <div className="flex justify-center gap-6">
-          <span style={{ color: '#22C55E' }}>● Equipo A: asientos 0 + 2</span>
-          <span style={{ color: '#F97316' }}>● Equipo B: asientos 1 + 3</span>
-        </div>
-        {isHost && playerCount >= 2 && (
+        {is2PlayerLobby ? (
+          <span className="text-white/50">Modo 2 jugadores (individual)</span>
+        ) : (
+          <div className="flex justify-center gap-6">
+            <span style={{ color: '#22C55E' }}>● Equipo A: asientos 0 + 2</span>
+            <span style={{ color: '#F97316' }}>● Equipo B: asientos 1 + 3</span>
+          </div>
+        )}
+        {isHost && playerCount >= 2 && !is2PlayerLobby && (
           <p className="text-white/30 text-[11px]">
             {selectedSeat !== null
               ? 'Toca otro jugador para intercambiar'
@@ -193,7 +198,11 @@ export function RoomLobby() {
         <div className="flex flex-col gap-2">
           {!canStart && (
             <p className="font-body text-white/40 text-sm text-center">
-              Esperando {4 - playerCount} jugador{4 - playerCount !== 1 ? 'es' : ''} más...
+              {playerCount === 3
+                ? 'Se necesitan 2 o 4 jugadores para iniciar'
+                : playerCount < 2
+                ? `Esperando ${2 - playerCount} jugador${2 - playerCount !== 1 ? 'es' : ''} más...`
+                : `Esperando jugadores...`}
             </p>
           )}
           <button
@@ -202,7 +211,7 @@ export function RoomLobby() {
             className="w-full font-body font-bold py-3.5 rounded-2xl text-white text-base transition-all hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
             style={{ background: 'linear-gradient(135deg, #22C55E, #16a34a)' }}
           >
-            {canStart ? '¡Iniciar Partida!' : `${playerCount}/4 jugadores`}
+            {canStart ? '¡Iniciar Partida!' : `${playerCount} jugadores`}
           </button>
         </div>
       ) : (
@@ -211,7 +220,7 @@ export function RoomLobby() {
           style={{ background: 'rgba(255,255,255,0.03)' }}
         >
           <p className="font-body text-white/40 text-sm">
-            {canStart ? 'Esperando que el host inicie...' : `${playerCount}/4 jugadores conectados`}
+            {canStart ? 'Esperando que el host inicie...' : `${playerCount} jugadores conectados`}
           </p>
         </div>
       )}

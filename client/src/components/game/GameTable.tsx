@@ -15,7 +15,13 @@ import { PasoChip } from './PasoChip'
 import { RoundEndModal } from './RoundEndModal'
 import { GameEndModal } from './GameEndModal'
 
-function teamInfo(playerIndex: number) {
+function teamInfo(playerIndex: number, myPlayerIndex: number, playerCount: number, players: { name: string }[]) {
+  if (playerCount === 2) {
+    return {
+      teamLabel: players[playerIndex]?.name ?? (playerIndex === 0 ? 'J1' : 'J2'),
+      teamColor: playerIndex === myPlayerIndex ? '#22C55E' : '#F97316',
+    }
+  }
   const isTeamA = playerIndex % 2 === 0
   return {
     teamLabel: isTeamA ? 'Equipo A' : 'Equipo B',
@@ -48,17 +54,21 @@ export function GameTable() {
 
   const { players, board, currentPlayerIndex, scores, gameMode, targetScore, handNumber, validPlays, isMyTurn, forcedFirstTileId } = gameState
 
+  const playerCount = gameState.playerCount ?? 4
+  const boneyardCount = gameState.boneyardCount ?? 0
+  const is2Player = playerCount === 2
+
   const myTiles = players[myPlayerIndex]?.tiles ?? []
   const validPlayIds = new Set(validPlays.map(vp => vp.tileId))
 
-  // CW layout: bottom=me, left=+3, top=+2, right=+1
-  const topIndex = (myPlayerIndex + 2) % 4
-  const leftIndex = (myPlayerIndex + 3) % 4
-  const rightIndex = (myPlayerIndex + 1) % 4
+  // CW layout: bottom=me, top=partner(4p)/opponent(2p), left/right=opponents(4p only)
+  const topIndex = is2Player ? (myPlayerIndex + 1) % 2 : (myPlayerIndex + 2) % 4
+  const leftIndex = is2Player ? -1 : (myPlayerIndex + 3) % 4
+  const rightIndex = is2Player ? -1 : (myPlayerIndex + 1) % 4
 
   const topPlayer = players[topIndex]
-  const leftPlayer = players[leftIndex]
-  const rightPlayer = players[rightIndex]
+  const leftPlayer = !is2Player && leftIndex >= 0 ? players[leftIndex] : undefined
+  const rightPlayer = !is2Player && rightIndex >= 0 ? players[rightIndex] : undefined
   const myPlayer = players[myPlayerIndex]
 
   const currentPlayerName = players[currentPlayerIndex]?.name ?? ''
@@ -105,8 +115,8 @@ export function GameTable() {
               <PlayerSeat
                 player={topPlayer}
                 isCurrentTurn={currentPlayerIndex === topIndex}
-                position={getPosition(topIndex, myPlayerIndex)}
-                {...teamInfo(topIndex)}
+                position={getPosition(topIndex, myPlayerIndex, playerCount)}
+                {...teamInfo(topIndex, myPlayerIndex, playerCount, players)}
               />
               <OpponentHand player={topPlayer} position="top" />
               {getPaso(topIndex) && (
@@ -119,15 +129,15 @@ export function GameTable() {
         {/* Top-right corner */}
         <div />
 
-        {/* Left opponent */}
+        {/* Left opponent (4-player only) */}
         <div className="flex flex-col items-center justify-center gap-1 px-1 relative">
-          {leftPlayer && (
+          {!is2Player && leftPlayer && (
             <>
               <PlayerSeat
                 player={leftPlayer}
                 isCurrentTurn={currentPlayerIndex === leftIndex}
-                position={getPosition(leftIndex, myPlayerIndex)}
-                {...teamInfo(leftIndex)}
+                position={getPosition(leftIndex, myPlayerIndex, playerCount)}
+                {...teamInfo(leftIndex, myPlayerIndex, playerCount, players)}
               />
               <OpponentHand player={leftPlayer} position="left" />
               {getPaso(leftIndex) && (
@@ -144,17 +154,22 @@ export function GameTable() {
             playerName={currentPlayerName}
             isMyTurn={isMyTurn}
           />
+          {boneyardCount > 0 && (
+            <div className="absolute top-2 right-2 z-10 bg-black/60 backdrop-blur-sm rounded-lg px-2.5 py-1 border border-white/10">
+              <span className="font-body text-white/60 text-xs">{boneyardCount} fichas</span>
+            </div>
+          )}
         </div>
 
-        {/* Right opponent */}
+        {/* Right opponent (4-player only) */}
         <div className="flex flex-col items-center justify-center gap-1 px-1 relative">
-          {rightPlayer && (
+          {!is2Player && rightPlayer && (
             <>
               <PlayerSeat
                 player={rightPlayer}
                 isCurrentTurn={currentPlayerIndex === rightIndex}
-                position={getPosition(rightIndex, myPlayerIndex)}
-                {...teamInfo(rightIndex)}
+                position={getPosition(rightIndex, myPlayerIndex, playerCount)}
+                {...teamInfo(rightIndex, myPlayerIndex, playerCount, players)}
               />
               <OpponentHand player={rightPlayer} position="right" />
               {getPaso(rightIndex) && (
@@ -174,7 +189,7 @@ export function GameTable() {
               player={myPlayer}
               isCurrentTurn={isMyTurn}
               position="bottom"
-              {...teamInfo(myPlayerIndex)}
+              {...teamInfo(myPlayerIndex, myPlayerIndex, playerCount, players)}
             />
           )}
           {getPaso(myPlayerIndex) && (
