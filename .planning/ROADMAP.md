@@ -128,7 +128,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 4. In-Game Chat | 2/2 | Complete   | 2026-03-10 |
 | 5. Video & Audio Call | 5/5 | Complete   | 2026-03-10 |
 | 6. Chat Bug Fixes & Verification | 0/1 | Not started | - |
-| 7. Two-Player Mode with Boneyard | 0/0 | Not started | - |
+| 7. Two-Player Mode with Boneyard | 0/4 | Not started | - |
 
 ### Phase 5: Video & Audio Call — Players can see and talk to each other in real time via WebRTC while playing
 
@@ -149,7 +149,10 @@ Plans:
 **Goal:** Support 2-player games where leftover tiles form a boneyard — players draw from the boneyard when they can't play, scoring is individual (no teams), and the layout adapts to show only two seats (bottom + top)
 **Requirements**: TWO-01, TWO-02, TWO-03, TWO-04, TWO-05, TWO-06, TWO-07
 **Depends on:** Phase 6
-**Plans:** 0 plans
+**Plans:** 4 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 7 to break down)
+- [ ] 07-01-PLAN.md — Server types (boneyard, playerCount) and GameEngine pure function parameterization
+- [ ] 07-02-PLAN.md — Server handlers: game:start for 2 players, boneyard draw in processAutoPassCascade, dynamic rematch
+- [ ] 07-03-PLAN.md — Client types, gameStore boneyard handler, useSocket wiring, usePlayerPositions 2-player layout
+- [ ] 07-04-PLAN.md — Client UI: 2-seat GameTable, RoomLobby, ScorePanel/modals label adaptation, human verify
