@@ -83,12 +83,15 @@ function processAutoPassCascade(
   tilePlayerIndex: number
 ): boolean {
   let idx = startPlayerIndex
+  const playerCount = game.players.length
+  const is2Player = playerCount === 2
   // Modo 200: the partner of the tile player gets pass protection.
   // If the partner has to pass right after an opponent passes, that pass never
   // counts as a point — it was caused by their own teammate's play.
-  const partnerOfTilePlayer = (tilePlayerIndex + 2) % 4
+  // In 2-player mode there are no partners, so partnerOfTilePlayer = -1 (no partner).
+  const partnerOfTilePlayer = is2Player ? -1 : (tilePlayerIndex + 2) % 4
 
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < playerCount; i++) {
     const validPlays = getValidPlays(
       game.players[idx].tiles,
       game.board,
@@ -138,15 +141,15 @@ function processAutoPassCascade(
       passBonusAwarded,
     })
 
-    if (isGameBlocked(game.consecutivePasses)) {
+    if (isGameBlocked(game.consecutivePasses, playerCount)) {
       game.currentPlayerIndex = idx
       return handleBlockedGame(io, game)
     }
 
-    idx = nextPlayerIndex(idx)
+    idx = nextPlayerIndex(idx, playerCount)
   }
 
-  // All 4 players can't play (shouldn't happen if isGameBlocked wasn't triggered)
+  // All players can't play (shouldn't happen if isGameBlocked wasn't triggered)
   game.currentPlayerIndex = idx
   return handleBlockedGame(io, game)
 }
@@ -273,18 +276,13 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     const room = rooms.getRoom(roomCode)
     if (!room) return socket.emit('room:error', { code: 'ROOM_NOT_FOUND', message: 'Sala no encontrada' })
     if (room.hostSocketId !== socket.id) return socket.emit('room:error', { code: 'NOT_HOST', message: 'Solo el host puede iniciar' })
-    if (room.players.length < 2) return socket.emit('room:error', { code: 'NOT_ENOUGH_PLAYERS', message: 'Se necesitan al menos 2 jugadores' })
-
-    // Pad to 4 players with bots if fewer (for now, require exactly 4 — but allow 2 for testing)
-    // Game requires exactly 4 players; for testing allow 2–4 but pad with dummy AI seats
-    // DECISION: require exactly 4 for real game, allow <4 for dev testing by padding
-    // For simplicity, require exactly 4
-    if (room.players.length !== 4) {
-      return socket.emit('room:error', { code: 'NOT_ENOUGH_PLAYERS', message: 'Se necesitan exactamente 4 jugadores' })
+    if (room.players.length !== 2 && room.players.length !== 4) {
+      return socket.emit('room:error', { code: 'NOT_ENOUGH_PLAYERS', message: 'Se necesitan 2 o 4 jugadores' })
     }
 
+    const playerCount = room.players.length
     const tiles = shuffleTiles(generateDoubleSixSet())
-    const { hands, boneyard } = dealTiles(tiles)
+    const { hands, boneyard } = dealTiles(tiles, playerCount)
     const { playerIndex: starterIdx, tile: forcedTile } = findFirstPlayer(hands)
 
     const game: ServerGameState = {
@@ -439,7 +437,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     })
 
     // Process auto-pass cascade for next player(s)
-    const nextIdx = nextPlayerIndex(player.index)
+    const nextIdx = nextPlayerIndex(player.index, game.players.length)
     const ended = processAutoPassCascade(io, game, nextIdx, player.index)
     if (!ended) {
       broadcastState(io, game)
@@ -456,7 +454,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
 
     // Start new hand
     const tiles = shuffleTiles(generateDoubleSixSet())
-    const { hands, boneyard } = dealTiles(tiles)
+    const { hands, boneyard } = dealTiles(tiles, game.players.length)
 
     // Winner of previous hand starts the new hand
     const newStarterIdx = game.handStarterIndex
@@ -485,7 +483,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     // The getValidPlays handles !firstPlayMade correctly: if forcedFirstTileId = '', it returns all valid plays
 
     // Deal new tiles
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < game.players.length; i++) {
       game.players[i].tiles = hands[i]
     }
 
@@ -516,7 +514,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
 
     // Shuffle and deal fresh tiles
     const tiles = shuffleTiles(generateDoubleSixSet())
-    const { hands, boneyard } = dealTiles(tiles)
+    const { hands, boneyard } = dealTiles(tiles, game.players.length)
 
     // Winner of the previous game starts the next game, plays any tile freely
     const nextStarter = game.gameWinnerIndex
@@ -536,7 +534,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     game.gameWinnerIndex = nextStarter
     game.forcedFirstTileId = ''  // no forced tile — winner plays freely
 
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < game.players.length; i++) {
       game.players[i].tiles = hands[i]
     }
 
@@ -572,13 +570,13 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
       playerNames: game.players.map(p => p.name),
     })
 
-    if (room.rematchVotes.length === 4) {
+    if (room.rematchVotes.length === game.players.length) {
       io.to(roomCode).emit('game:rematch_accepted', {})
 
       setTimeout(() => {
         // Reuse next_game logic: shuffle, deal, reset scores, same seats
         const tiles = shuffleTiles(generateDoubleSixSet())
-        const { hands, boneyard } = dealTiles(tiles)
+        const { hands, boneyard } = dealTiles(tiles, game.players.length)
         const nextStarter = game.gameWinnerIndex
 
         game.phase = 'playing'
@@ -595,7 +593,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
         game.gameWinnerIndex = nextStarter
         game.forcedFirstTileId = ''
 
-        for (let i = 0; i < 4; i++) {
+        for (let i = 0; i < game.players.length; i++) {
           game.players[i].tiles = hands[i]
         }
 
