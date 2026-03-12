@@ -92,6 +92,36 @@ function processAutoPassCascade(
   const partnerOfTilePlayer = is2Player ? -1 : (tilePlayerIndex + 2) % 4
 
   for (let i = 0; i < playerCount; i++) {
+    // BONEYARD DRAW PHASE: draw tiles one by one until player can play or boneyard is empty
+    while (game.boneyard.length > 0) {
+      const checkPlays = getValidPlays(
+        game.players[idx].tiles,
+        game.board,
+        game.firstPlayMade,
+        game.forcedFirstTileId
+      )
+      if (checkPlays.length > 0) break // player can play with current hand
+
+      // Draw one tile from boneyard
+      const drawnTile = game.boneyard.pop()!
+      game.players[idx].tiles.push(drawnTile)
+
+      // Emit draw event to drawing player (with tile data)
+      const drawingSocket = game.players[idx].socketId
+      io.to(drawingSocket).emit('game:boneyard_draw', {
+        tile: drawnTile,
+        boneyardRemaining: game.boneyard.length,
+        playerIndex: idx,
+      })
+
+      // Emit draw event to all others (without tile data)
+      io.to(game.roomCode).except(drawingSocket).emit('game:boneyard_draw', {
+        tile: null,
+        boneyardRemaining: game.boneyard.length,
+        playerIndex: idx,
+      })
+    }
+
     const validPlays = getValidPlays(
       game.players[idx].tiles,
       game.board,
@@ -105,7 +135,7 @@ function processAutoPassCascade(
       return false
     }
 
-    // Auto-pass this player
+    // Auto-pass this player (boneyard empty and no valid plays)
     let passBonusAwarded: number | null = null
     if (game.gameMode === 'modo200') {
       const isPartnerPass = idx === partnerOfTilePlayer
