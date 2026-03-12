@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { ClientGameState, RoundEndPayload, GameEndPayload } from '../types/game'
+import { ClientGameState, RoundEndPayload, GameEndPayload, BoneyardDrawPayload } from '../types/game'
 
 interface ScoreHistoryEntry {
   data: RoundEndPayload
@@ -22,6 +22,7 @@ interface GameStore {
   resetGame: () => void
   addToScoreHistory: (data: RoundEndPayload, handNumber: number) => void
   clearScoreHistory: () => void
+  handleBoneyardDraw: (payload: BoneyardDrawPayload, myPlayerIndex: number) => void
 }
 
 export type { ScoreHistoryEntry }
@@ -42,4 +43,25 @@ export const useGameStore = create<GameStore>(set => ({
   resetGame: () => set({ gameState: null, roundEndData: null, gameEndData: null, lastTileSequence: null, scoreHistory: [] }),
   addToScoreHistory: (data, handNumber) => set(state => ({ scoreHistory: [{ data, handNumber }, ...state.scoreHistory] })),
   clearScoreHistory: () => set({ scoreHistory: [] }),
+  handleBoneyardDraw: (payload, myPlayerIndex) => set(state => {
+    if (!state.gameState) return state
+    const players = state.gameState.players.map((p, i) => {
+      if (payload.tile !== null && i === myPlayerIndex) {
+        // I am the drawing player — add the tile to my hand
+        return { ...p, tiles: [...(p.tiles ?? []), payload.tile], tileCount: p.tileCount + 1 }
+      }
+      if (i === payload.playerIndex) {
+        // Opponent drew — increment their visible tile count
+        return { ...p, tileCount: p.tileCount + 1 }
+      }
+      return p
+    })
+    return {
+      gameState: {
+        ...state.gameState,
+        players,
+        boneyardCount: payload.boneyardRemaining,
+      },
+    }
+  }),
 }))

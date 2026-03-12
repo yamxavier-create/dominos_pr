@@ -114,3 +114,9 @@ export interface PassPayload {
   playerName: string
   passBonusAwarded: number | null
 }
+
+export interface BoneyardDrawPayload {
+  tile: Tile | null  // non-null for the drawing player, null for opponents
+  boneyardRemaining: number
+  playerIndex: number
+}
