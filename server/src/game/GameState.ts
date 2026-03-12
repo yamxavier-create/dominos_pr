@@ -63,6 +63,7 @@ export interface ServerGameState {
   firstPlayMade: boolean    // whether the opening tile has been placed
   forcedFirstTileId: string // the 6-6 (or fallback) that MUST be played first
   gameWinnerIndex: number   // player who won the last game (starts the next one)
+  boneyard: Tile[]          // tiles remaining in draw pile. Empty [] in 4-player; 14 tiles in 2-player
 }
 
 // ─── Room ─────────────────────────────────────────────────────────────────────
@@ -123,6 +124,8 @@ export interface ClientGameState {
   isMyTurn: boolean
   validPlays: Array<{ tileId: string; targetEnd: 'left' | 'right' }>
   forcedFirstTileId: string | null  // non-null only before first play
+  boneyardCount: number             // tiles remaining in boneyard. Always 0 in 4-player
+  playerCount: number               // 2 or 4. Client uses this for layout mode and label changes
 }
 
 export type GameAction =

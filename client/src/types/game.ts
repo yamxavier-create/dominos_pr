@@ -55,6 +55,8 @@ export interface ClientGameState {
   isMyTurn: boolean
   validPlays: Array<{ tileId: string; targetEnd: 'left' | 'right' }>
   forcedFirstTileId: string | null
+  boneyardCount: number             // tiles remaining in boneyard. Always 0 in 4-player
+  playerCount: number               // 2 or 4. Client uses this for layout mode and label changes
 }
 
 export interface RoomInfo {

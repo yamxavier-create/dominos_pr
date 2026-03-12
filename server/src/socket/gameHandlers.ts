@@ -284,7 +284,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     }
 
     const tiles = shuffleTiles(generateDoubleSixSet())
-    const { hands } = dealTiles(tiles)
+    const { hands, boneyard } = dealTiles(tiles)
     const { playerIndex: starterIdx, tile: forcedTile } = findFirstPlayer(hands)
 
     const game: ServerGameState = {
@@ -310,6 +310,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
       firstPlayMade: false,
       forcedFirstTileId: forcedTile.id,
       gameWinnerIndex: starterIdx,
+      boneyard,
     }
 
     room.game = game
@@ -455,7 +456,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
 
     // Start new hand
     const tiles = shuffleTiles(generateDoubleSixSet())
-    const { hands } = dealTiles(tiles)
+    const { hands, boneyard } = dealTiles(tiles)
 
     // Winner of previous hand starts the new hand
     const newStarterIdx = game.handStarterIndex
@@ -465,6 +466,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     game.board = { tiles: [], leftEnd: null, rightEnd: null }
     game.consecutivePasses = 0
     game.handPassCount = 0
+    game.boneyard = boneyard
     // gamePassCount intentionally NOT reset — it tracks total passes for the entire game (Modo 200 bonus)
     game.firstPlayMade = false
 
@@ -514,7 +516,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
 
     // Shuffle and deal fresh tiles
     const tiles = shuffleTiles(generateDoubleSixSet())
-    const { hands } = dealTiles(tiles)
+    const { hands, boneyard } = dealTiles(tiles)
 
     // Winner of the previous game starts the next game, plays any tile freely
     const nextStarter = game.gameWinnerIndex
@@ -527,6 +529,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     game.consecutivePasses = 0
     game.handPassCount = 0
     game.gamePassCount = 0
+    game.boneyard = boneyard
     game.firstPlayMade = false
     game.currentPlayerIndex = nextStarter
     game.handStarterIndex = nextStarter
@@ -575,7 +578,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
       setTimeout(() => {
         // Reuse next_game logic: shuffle, deal, reset scores, same seats
         const tiles = shuffleTiles(generateDoubleSixSet())
-        const { hands } = dealTiles(tiles)
+        const { hands, boneyard } = dealTiles(tiles)
         const nextStarter = game.gameWinnerIndex
 
         game.phase = 'playing'
@@ -585,6 +588,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
         game.consecutivePasses = 0
         game.handPassCount = 0
         game.gamePassCount = 0
+        game.boneyard = boneyard
         game.firstPlayMade = false
         game.currentPlayerIndex = nextStarter
         game.handStarterIndex = nextStarter
