@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 07-01-PLAN.md
-last_updated: "2026-03-12T20:46:19.221Z"
+stopped_at: Completed 07-03-PLAN.md
+last_updated: "2026-03-12T20:50:17.413Z"
 last_activity: 2026-03-12 — Completed 07-01 server types and engine functions
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 20
-  completed_plans: 17
+  completed_plans: 18
   percent: 85
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 7 of 8 (Two-Player Mode with Boneyard) - IN PROGRESS
-Plan: 1 of 4 in current phase - COMPLETE
+Plan: 3 of 4 in current phase - COMPLETE
 Status: Executing Phase 7
-Last activity: 2026-03-12 — Completed 07-01 server types and engine functions
+Last activity: 2026-03-12 — Completed 07-03 client types, state, and layout
 
-Progress: [█████████░] 85%
+Progress: [█████████░] 90%
 
 ## Performance Metrics
 
@@ -66,6 +66,7 @@ Progress: [█████████░] 85%
 | Phase 05 P05 | 2 | 1 tasks | 0 files |
 | Phase 06 P01 | 2min | 2 tasks | 2 files |
 | Phase 07 P01 | 9min | 2 tasks | 4 files |
+| Phase 07 P03 | 2min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -104,6 +105,8 @@ Recent decisions affecting current work:
 - [Phase 05]: joinCall and handlePeerJoined added to useWebRTC; peerJoinedCallRef wired in useSocket on webrtc:lobby_updated
 - [Phase 06]: REQUIREMENTS.md is authoritative for requirement IDs — plan success criteria and prior verification files are secondary
 - [Phase 07]: applyPassBonus200 unchanged -- partner protection in gameHandlers.ts not pure function
+- [Phase 07]: handleBoneyardDraw does surgical update rather than full state replacement since state_snapshot follows
+- [Phase 07]: playerCount default=4 on usePlayerPositions/getPosition for backward-compatible 2/4 layout
 
 ### Pending Todos
 
@@ -122,6 +125,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T20:46:19.211Z
-Stopped at: Completed 07-01-PLAN.md
+Last session: 2026-03-12T20:50:00Z
+Stopped at: Completed 07-03-PLAN.md
 Resume file: None

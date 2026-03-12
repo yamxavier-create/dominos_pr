@@ -117,7 +117,7 @@ Actualizado durante la creación del roadmap.
 | TWO-03 | Phase 7 | Pending |
 | TWO-04 | Phase 7 | Complete |
 | TWO-05 | Phase 7 | Complete |
-| TWO-06 | Phase 7 | Pending |
+| TWO-06 | Phase 7 | Complete |
 | TWO-07 | Phase 7 | Complete |
 
 **Coverage:**
