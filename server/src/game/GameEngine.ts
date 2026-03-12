@@ -34,7 +34,13 @@ export function shuffleTiles(tiles: Tile[]): Tile[] {
   return arr
 }
 
-export function dealTiles(tiles: Tile[]): { hands: Tile[][]; boneyard: Tile[] } {
+export function dealTiles(tiles: Tile[], playerCount = 4): { hands: Tile[][]; boneyard: Tile[] } {
+  if (playerCount === 2) {
+    return {
+      hands: [tiles.slice(0, 7), tiles.slice(7, 14)],
+      boneyard: tiles.slice(14),
+    }
+  }
   // 4-player: 7 tiles each, no boneyard
   return {
     hands: [tiles.slice(0, 7), tiles.slice(7, 14), tiles.slice(14, 21), tiles.slice(21, 28)],
@@ -74,9 +80,9 @@ export function findFirstPlayer(hands: Tile[][]): { playerIndex: number; tile: T
 
 // ─── Turn Order (Counter-Clockwise) ──────────────────────────────────────────
 
-/** CCW with 4 players: 0 → 1 → 2 → 3 → 0 (left player plays next) */
-export function nextPlayerIndex(current: number): number {
-  return (current + 1) % 4
+/** Turn order: 0 → 1 → … → (playerCount-1) → 0 */
+export function nextPlayerIndex(current: number, playerCount = 4): number {
+  return (current + 1) % playerCount
 }
 
 /** Returns the team (0 or 1) for a given player index */
@@ -212,8 +218,8 @@ export function applyTileToBoard(
 
 // ─── Blocked Game ─────────────────────────────────────────────────────────────
 
-export function isGameBlocked(consecutivePasses: number): boolean {
-  return consecutivePasses >= 4
+export function isGameBlocked(consecutivePasses: number, playerCount = 4): boolean {
+  return consecutivePasses >= playerCount
 }
 
 // ─── Scoring ─────────────────────────────────────────────────────────────────
@@ -236,6 +242,17 @@ export function calculateBlockedResult(players: PlayerState[]): {
   pipCounts: number[]        // pip sum per player
 } {
   const pipCounts = players.map(p => handPipSum(p.tiles))
+
+  if (players.length === 2) {
+    // 2-player: individual pip comparison
+    const p0 = pipCounts[0]
+    const p1 = pipCounts[1]
+    if (p0 < p1) return { winningTeam: playerTeam(0), pointsScored: p1, pipCounts }
+    if (p1 < p0) return { winningTeam: playerTeam(1), pointsScored: p0, pipCounts }
+    return { winningTeam: null, pointsScored: 0, pipCounts }
+  }
+
+  // 4-player: team sum comparison
   const teamA = pipCounts[0] + pipCounts[2]
   const teamB = pipCounts[1] + pipCounts[3]
 
@@ -381,5 +398,7 @@ export function buildClientGameState(
         ? getValidPlays(hand, board, game.firstPlayMade, game.forcedFirstTileId)
         : [],
     forcedFirstTileId: !game.firstPlayMade ? game.forcedFirstTileId : null,
+    boneyardCount: game.boneyard.length,
+    playerCount: game.players.length,
   }
 }
