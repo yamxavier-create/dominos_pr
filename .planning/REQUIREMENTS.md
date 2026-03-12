@@ -113,12 +113,12 @@ Actualizado durante la creación del roadmap.
 | CHAT-06 | Phase 4 | Complete |
 | CHAT-07 | Phase 4 | Complete |
 | TWO-01 | Phase 7 | Pending |
-| TWO-02 | Phase 7 | Pending |
+| TWO-02 | Phase 7 | Complete |
 | TWO-03 | Phase 7 | Pending |
-| TWO-04 | Phase 7 | Pending |
-| TWO-05 | Phase 7 | Pending |
+| TWO-04 | Phase 7 | Complete |
+| TWO-05 | Phase 7 | Complete |
 | TWO-06 | Phase 7 | Pending |
-| TWO-07 | Phase 7 | Pending |
+| TWO-07 | Phase 7 | Complete |
 
 **Coverage:**
 - v1 requirements: 28 total
