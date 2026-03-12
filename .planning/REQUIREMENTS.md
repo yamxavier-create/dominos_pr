@@ -44,6 +44,16 @@
 - [x] **CHAT-06**: El servidor aplica rate limiting: máximo 15 mensajes por jugador cada 10 segundos
 - [x] **CHAT-07**: Los mensajes son sanitizados en el servidor antes de ser retransmitidos (previene XSS)
 
+### Two-Player Mode with Boneyard
+
+- **TWO-01**: Si hay 2 jugadores en la sala, el juego inicia en modo 2 jugadores automáticamente (sin selección manual)
+- **TWO-02**: Cada jugador recibe 7 fichas; las 14 restantes forman el boneyard (fichas en la mesa)
+- **TWO-03**: Cuando un jugador no puede tirar, roba fichas del boneyard una por una hasta encontrar una jugable; si el boneyard se vacía sin encontrar ficha jugable, pasa el turno
+- **TWO-04**: El scoring es individual (sin equipos) — el ganador de la mano gana los pips del oponente
+- **TWO-05**: Los modos de puntuación existentes (Modo 200 / Modo 500) funcionan en modo 2 jugadores con las mismas reglas de bonificación
+- **TWO-06**: El layout visual muestra al jugador local abajo y al oponente arriba; las posiciones izquierda y derecha se ocultan o adaptan
+- **TWO-07**: El juego se bloquea cuando ambos jugadores pasan consecutivamente (boneyard vacío y ninguno puede tirar)
+
 ## v2 Requirements
 
 ### Chat avanzado
@@ -102,10 +112,17 @@ Actualizado durante la creación del roadmap.
 | CHAT-05 | Phase 4 | Complete |
 | CHAT-06 | Phase 4 | Complete |
 | CHAT-07 | Phase 4 | Complete |
+| TWO-01 | Phase 7 | Pending |
+| TWO-02 | Phase 7 | Pending |
+| TWO-03 | Phase 7 | Pending |
+| TWO-04 | Phase 7 | Pending |
+| TWO-05 | Phase 7 | Pending |
+| TWO-06 | Phase 7 | Pending |
+| TWO-07 | Phase 7 | Pending |
 
 **Coverage:**
-- v1 requirements: 21 total
-- Mapped to phases: 21
+- v1 requirements: 28 total
+- Mapped to phases: 28
 - Unmapped: 0 ✓
 
 ---

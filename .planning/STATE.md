@@ -70,6 +70,7 @@ Progress: [█████████░] 90%
 ### Roadmap Evolution
 
 - Phase 5 added: Video & Audio Call — Players can see and talk to each other in real time via WebRTC while playing
+- Phase 7 added: Two-Player Mode with Boneyard — 2-player games with boneyard draw mechanic, individual scoring, adapted layout
 
 ### Decisions
 
