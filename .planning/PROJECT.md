@@ -2,11 +2,11 @@
 
 ## What This Is
 
-A real-time multiplayer Puerto Rican dominoes web app for 4 players. Players join via room codes, play with full Puerto Rican rules (Modo 200 / Modo 500), and see the game unfold on an animated snake board. Built with React + Socket.io — no backend database, no accounts, just share a code and play.
+A real-time multiplayer Puerto Rican dominoes web app supporting 2 or 4 players. Players join via room codes, play with full Puerto Rican rules (Modo 200 / Modo 500), and see the game unfold on an animated snake board. Includes in-game chat, rematch voting, per-hand score history, WebRTC video/audio calling, and a 2-player mode with boneyard draw mechanics. Built with React + Socket.io — no backend database, no accounts, just share a code and play.
 
 ## Core Value
 
-Four friends can start and finish a complete game of Puerto Rican dominoes online, in real time, from any device — without friction.
+Friends can start and finish a complete game of Puerto Rican dominoes online, in real time, from any device — without friction.
 
 ## Requirements
 
@@ -20,32 +20,40 @@ Four friends can start and finish a complete game of Puerto Rican dominoes onlin
 - ✓ Score tracking per round and per game — existing
 - ✓ Player reconnection support (match by name) — existing
 - ✓ Host management and promotion on disconnect — existing
+- ✓ Bug fixes: animation targeting, host detection, selectedTileId clearing, static imports — v1.0
+- ✓ Game flow bugs: next-game starter, hand starter, responsive board, empty board placement — v1.0
+- ✓ Per-hand score history panel with running team totals — v1.0
+- ✓ Rematch voting (4/4 consensus, live counter, disconnect cancellation) — v1.0
+- ✓ In-game chat (text messages, emoji reactions, unread badges, reconnect history) — v1.0
+- ✓ WebRTC video/audio calling with lobby opt-in — v1.0
+- ✓ 2-player mode with boneyard draw mechanic — v1.0
+- ✓ Boneyard visual pile with draw animation — v1.0
+- ✓ Duo mode camera/mic (player-count-aware WebRTC) — v1.0
 
 ### Active
 
-- [ ] Bug fix: Tile animation targets wrong tile when played on left end of board
-- [ ] Rematch in same room — play again without re-sharing room code
-- [ ] In-game chat — free text messages + quick reactions (emojis/preset phrases)
-- [ ] Running score history panel — accumulated team score visible during game
+(None — next milestone requirements TBD)
 
 ### Out of Scope
 
-- Video calling (WebRTC) — high complexity; defer to next milestone after core features stabilize
 - Persistent accounts / login — in-memory rooms are sufficient for casual play
 - Mobile native app — web-first; mobile browser is acceptable for now
+- Offline mode — real-time is core value
+- Persistent chat history — in-memory is sufficient for casual play sessions
+- Spectator mode — requires seat assignment changes
 
 ## Context
 
-- Monorepo: `client/` (React + Vite) and `server/` (Express + Socket.io), both TypeScript strict mode
-- No REST API — all game state flows exclusively through Socket.io events
-- Server is sole authority: game logic, scoring, and valid-move computation live only server-side
-- Codebase map at `.planning/codebase/` — architecture, stack, concerns, and known bugs documented
-- Known tech debt in `CONCERNS.md`: `game:next_hand` starter bug (wrong player starts hand 2+), `selectedTileId` not cleared on turn change, reconnection name-only matching
-- Zero test coverage — pure functions in `GameEngine.ts` are ideal unit test targets when ready
+Shipped v1.0 with 5,721 LOC TypeScript across 147 commits in 7 days.
+Tech stack: React + Vite, Express + Socket.io, Zustand, WebRTC, TailwindCSS.
+Monorepo: `client/` and `server/`, both TypeScript strict mode.
+No REST API — all game state flows exclusively through Socket.io events.
+Server is sole authority: game logic, scoring, and valid-move computation live only server-side.
+Zero test coverage — pure functions in `GameEngine.ts` are ideal unit test targets when ready.
 
 ## Constraints
 
-- **Tech Stack**: React + Socket.io + Zustand + Express — no new frameworks without clear justification
+- **Tech Stack**: React + Socket.io + Zustand + Express + WebRTC — no new frameworks without clear justification
 - **No persistence**: In-memory room state only; server restart loses active games (acceptable for v1)
 - **No auth**: Players identified by display name + socket ID; reconnection by name match
 - **TypeScript strict**: Both client and server enforce `"strict": true`
@@ -54,9 +62,15 @@ Four friends can start and finish a complete game of Puerto Rican dominoes onlin
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Video calling deferred | WebRTC + STUN/TURN adds significant complexity; better to ship stable social features first | — Pending |
-| Chat: text + quick reactions | Free text for real conversation; quick reactions for low-friction in-game response | — Pending |
-| Score history: accumulated table only | Simple running total is what players actually glance at during play; per-hand detail is v2 | — Pending |
+| Video calling shipped in v1.0 | WebRTC complexity was manageable with Perfect Negotiation pattern and lobby opt-in UX | ✓ Good |
+| Chat: text + emoji reactions | Free text for real conversation; 21 emoji for low-friction in-game response | ✓ Good |
+| Score history: accumulated table | Simple running total is what players glance at during play | ✓ Good |
+| Rematch: 4/4 consensus with cancellation | Ensures all players agree; disconnect cancels cleanly | ✓ Good |
+| 2-player mode with boneyard | Draw mechanic adds strategic depth for smaller games | ✓ Good |
+| Boneyard draw animation queue | One-at-a-time animation with 500ms pause builds tension like real table play | ✓ Good |
+| ChatMessage type duplicated client/server | No shared types package; duplication is acceptable for 1 interface | ⚠️ Revisit if types grow |
+| Rate limit 15/10s (not 5/10s) | Plan spec was incorrect; REQUIREMENTS.md authoritative at 15/10s | ✓ Good |
+| playerCount default=4 with ?? fallback | Backward-compatible 2/4 layout without breaking existing code | ✓ Good |
 
 ---
-*Last updated: 2026-03-06 after initialization*
+*Last updated: 2026-03-13 after v1.0 milestone*
