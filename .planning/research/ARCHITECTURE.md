@@ -1,568 +1,568 @@
 # Architecture Patterns
 
-**Domain:** Real-time multiplayer Puerto Rican dominoes — social feature integration
-**Researched:** 2026-03-06
-**Scope:** Chat, rematch, and score history integration into the existing Socket.io + React + Zustand stack
+**Domain:** Real-time multiplayer domino web app -- v1.1 deploy, PWA, and circular avatar cameras
+**Researched:** 2026-03-13
+**Confidence:** MEDIUM (deploy platform and PWA plugin recommendations based on training data; CSS/WebRTC patterns are HIGH confidence)
 
 ---
 
-## Existing Architecture Summary (Basis for All Decisions)
+## Current Architecture Snapshot
 
-Before recommending anything, the key invariants of the existing system that must not be violated:
+Before describing changes, here is what exists:
 
-- All state changes flow through Socket.io — no REST endpoints, no polling
-- `GameEngine.ts` contains only pure functions — zero side effects, zero I/O. It must stay that way.
-- `broadcastState()` in `gameHandlers.ts` is the single path for game state delivery
-- Three Zustand stores (`gameStore`, `roomStore`, `uiStore`) are isolated — they never import from each other
-- `useSocket.ts` is the single registration point for all server-to-client event handlers
-- `Room.game` is `null` until `game:start` fires; the `Room` itself always exists
+```
+[Browser]                          [Server (Express + Socket.io)]
+  React 18 + Vite 5                  Express 4 serves client/dist in production
+  Zustand (gameStore, roomStore,     Socket.io 4.7 on same HTTP server
+    uiStore, callStore)              RoomManager (in-memory, 10-min cleanup)
+  Socket.io-client (ws://)           GameEngine (pure functions only)
+  WebRTC peer-to-peer                webrtcHandlers (signaling relay)
+  useWebRTC hook (Perfect Neg.)      No database, no auth
+  VideoCallPanel (side panel)        PORT from env, CLIENT_ORIGIN from env
+```
+
+**Key invariants preserved by this milestone:**
+- Server is a single Node.js process with in-memory state
+- Express serves Vite build (`client/dist/`) in production mode
+- Socket.io shares the same HTTP server -- single origin, no CORS needed in production
+- `socket.ts` client uses relative URL `SOCKET_URL = '/'` -- works on any domain
+- WebRTC is peer-to-peer with STUN only (`stun:stun.l.google.com:19302`)
+- `GameEngine.ts` pure functions are NOT touched by any v1.1 feature
+- All game state flows through Socket.io -- no REST API
+
+**None of the v1.1 features modify core game logic, socket events, or store architecture.**
 
 ---
 
-## Feature 1: Chat
-
-### Where Chat State Lives
-
-**Verdict: New `chatStore` — do not extend `uiStore` or `gameStore`.**
-
-`uiStore` manages ephemeral interaction state (selected tile, notification queue, modal flags, sound toggle). Chat messages are persistent within a session and unrelated to game mechanics. Adding chat to `uiStore` would bloat it and break its coherent responsibility.
-
-`gameStore` owns `ClientGameState` snapshots — chat is not part of game state and must not be mixed in.
-
-A dedicated `chatStore` is the correct boundary:
-
-```typescript
-// client/src/store/chatStore.ts
-
-interface ChatMessage {
-  id: string             // uuid or timestamp+playerIndex composite
-  playerIndex: number
-  playerName: string
-  text: string           // free text OR a reaction key
-  type: 'text' | 'reaction'
-  timestamp: number      // ms epoch, server-assigned
-}
-
-interface ChatStore {
-  messages: ChatMessage[]
-  unreadCount: number    // increments when chat panel is closed
-  isChatOpen: boolean
-
-  addMessage: (msg: ChatMessage) => void
-  markRead: () => void
-  setChatOpen: (open: boolean) => void
-  clearChat: () => void
-}
-```
-
-`clearChat()` is called on `game:game_ended` (or room leave) to reset between games.
-
-### Where Chat State Lives on the Server
-
-Chat messages are **not** stored in `ServerGameState`. They are room-scoped ambient data. Add a `chatHistory` field to `Room` in `GameState.ts`:
-
-```typescript
-// Addition to server/src/game/GameState.ts
-
-export interface ChatMessage {
-  id: string
-  playerIndex: number
-  playerName: string
-  text: string
-  type: 'text' | 'reaction'
-  timestamp: number
-}
-
-// Inside Room interface — add:
-chatHistory: ChatMessage[]   // last N messages, capped at 100
-```
-
-This sits on the `Room` object alongside `game`, not inside `ServerGameState`. It survives hand transitions (a player can see messages from earlier in the game). It is cleared when the room is destroyed (same in-memory lifecycle as the game itself).
-
-### New Socket.io Events for Chat
-
-Follow existing namespace:action convention.
-
-**Client → Server:**
-
-| Event | Payload | Notes |
-|-------|---------|-------|
-| `chat:send` | `{ roomCode: string; text: string; type: 'text' \| 'reaction' }` | Server validates sender identity via `socket.id`, enforces max length (120 chars), rate-limits |
-
-**Server → Client (broadcast to room):**
-
-| Event | Payload | Notes |
-|-------|---------|-------|
-| `chat:message` | `ChatMessage` (server-stamped with `timestamp`, `playerIndex`, `playerName`) | Broadcast to all sockets in room via `io.to(roomCode).emit(...)` |
-
-The server assigns `playerIndex` and `playerName` from `room.game.players` or `room.players` — the client never self-reports its identity for a chat message. The server also generates the `id` (e.g. `${Date.now()}-${playerIndex}`) and `timestamp`.
-
-### New Handler File
-
-Create `server/src/socket/chatHandlers.ts` following the exact pattern of `gameHandlers.ts` and `roomHandlers.ts`:
-
-```typescript
-// server/src/socket/chatHandlers.ts
-export function registerChatHandlers(socket: Socket, io: Server, rooms: RoomManager) {
-  socket.on('chat:send', ({ roomCode, text, type }) => {
-    // 1. Get room and verify sender
-    // 2. Find player by socket.id in room.players
-    // 3. Validate text (trim, max 120 chars, non-empty)
-    // 4. Build ChatMessage with server timestamp
-    // 5. Push to room.chatHistory (cap at 100)
-    // 6. io.to(roomCode).emit('chat:message', message)
-    // 7. Update room.lastActivity
-  })
-}
-```
-
-Register in `server/src/socket/handlers.ts` alongside the existing registrations.
-
-### Chat in useSocket
-
-Add one handler registration to the existing `useSocket.ts` effect:
-
-```typescript
-socket.on('chat:message', (msg: ChatMessage) => {
-  useChatStore.getState().addMessage(msg)
-})
-```
-
-Add cleanup in the return function:
-```typescript
-socket.off('chat:message')
-```
-
-This is the only touch to `useSocket.ts` for chat.
-
-### Reconnect: Replay Chat History
-
-When a player reconnects (`room:join` while `room.status === 'in_game'`), the server should send accumulated chat history:
-
-```typescript
-// In roomHandlers.ts reconnect branch, after game:state_snapshot:
-socket.emit('chat:history', { messages: room.chatHistory })
-```
-
-Client handler in `useSocket.ts`:
-```typescript
-socket.on('chat:history', ({ messages }: { messages: ChatMessage[] }) => {
-  messages.forEach(msg => useChatStore.getState().addMessage(msg))
-})
-```
-
-### Component Placement for Chat
-
-The chat panel belongs in `GameTable.tsx` as a slide-in overlay panel anchored to the right edge of the screen. It must not displace the board or player positions.
+## High-Level Change Map
 
 ```
-GameTable layout (existing 3x3 grid):
-┌──────────────────────────────────────┐
-│ ScorePanel (top bar)                 │
-├───────────────────────────────────────┤
-│ [TopLeft] │  Top Opponent   │ [TpRt] │
-│───────────────────────────────────────│
-│  Left     │   Board Center  │  Right │
-│ Opponent  │  (GameBoard)    │ Opp    │
-│───────────────────────────────────────│
-│ [BotLft]  │   My Hand       │ [BtRt] │
-└──────────────────────────────────────┘
-     ↑
-ChatPanel overlays from right edge — position: fixed, right: 0
-Does not affect grid layout at all
+FEATURE 1: Cloud Deployment
+  MODIFY: server/src/config.ts (production CLIENT_ORIGIN handling)
+  MODIFY: package.json (add "engines" field for Node version)
+  NEW:    .env.example (document required env vars)
+  NO CHANGE: socket.ts (already uses relative '/')
+  NO CHANGE: vite.config.ts proxy (dev-only, ignored in production)
+  NO CHANGE: server/src/index.ts production serving (already correct)
+
+FEATURE 2: PWA Support
+  NEW:    client/public/manifest.json
+  NEW:    client/public/icons/ (192px, 512px, maskable app icons)
+  MODIFY: client/vite.config.ts (add VitePWA plugin)
+  MODIFY: client/index.html (theme-color meta, apple-touch-icon link)
+  MODIFY: client/package.json (add vite-plugin-pwa as devDependency)
+  NO CHANGE: server (PWA is entirely client-side)
+  NO CHANGE: Socket.io (WebSocket bypasses service workers)
+
+FEATURE 3: Circular Avatar Cameras
+  NEW:    client/src/components/player/AvatarCamera.tsx
+  NEW:    client/src/components/game/FloatingCallControls.tsx
+  MODIFY: client/src/components/player/PlayerSeat.tsx (embed AvatarCamera, add playerIndex prop)
+  MODIFY: client/src/components/game/GameTable.tsx (remove VideoCallPanel, add FloatingCallControls)
+  MODIFY: client/src/pages/GamePage.tsx (move RemoteAudio elements here)
+  DELETE: client/src/components/game/VideoCallPanel.tsx (replaced entirely)
+  NO CHANGE: client/src/hooks/useWebRTC.ts (streams stay in callStore)
+  NO CHANGE: client/src/store/callStore.ts (already stores streams by player index)
+  NO CHANGE: server (WebRTC signaling unchanged)
 ```
-
-Implementation: `ChatPanel` renders as `position: fixed` on the right side with a slide-in animation. A chat toggle button sits in the `ScorePanel` top bar (far right, next to the sound toggle). This avoids adding a new row or column to the 3x3 grid.
-
-New components needed:
-- `client/src/components/game/ChatPanel.tsx` — the slide-in panel with message list and input
-- `client/src/components/game/ChatToggleButton.tsx` — the badge button (shows `unreadCount`)
-- `client/src/components/game/ReactionPicker.tsx` — quick-reaction emoji row
-
-`ChatPanel` reads from `chatStore` only. It emits via `socket.emit('chat:send', ...)` directly (same pattern as other one-off emits in `useGameActions.ts`).
-
-Quick reactions: define a fixed set of ~6 preset phrases or emojis (e.g. "Buena!", "Jajaja", "Ay bendito", "Doble!", "Paso paso", "GG"). These are sent with `type: 'reaction'` and rendered differently in the message list (pill chip vs. text bubble).
-
----
-
-## Feature 2: Rematch
-
-### Rematch State Machine
-
-Rematch requires consensus: all 4 players must agree before starting a new game. This is a coordination problem that the server must own.
-
-**State shape on the server — add to `Room`:**
-
-```typescript
-// Addition to Room in GameState.ts
-
-rematch: {
-  votes: Set<string>   // socket IDs that voted to rematch
-  expiresAt: number    // timestamp; server clears stale votes after 60s
-} | null
-```
-
-`rematch` is `null` when no rematch vote is in progress. It becomes non-null the moment the first player votes after `game:game_ended`. It resets to `null` when: all 4 vote (game restarts), any player leaves, or 60 seconds pass with no consensus.
-
-### New Socket.io Events for Rematch
-
-**Client → Server:**
-
-| Event | Payload | Notes |
-|-------|---------|-------|
-| `game:rematch_vote` | `{ roomCode: string }` | Idempotent — duplicate votes from same socket are no-ops |
-
-**Server → Client:**
-
-| Event | Payload | Notes |
-|-------|---------|-------|
-| `game:rematch_update` | `{ votes: number[]; total: 4 }` | `votes` is array of playerIndexes that have voted; broadcast after each new vote |
-| `game:rematch_started` | `{ gameState: ClientGameState }` (personalized, same shape as `game:started`) | Sent individually per player when all 4 agree |
-
-`game:rematch_update` follows the "announce each change" pattern already established by `game:player_passed`. The client can render "2/4 quieren revancha" from the `votes.length`.
-
-**Why not reuse `game:started`?**
-
-`game:rematch_started` and `game:started` have identical payloads but distinct semantics on the client: `game:started` navigates to `/game`, while `game:rematch_started` does not navigate (the player is already on `/game`). The client handler needs to distinguish them. Using separate event names is correct here.
-
-### Server Handler for Rematch
-
-Add a new handler inside `gameHandlers.ts` (not a new file — rematch is game lifecycle):
-
-```typescript
-socket.on('game:rematch_vote', ({ roomCode }) => {
-  const room = rooms.getRoom(roomCode)
-  if (!room) return
-  // Only valid during game_end phase
-  if (!room.game || room.game.phase !== 'game_end') return
-  // Find player
-  const player = room.game.players.find(p => p.socketId === socket.id)
-  if (!player) return
-
-  // Initialize rematch tracking on room if not already
-  if (!room.rematch) {
-    room.rematch = { votes: new Set(), expiresAt: Date.now() + 60_000 }
-  }
-  room.rematch.votes.add(socket.id)
-
-  // Broadcast current vote count
-  const voteIndexes = [...room.rematch.votes].map(sid =>
-    room.game!.players.find(p => p.socketId === sid)?.index ?? -1
-  ).filter(i => i >= 0)
-  io.to(roomCode).emit('game:rematch_update', { votes: voteIndexes, total: 4 })
-
-  // All 4 voted — start new game
-  if (room.rematch.votes.size === 4) {
-    room.rematch = null
-    // Reset game state (same logic as game:start but keep same room/players/seats)
-    // ... deal tiles, find first player, build new ServerGameState ...
-    // Send personalized state to each player
-    for (const p of room.game.players) {
-      const clientState = buildClientGameState(room.game, p.index)
-      io.to(p.socketId).emit('game:rematch_started', { gameState: clientState })
-    }
-  }
-})
-```
-
-Critical: rematch resets `room.game` to a fresh `ServerGameState` with the same player roster and seat assignments. It does NOT reset `room.players` (seats stay the same). Score history accumulates across the lobby session (discussed below).
-
-### Client-Side Rematch State
-
-Extend `gameStore` — do not create a new store:
-
-```typescript
-// Addition to GameStore interface
-rematchVotes: number[]       // playerIndexes that have voted
-
-setRematchVotes: (votes: number[]) => void
-clearRematch: () => void
-```
-
-`rematchVotes` resets to `[]` when `game:rematch_started` fires (game begins) or when navigating away.
-
-The `GameEndModal` component is modified to show:
-1. A "Revancha" button — emits `game:rematch_vote` on click
-2. A vote counter "2/4" that updates as `game:rematch_update` events arrive
-3. The existing "Jugar de Nuevo" button (leave room) remains unchanged
-
-The "Jugar de Nuevo" path (`room:leave` → navigate to `/`) is the escape hatch and stays exactly as-is.
-
-### useSocket Additions for Rematch
-
-```typescript
-socket.on('game:rematch_update', ({ votes }: { votes: number[] }) => {
-  useGameStore.getState().setRematchVotes(votes)
-})
-
-socket.on('game:rematch_started', ({ gameState }: { gameState: ClientGameState }) => {
-  setGameState(gameState)
-  // No navigate() call — already on /game
-  useGameStore.getState().clearRematch()
-  useUIStore.getState().setShowGameEnd(false)
-  useUIStore.getState().setShowRoundEnd(false)
-})
-```
-
-The distinction from `game:started` is precisely that there is no `navigate('/game')` call.
-
-### Rematch and Score History Integration
-
-Rematch is the trigger that makes score history meaningful: players see the previous game's result before committing to another. The `GameEndModal` already shows `finalScores` from `game:game_ended`. No new data needed for this view — it is already there.
-
----
-
-## Feature 3: Score History
-
-### Where Score History Lives
-
-Score history (per-hand breakdown) is **not** part of `ClientGameState`. It is accumulated data, not current-game state.
-
-**Verdict: Server accumulates on `Room`; client accumulates in `gameStore`.**
-
-Server:
-```typescript
-// Addition to Room in GameState.ts
-
-export interface HandRecord {
-  handNumber: number
-  reason: 'played_out' | 'blocked'
-  winningTeam: 0 | 1 | null
-  pointsScored: number
-  isCapicu: boolean
-  isChuchazo: boolean
-  scoresAfter: TeamScores   // cumulative score at end of this hand
-}
-
-// Inside Room interface — add:
-scoreHistory: HandRecord[]
-```
-
-The server appends a `HandRecord` at the same moment it emits `game:round_ended`, pulling data from the payload it is already constructing. This requires no new computation — all fields already exist in the `game:round_ended` payload.
-
-Client:
-```typescript
-// Addition to GameStore interface
-
-scoreHistory: HandRecord[]
-addHandRecord: (record: HandRecord) => void
-clearScoreHistory: () => void
-```
-
-The client builds `scoreHistory` by appending on each `game:round_ended` event — it does not need a separate server push. The data is already in the `RoundEndPayload`. Add to the `game:round_ended` handler in `useSocket.ts`:
-
-```typescript
-socket.on('game:round_ended', (data: RoundEndPayload) => {
-  setRoundEnd(data)
-  setShowRoundEnd(true)
-  // Append to score history
-  useGameStore.getState().addHandRecord({
-    handNumber: /* from gameState.handNumber */,
-    reason: data.reason,
-    winningTeam: data.winningTeam,
-    pointsScored: data.totalPointsScored,
-    isCapicu: data.isCapicu,
-    isChuchazo: data.isChuchazo,
-    scoresAfter: data.scores,
-  })
-})
-```
-
-`handNumber` comes from `gameStore.gameState.handNumber` at the moment the event fires. The `useSocket` hook already reads from `useGameStore` — this is not a new cross-store dependency.
-
-**Reconnect: Send Score History**
-
-When a player reconnects mid-game, the server should replay `scoreHistory` alongside the chat history:
-
-```typescript
-// In roomHandlers.ts reconnect branch:
-socket.emit('game:score_history', { records: room.scoreHistory })
-```
-
-Client handler:
-```typescript
-socket.on('game:score_history', ({ records }: { records: HandRecord[] }) => {
-  records.forEach(r => useGameStore.getState().addHandRecord(r))
-})
-```
-
-### Score History Component Placement
-
-The running score history is an expandable overlay accessible from the `ScorePanel`. It does not live in a modal — it should be a slide-in panel from the top (below `ScorePanel`), or a popover triggered by tapping the score bar.
-
-Recommended: a `ScoreHistoryPanel` component triggered by a tap on `ScorePanel`. It displays a compact table:
-
-```
-Hand | Winner     | Points | A  | B
-  1  | Equipo A   | 12     | 12 | 0
-  2  | Blocked    | 8      | 20 | 0
-  3  | Equipo B   | 15     | 20 | 15
-```
-
-The panel is `position: fixed`, full-width, slides down from the top bar. It reads only from `chatStore.scoreHistory` (should be `gameStore.scoreHistory`).
-
-New component: `client/src/components/game/ScoreHistoryPanel.tsx`
-
-Visibility toggle state: add `showScoreHistory: boolean` and `setShowScoreHistory` to `uiStore` (same pattern as `showRoundEnd`, `showGameEnd`).
 
 ---
 
 ## Component Boundaries
 
-| Component | Responsibility | Reads From | Emits |
-|-----------|---------------|------------|-------|
-| `ChatPanel` | Render message list, text input, reaction picker | `chatStore` | `chat:send` |
-| `ChatToggleButton` | Badge button in `ScorePanel` showing unread count | `chatStore.unreadCount`, `chatStore.isChatOpen` | sets `chatStore.isChatOpen` |
-| `ReactionPicker` | Quick reaction row in `ChatPanel` | static config | triggers `ChatPanel` send |
-| `ScoreHistoryPanel` | Per-hand score table slide-in | `gameStore.scoreHistory` | — |
-| `GameEndModal` (modified) | Add rematch vote button + vote count | `gameStore.rematchVotes` | `game:rematch_vote` |
-| `ScorePanel` (modified) | Add chat toggle button | `chatStore` | toggles `chatStore.isChatOpen` |
+| Component | Responsibility | Communicates With |
+|-----------|---------------|-------------------|
+| **Deploy config** (.env, Railway) | Platform setup, port binding, build pipeline | Railway platform, Express server |
+| **vite-plugin-pwa** (build plugin) | Generates service worker + injects manifest | Vite build pipeline, browser PWA APIs |
+| **manifest.json** | PWA metadata (name, icons, display mode) | Browser install prompt, OS launcher |
+| **Service Worker** (auto-generated) | Cache app shell, offline fallback | Browser Cache API, network |
+| **AvatarCamera** (new) | Renders circular `<video>` from MediaStream | `callStore` (reads stream), `PlayerSeat` (parent) |
+| **PlayerSeat** (modified) | Player info + circular avatar (video or initials) | `AvatarCamera`, `callStore`, `GameTable` |
+| **FloatingCallControls** (new) | Mic/camera toggle, join/leave call buttons | `callStore`, `socket` (webrtc:toggle emit) |
+| **GamePage** (modified) | Hosts RemoteAudio elements (moved from VideoCallPanel) | `callStore` |
 
 ---
 
-## Integration with Existing broadcastState Flow
+## Feature 1: Cloud Deployment
 
-**Chat does NOT go through `broadcastState`.** Chat events are independent room broadcasts using `io.to(roomCode).emit('chat:message', ...)` directly in `chatHandlers.ts`. This is intentional — chat is not personalized per-player (unlike game state), so it does not need `buildClientGameState` projection.
+### Architecture Decision: Single-Process Deploy on Railway
 
-**Rematch does NOT go through `broadcastState`.** `game:rematch_update` and `game:rematch_started` are their own broadcasts from `gameHandlers.ts`. `game:rematch_started` does use `buildClientGameState` for the same reason `game:started` does — each player needs a personalized view of their own hand.
+**Use Railway** because Express + Socket.io on the same HTTP server is a single-process architecture. Railway natively supports WebSocket upgrades on its proxy, auto-deploys from GitHub, provides HTTPS by default, and supports custom domains. The app needs zero architectural changes.
 
-**Score history does NOT change `broadcastState`.** It is derived entirely from `game:round_ended` payloads that already flow through the existing emit chain. No modification to `broadcastState`, `broadcastStateWithAction`, or `GameEngine.ts` is required.
+**Why not Vercel/Netlify:** Optimized for serverless/static. Socket.io requires a persistent process for WebSocket connections. Vercel Functions have execution timeouts (10s free, 60s pro) and do not support WebSocket upgrades. Would force splitting client and server to separate hosts, requiring CORS and absolute socket URL.
 
-**`GameEngine.ts` requires zero changes.** All three features use existing outputs from the engine (score data from `game:round_ended`, game state from `buildClientGameState`). The pure-function contract is preserved.
+**Why not Fly.io:** Works but requires Dockerfile and `fly.toml`. Railway auto-detects Node.js and runs scripts directly. Less config friction.
 
----
+**Why not Render:** Comparable to Railway. Either works. Railway's usage-based pricing is slightly better for intermittent hobby traffic vs Render's free tier spin-down after 15 min inactivity.
 
-## New Socket.io Event Registry
+### Deployment Data Flow
 
-Complete list of new events — named consistently with existing `namespace:action` convention:
+```
+[GitHub push to main] --> [Railway auto-deploy]
+  1. npm install (all workspaces -- monorepo detected)
+  2. npm run build
+     a. client: tsc && vite build --> client/dist/
+     b. server: tsc --> server/dist/
+  3. npm start --> node server/dist/index.js
+     - Express serves client/dist as static files
+     - Socket.io attaches to same HTTP server
+     - PORT injected by Railway (process.env.PORT)
+  4. Railway proxy terminates HTTPS, upgrades WebSocket
+```
 
-| Direction | Event | Handler Location | Description |
-|-----------|-------|-----------------|-------------|
-| C→S | `chat:send` | `chatHandlers.ts` | Player sends a message or reaction |
-| S→C | `chat:message` | `useSocket.ts` | Broadcast: new chat message |
-| S→C | `chat:history` | `useSocket.ts` | Reconnect: replay accumulated messages |
-| C→S | `game:rematch_vote` | `gameHandlers.ts` | Player votes for rematch |
-| S→C | `game:rematch_update` | `useSocket.ts` | Broadcast: updated vote count |
-| S→C | `game:rematch_started` | `useSocket.ts` | Broadcast: all 4 voted, new game begins |
-| S→C | `game:score_history` | `useSocket.ts` | Reconnect: replay hand records |
+### Server Config Changes
 
-No existing events are modified. No existing events are removed.
-
----
-
-## Server-Side State Additions (Room Object)
-
-The `Room` interface in `server/src/game/GameState.ts` gains three fields. `ServerGameState` is unchanged.
+Current `config.ts` already reads `PORT`, `CLIENT_ORIGIN`, `NODE_ENV` from env:
 
 ```typescript
-// Additions to Room interface only:
-chatHistory: ChatMessage[]     // capped at 100 entries
-scoreHistory: HandRecord[]     // one entry per completed hand
-rematch: {
-  votes: Set<string>           // socket IDs
-  expiresAt: number
-} | null
+export const config = {
+  PORT: parseInt(process.env.PORT || '3001', 10),
+  CLIENT_ORIGIN: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
+  NODE_ENV: process.env.NODE_ENV || 'development',
+}
 ```
 
-`RoomManager.createRoom` initializes all three: `chatHistory: []`, `scoreHistory: []`, `rematch: null`.
+- **PORT**: Railway auto-injects. Already handled. No change.
+- **CLIENT_ORIGIN**: In production, set to the Railway URL via dashboard env vars. Simplest approach -- no code change needed. The CORS middleware and Socket.io CORS config use this value.
+- **NODE_ENV**: Railway sets to `'production'` by default.
 
-`RoomManager.leaveRoom` mid-game: clear `rematch` (consensus broken by departure) but preserve `chatHistory` and `scoreHistory` for the reconnecting player.
+### Socket.io Path in Production
+
+Client `socket.ts` already uses `SOCKET_URL = '/'` (relative URL). In production, this connects to the same Express origin -- correct. The Vite dev proxy is irrelevant in production builds. No changes needed.
+
+### WebSocket Considerations
+
+- Railway proxy supports WebSocket upgrades natively
+- `pingTimeout: 60000` and `pingInterval: 25000` are production-appropriate
+- STUN-only WebRTC will fail for symmetric NAT pairs (common on cellular). Consider adding TURN as a fast follow if users report video failures. Not blocking for initial deploy.
+
+### What Does NOT Change
+
+- `socket.ts` client: relative `'/'` URL works on any domain
+- `vite.config.ts` proxy: dev-only, not in production build
+- `index.ts` production static serving: already implemented (lines 30-34)
+- `RoomManager`: in-memory rooms acceptable. Server restart loses rooms (accepted)
 
 ---
 
-## Client-Side Store Changes
+## Feature 2: PWA Support
 
-| Store | Change | What Changes |
-|-------|--------|-------------|
-| `chatStore` (new) | Create new file | `messages`, `unreadCount`, `isChatOpen`, CRUD actions |
-| `gameStore` | Extend | Add `rematchVotes`, `scoreHistory`, `addHandRecord`, `setRematchVotes`, `clearRematch`, `clearScoreHistory` |
-| `uiStore` | Extend minimally | Add `showScoreHistory`, `setShowScoreHistory` |
-| `roomStore` | No change | — |
+### Architecture Decision: vite-plugin-pwa with Network-First Navigation
+
+**Use vite-plugin-pwa** because it is the standard PWA plugin for Vite. Auto-generates service worker via Workbox, handles manifest, integrates with build pipeline. Manual service worker would be more work for no benefit.
+
+**Cache strategy:** Network-first for navigation, cache-first for static assets. The app is real-time multiplayer -- caching game state or Socket.io would break the app. SW caches only the app shell for fast repeat-visit loading.
+
+**No offline mode** because core value is real-time multiplayer. Offline dominos against AI is a different product. Cache the shell, show "Sin conexion" when offline.
+
+### PWA Data Flow
+
+```
+[First visit]
+  Browser loads app --> SW registers --> precaches shell assets
+  Browser may show "Add to Home Screen" prompt
+
+[Subsequent visits]
+  SW serves cached shell --> app boots instantly
+  Socket.io connects over WebSocket (bypasses SW entirely)
+  If offline --> SW serves fallback, socket fails to connect
+
+[App update after deploy]
+  New SW hash --> browser downloads update in background
+  registerType: 'autoUpdate' --> activates on next navigation
+```
+
+### Critical Configuration: Socket.io Denylist
+
+**The service worker MUST NOT intercept Socket.io polling URLs.** Socket.io falls back to HTTP long-polling when WebSocket fails. If the SW matches `/socket.io/*` and serves cached HTML, the connection silently breaks.
+
+```typescript
+navigateFallbackDenylist: [/^\/socket\.io/]
+```
+
+This is the single most important line in the PWA configuration.
+
+### vite.config.ts Changes
+
+```typescript
+import { VitePWA } from 'vite-plugin-pwa'
+
+export default defineConfig({
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/socket\.io/],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/fonts\.googleapis\.com/,
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'google-fonts-stylesheets' }
+          },
+          {
+            urlPattern: /^https:\/\/fonts\.gstatic\.com/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-webfonts',
+              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 }
+            }
+          }
+        ]
+      },
+      manifest: false, // Use manual manifest.json in public/
+    })
+  ],
+  // ... existing server, host, proxy config unchanged
+})
+```
+
+### manifest.json (new: client/public/manifest.json)
+
+```json
+{
+  "name": "Domino PR",
+  "short_name": "Domino PR",
+  "description": "Domino puertorriqueno en linea",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
+```
+
+- `display: "standalone"` hides browser chrome
+- `orientation: "portrait"` -- game table designed for portrait
+- Colors match dark felt-table background
+- Maskable icon for Android adaptive icons
+
+### index.html Additions
+
+```html
+<head>
+  <meta name="theme-color" content="#0a0a0a" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <!-- existing preconnect + font tags stay -->
+</head>
+```
+
+### What Does NOT Change
+
+- Server code: PWA is client-side only
+- Socket.io: WebSocket bypasses service workers
+- React Router: SPA fallback (`app.get('*', ...)`) already serves `index.html`
 
 ---
 
-## Build Order (Feature Dependencies)
+## Feature 3: Circular Avatar Cameras
+
+### Architecture Decision: Embed Video in PlayerSeat, Delete Side Panel
+
+Current `PlayerSeat` renders a 32x32px circle with 2-letter initials. Current `VideoCallPanel` renders 160x120px rectangular video tiles in a collapsible right-side panel. Avatar cameras replace the initials circle with live circular video, eliminating the side panel.
+
+**Embed in PlayerSeat (not overlay)** because PlayerSeat already occupies the correct position in the 3x3 game grid. Overlaying video would duplicate position logic.
+
+**Delete VideoCallPanel (not keep both)** because two video displays of the same stream confuse users and waste space. Side panel was v1.0 pragmatic choice; avatar cameras are the intended UX per PROJECT.md decision.
+
+### Target Component Architecture
 
 ```
-1. Score History
-   ← No dependencies on other new features
-   ← Depends only on existing game:round_ended payload
-   ← Lowest risk: purely additive, no new events on critical path
-
-2. Rematch
-   ← Depends on score history being visible (players want to see results before revancheing)
-   ← Modifies GameEndModal — ship score history panel first to avoid modal conflicts
-   ← Requires server Room changes (rematch field)
-
-3. Chat
-   ← Independent of rematch and score history
-   ← Can be built in parallel with rematch after score history ships
-   ← Largest surface area (new store, new handler file, new components, reconnect replay)
-   ← Most likely to surface layout conflicts with GameTable on mobile
+GamePage
+  +-- GameTable
+  |     +-- PlayerSeat (bottom = me)
+  |     |     +-- AvatarCamera (localStream, circular, mirrored)
+  |     |     +-- Name + tile count badge
+  |     +-- PlayerSeat (top)
+  |     |     +-- AvatarCamera (remoteStreams[topIndex] or initials)
+  |     +-- PlayerSeat (left)
+  |     |     +-- AvatarCamera (remoteStreams[leftIndex] or initials)
+  |     +-- PlayerSeat (right)
+  |     |     +-- AvatarCamera (remoteStreams[rightIndex] or initials)
+  |     +-- FloatingCallControls (join/leave, mic, camera toggles)
+  |
+  +-- RemoteAudio x N (hidden <audio> elements, moved from VideoCallPanel)
+  +-- ChatButton + ChatPanel (existing)
 ```
 
-Recommended sequence: Score History → Rematch → Chat (or Score History → Chat and Rematch in parallel).
+### AvatarCamera Component Design
+
+```typescript
+interface AvatarCameraProps {
+  playerIndex: number
+  initials: string
+  isMe: boolean
+  isCurrentTurn: boolean
+  teamColor: string
+  size?: number  // 48 for opponents, 56 for local player
+}
+```
+
+**Implementation details:**
+
+1. **Circular video via CSS:** Container gets `border-radius: 50%` + `overflow: hidden`. `<video>` uses `object-fit: cover`. Standard CSS, all browsers. No clip-path, no canvas.
+
+2. **Stream sourcing from callStore (fine-grained selectors):**
+   ```typescript
+   const stream = useCallStore(s =>
+     isMe ? s.localStream : (s.remoteStreams[playerIndex] ?? null)
+   )
+   const cameraOff = useCallStore(s =>
+     isMe ? s.cameraOff : (s.cameraOffPeers[playerIndex] ?? false)
+   )
+   ```
+   Component only re-renders when its own stream changes. No prop drilling through GameTable.
+
+3. **Fallback to initials:** When `stream === null` or `cameraOff === true`, render existing initials circle. Same visual as current PlayerSeat.
+
+4. **Mirror local video:** `transform: scaleX(-1)` on local player's `<video>`. Users expect mirror self-view. Remote videos NOT mirrored.
+
+5. **Muted video element:** `<video muted={true}>` always. Audio through separate `<audio>` elements. Prevents echo, satisfies autoplay policies.
+
+6. **Size increase:** From 32x32 to 48x48 opponents, 56x56 self. Fits existing grid:
+   - Top: plenty of vertical space
+   - Left/Right: narrow columns accommodate 48px with existing `px-1` padding
+   - Bottom: most space available
+
+7. **Turn indicator glow:** Existing neon border effect applies to video circle container div, not the `<video>` element.
+
+### Preventing Video Element Remount Flashes
+
+If `<video>` unmounts/remounts, `srcObject` must be reassigned and `play()` called again, causing a visible black flash. Prevention:
+
+- **`React.memo` on AvatarCamera** -- prevents re-renders from parent state changes (like `currentPlayerIndex` changing every turn)
+- **`useEffect` depends only on `[stream]`** -- not on parent state
+- **Stable props from PlayerSeat** -- `playerIndex`, `isMe`, `initials` are stable within a game
+
+### Data Flow (No New Plumbing)
+
+```
+callStore.localStream ──────────────────────┐
+callStore.remoteStreams[playerIndex] ────────┤
+callStore.cameraOffPeers[playerIndex] ──────┤
+                                            v
+                             AvatarCamera (Zustand selector, React.memo)
+                                            |
+                                            v
+                             <video> circular or initials fallback
+```
+
+callStore already stores everything needed. The only code change: PlayerSeat gains a `playerIndex` prop so AvatarCamera can look up the correct stream.
+
+### RemoteAudio Relocation
+
+`RemoteAudio` components (hidden `<audio>` for remote peer audio) currently live in `VideoCallPanel`. Since that is being deleted, move to **GamePage.tsx** -- always mounted during gameplay. NOT inside PlayerSeat (presentational component should not manage audio lifecycle).
+
+```typescript
+// In GamePage.tsx, after <GameTable />:
+{inCall && peerIndices.map(idx => (
+  <RemoteAudio key={`audio-${idx}`} stream={remoteStreams[idx] ?? null} />
+))}
+```
+
+### FloatingCallControls (New Component)
+
+With side panel removed, controls need a new home.
+
+**Fixed bar at bottom of screen, above PlayerHand:**
+
+```
+  ┌──────────────────────────────────────┐
+  │  [Mic] [Camera] [Leave Call]         │  <-- FloatingCallControls
+  ├──────────────────────────────────────┤
+  │  PlayerSeat (me) + AvatarCamera      │
+  │  [tile] [tile] [tile] [tile] ...     │  <-- PlayerHand
+  └──────────────────────────────────────┘
+```
+
+States:
+- **Not in call:** Show "Unirse" button (replaces VideoCallPanel join buttons)
+- **In call:** Mic toggle, camera toggle, leave-call button
+
+Reads from callStore, emits `webrtc:toggle` and `webrtc:lobby_opt` via socket -- same logic from VideoCallPanel, relocated.
+
+### PlayerSeat Modification
+
+Current props: `player, isCurrentTurn, position, teamLabel, teamColor`
+New props: `player, isCurrentTurn, position, teamLabel, teamColor, playerIndex`
+
+GameTable already knows each player's index. Pass through to PlayerSeat.
+
+### GameTable Modification
+
+1. Remove `<VideoCallPanel>` render and import
+2. Add `playerIndex` prop to each `<PlayerSeat>` call
+3. Add `<FloatingCallControls>` at bottom of layout
+4. No changes to 3x3 grid structure -- avatars live inside existing PlayerSeat cells
+
+---
+
+## Patterns to Follow
+
+### Pattern 1: Environment-Driven Configuration
+**What:** Deploy-specific values from env vars with dev defaults.
+**Where:** `server/src/config.ts` -- extend minimally.
+**Why:** Same code runs locally and on Railway.
+
+### Pattern 2: Fine-Grained Zustand Selectors for Streams
+**What:** Specific selectors per player to avoid cascade re-renders.
+```typescript
+// GOOD: re-renders only when THIS player's stream changes
+const stream = useCallStore(s => s.remoteStreams[playerIndex] ?? null)
+
+// BAD: re-renders when ANY stream changes
+const allStreams = useCallStore(s => s.remoteStreams)
+```
+
+### Pattern 3: Progressive Enhancement for PWA
+**What:** PWA is additive. If SW fails, app works as regular web app.
+**Why:** Must work in all browsers. PWA features are a layer, never a requirement.
+
+### Pattern 4: CSS-Only Circular Video
+**What:** `border-radius: 50%` + `overflow: hidden` + `object-fit: cover`.
+**Why:** Simpler and more performant than canvas or clip-path. Handles resize automatically.
 
 ---
 
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern 1: Storing Chat in ClientGameState
+### Anti-Pattern 1: Service Worker Caching Socket.io Traffic
+**What:** SW intercepts `/socket.io/*` URLs.
+**Why bad:** Long-polling fallback gets cached HTML. Connection silently breaks.
+**Instead:** `navigateFallbackDenylist: [/^\/socket\.io/]`
 
-**What it looks like:** Adding a `chatMessages` field to `ClientGameState` / `ServerGameState` and delivering chat via `broadcastState`.
+### Anti-Pattern 2: Video Elements in Frequently Re-rendering Parents
+**What:** `<video>` unmounts/remounts on turn changes.
+**Why bad:** Each remount requires `srcObject` reassignment + `play()`, causing black flash.
+**Instead:** `React.memo` on AvatarCamera; `useEffect` depends only on `[stream]`.
 
-**Why bad:** `broadcastState` is called on every game event and calls `buildClientGameState` 4x per action. Chat messages are room-ambient — they change independently of game state. Bundling them into game state creates unnecessary coupling, inflates payload size on every tile play, and adds complexity to `GameEngine.ts` which must stay pure.
+### Anti-Pattern 3: Splitting Client and Server to Different Hosts
+**What:** Client on Vercel, server on Railway.
+**Why bad:** Requires CORS, separate deploys, absolute socket URL. Architecture is single-origin.
+**Instead:** Single Railway deploy. Express serves client build.
 
-**Instead:** Separate `chat:message` broadcast, separate `chatStore` on the client.
+### Anti-Pattern 4: Full Offline Mode for Real-Time Game
+**What:** Cache game state, provide offline gameplay.
+**Why bad:** Core value is real-time multiplayer. Stale cached state shows wrong board.
+**Instead:** Cache only app shell. Show offline message.
 
-### Anti-Pattern 2: Client-Side Rematch Consensus
+### Anti-Pattern 5: Threading Streams Through Props
+**What:** GameTable passes streams as props through PlayerSeat to AvatarCamera.
+**Why bad:** GameTable re-renders every turn, unnecessarily updating all stream props.
+**Instead:** AvatarCamera reads directly from callStore via Zustand selector.
 
-**What it looks like:** Clients emit `game:rematch_vote`, each client tracks vote counts locally, the first client that sees 4 votes initiates the game restart.
+### Anti-Pattern 6: Creating New Store for Avatar State
+**What:** New `videoAvatarStore` tracking which players have active video.
+**Why bad:** callStore already tracks all of this. Duplicates state, creates sync issues.
+**Instead:** AvatarCamera reads from callStore directly.
 
-**Why bad:** No authoritative decision point. Race conditions. A disconnecting player could leave 3 clients each thinking a different consensus state. The server is the sole authority for all game state changes — rematch is a game state change.
+---
 
-**Instead:** Server owns the `rematch.votes` Set; only the server emits `game:rematch_started` when the Set reaches size 4.
+## Build Order (Dependency-Aware)
 
-### Anti-Pattern 3: Navigating on game:rematch_started
+### Phase 1: Cloud Deployment (prerequisite for everything)
 
-**What it looks like:** `useSocket.ts` handler for `game:rematch_started` calls `navigate('/game')` the same way `game:started` does.
+1. Create `.env.example` documenting env vars
+2. Set `CLIENT_ORIGIN` on Railway dashboard to deployed URL
+3. Add `"engines": { "node": ">=18" }` to root `package.json`
+4. Create Railway project, connect GitHub repo
+5. Deploy, verify: HTTP serves app, Socket.io WebSocket upgrades, full game flow
+6. Verify WebRTC video between two devices on deployed URL
 
-**Why bad:** The player is already on `/game`. A navigation event causes the page to unmount and remount, clearing React state, causing a flash, and potentially triggering the `GamePage.tsx` redirect guard (`if (!gameState) navigate('/')`) during the remount cycle.
+**Why first:** PWA requires HTTPS (Railway provides it). Avatar cameras need real-device testing. Deploy unlocks everything.
 
-**Instead:** `game:rematch_started` handler calls only `setGameState()` and clears rematch/modal state. No `navigate()` call.
+### Phase 2: PWA Support (depends on deploy for HTTPS)
 
-### Anti-Pattern 4: Extending uiStore for Chat
+1. `npm install -D vite-plugin-pwa --workspace=client`
+2. Create `client/public/manifest.json` and icon assets
+3. Add VitePWA plugin to `vite.config.ts` with Socket.io denylist
+4. Add meta tags to `index.html`
+5. Deploy, test install prompt on mobile Chrome and Safari
+6. Verify Socket.io works with SW active
 
-**What it looks like:** Adding `chatMessages`, `isChatOpen`, `unreadCount` to the existing `uiStore`.
+**Why second:** Entirely client-side. Does not interact with avatar cameras. Requires HTTPS.
 
-**Why bad:** `uiStore` is already the "miscellaneous" store. Chat is a first-class feature with its own message list (unbounded growth relative to the tile selection and notification queue). Separate concerns: `uiStore` owns ephemeral interaction state; `chatStore` owns persisted session communication.
+### Phase 3: Circular Avatar Cameras (benefits from deploy)
 
-**Instead:** New `chatStore` with a single clear responsibility.
+1. Create `AvatarCamera` component (circular CSS, React.memo, stream selector)
+2. Add `playerIndex` prop to PlayerSeat, embed AvatarCamera
+3. Move RemoteAudio from VideoCallPanel to GamePage
+4. Create FloatingCallControls for mic/cam/join/leave
+5. Update GameTable: remove VideoCallPanel, pass playerIndex to each PlayerSeat
+6. Delete VideoCallPanel.tsx
+7. Test: circular video, turn glow, initials fallback, mirrored local view
+8. Test on mobile: avatar sizes fit, controls tappable, no layout overflow
+
+**Why third:** Most complex UI change. Benefits from stable deploy for real-device testing. Independent of PWA.
+
+### Dependency Graph
+
+```
+Phase 1: Deploy ──> Phase 2: PWA (needs HTTPS)
+    |
+    └──────────> Phase 3: Avatar Cameras (needs real-device testing)
+
+Phase 2 and Phase 3 can run in parallel after Phase 1.
+```
+
+---
+
+## Integration Points Summary
+
+| Change | Touches | Does NOT Touch |
+|--------|---------|----------------|
+| Deploy | `config.ts` (CORS env), Railway env vars, `package.json` (engines) | Any game logic, stores, components |
+| PWA | `vite.config.ts` (plugin), `client/public/` (icons), `index.html` (meta) | Server code, stores, game logic |
+| Avatars | `PlayerSeat.tsx`, `GameTable.tsx`, `GamePage.tsx`, new `AvatarCamera.tsx`, new `FloatingCallControls.tsx` | `GameEngine.ts`, `callStore`, `useWebRTC.ts`, socket events |
+
+**GameEngine.ts changes: zero.**
+**New socket events: zero.**
+**New Zustand stores: zero.**
+**Server-side changes: config only (deploy). Zero for PWA and avatars.**
 
 ---
 
 ## Scalability Considerations
 
-| Concern | Current (4 players) | With new features |
-|---------|--------------------|--------------------|
-| `Room` memory | ~2KB per room | ~3–5KB with chat (100 msg cap) + history |
-| broadcastState calls | Unchanged | Unchanged — chat/rematch bypass it |
-| `useSocket` handler count | 10 handlers | 14 handlers (+4 new events) |
-| `chatHistory` cap | — | 100 messages (enforce in server handler) |
-| Rematch timeout | — | 60s server-side cleanup to prevent stale vote state |
+| Concern | Current (4 players) | At 100 rooms | At 1000 rooms |
+|---------|---------------------|--------------|---------------|
+| Memory | ~50KB/room | ~5MB total | ~50MB -- fine |
+| WebSocket connections | 4/room | 400 | 4000 -- may need scaling |
+| WebRTC (STUN) | Peer-to-peer | Same | Same |
+| SW cache per client | ~2MB shell | Same | Same |
+| Railway free tier | 500 hrs/month | Paid ($5/mo) | Paid |
 
-The 10-minute room cleanup interval in `RoomManager` already handles stale rooms. No additional cleanup needed for chat or score history — they live and die with the `Room` object.
+Single Railway instance sufficient for foreseeable future. Do not over-architect.
 
 ---
 
 ## Sources
 
-- Codebase direct analysis: `server/src/game/GameState.ts`, `server/src/socket/gameHandlers.ts`, `server/src/socket/roomHandlers.ts`, `server/src/game/RoomManager.ts`
-- Client analysis: `client/src/hooks/useSocket.ts`, `client/src/store/{gameStore,roomStore,uiStore}.ts`, `client/src/components/game/GameTable.tsx`, `client/src/components/game/{GameEndModal,ScorePanel}.tsx`
-- Project requirements: `.planning/PROJECT.md`
-- Known concerns: `.planning/codebase/CONCERNS.md`
-- Confidence: HIGH — all recommendations derived directly from reading the production source files, not from training data about the domain
+- Codebase: `server/src/index.ts` -- production static serving (lines 30-34), Socket.io setup
+- Codebase: `server/src/config.ts` -- env var handling
+- Codebase: `client/src/socket.ts` -- relative URL `'/'`, transport config
+- Codebase: `client/src/components/player/PlayerSeat.tsx` -- current 32x32 initials avatar, props
+- Codebase: `client/src/components/game/VideoCallPanel.tsx` -- current video tiles, RemoteAudio, controls
+- Codebase: `client/src/components/game/GameTable.tsx` -- 3x3 grid, PlayerSeat usage, VideoCallPanel placement
+- Codebase: `client/src/pages/GamePage.tsx` -- WebRTC hook mount, component tree
+- Codebase: `client/src/store/callStore.ts` -- stream storage by player index
+- Codebase: `client/src/hooks/useWebRTC.ts` -- STUN config, Perfect Negotiation
+- Codebase: `client/vite.config.ts` -- current plugins, dev proxy
+- Codebase: `client/index.html` -- current HTML structure
+- Codebase: `package.json` files -- dependencies, scripts
+- `.planning/PROJECT.md` -- v1.1 scope, avatar camera decision
+- Training data: Railway deployment for Node.js + WebSocket (MEDIUM confidence)
+- Training data: vite-plugin-pwa / Workbox configuration (MEDIUM confidence)
+- Training data: CSS circular video rendering (HIGH confidence -- basic CSS)
+- Training data: Service worker + Socket.io interaction (MEDIUM confidence)
 
 ---
-
-*Architecture analysis: 2026-03-06*
+*Architecture analysis completed: 2026-03-13*

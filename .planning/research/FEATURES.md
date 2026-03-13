@@ -1,320 +1,272 @@
 # Feature Landscape
 
-**Domain:** Real-time multiplayer browser card/tile game (Puerto Rican Dominoes)
-**Researched:** 2026-03-06
-**Milestone scope:** In-game chat, rematch flow, running score history panel
+**Domain:** Cloud deployment, PWA installation, and circular video avatar overlays for an existing real-time multiplayer domino web app
+**Researched:** 2026-03-13
+**Milestone scope:** v1.1 Deploy & Polish -- deploy to cloud, PWA support, circular avatar cameras
 
 ---
 
 ## Existing Feature Baseline (What Is Already Built)
 
-Before categorizing new work, document what exists so we do not duplicate or contradict it.
-
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Real-time 4-player game via Socket.io | Built | Full Puerto Rican rules |
-| Score tracking per round | Built | `RoundEndModal` shows pip breakdown, bonuses |
-| Running score bar | Built | `ScorePanel` shows team totals + progress bar toward target |
-| Hand number display | Built | Shown in `ScorePanel` as `#N` |
-| Pass (paso) toasts | Built | `PasoToast` + `PasoChip` components |
-| Round end summary modal | Built | Remaining tiles, points breakdown, Capicú/Chuchazo badges |
-| Game end modal | Built | Final scores, "Jugar de Nuevo" exits to `/` |
-| Sound toggle | Built | `soundEnabled` in `uiStore` |
-| Disconnect indicator | Partial | `connected: false` flag in player data; no UI notification beyond that |
-
-**Critical gap identified in `CONCERNS.md`:** "Jugar de Nuevo" in `GameEndModal` currently calls `room:leave` and navigates to `/`. There is zero server-side support for resetting a room for a new game without re-sharing a room code.
+| Feature | Status | Relevance to v1.1 |
+|---------|--------|-------------------|
+| Express serves `client/dist/` in production mode | Built | Deployment-ready. `server/src/index.ts` lines 30-34 |
+| `config.ts` reads `PORT`, `CLIENT_ORIGIN`, `NODE_ENV` from env | Built | Cloud platforms set these via env vars |
+| WebRTC video/audio with lobby opt-in | Built | Streams exist in `callStore` -- reuse for avatar cameras |
+| `VideoCallPanel` side panel with 160x120 tiles | Built | To be replaced by circular avatar cameras |
+| `PlayerSeat` with 32x32 initials circle | Built | To be modified to show live video |
+| `VideoTile` component (56x42 mini video) | Built | Reference pattern; logic reusable |
+| `callStore` with `localStream`, `remoteStreams`, `mutedPeers`, `cameraOffPeers` | Built | Avatar cameras consume these directly |
+| Remote audio via separate `<audio>` elements in `VideoCallPanel` | Built | Must be relocated when side panel is removed |
+| Stale `web/manifest.json` (Flutter boilerplate) | Exists but unused | Must be replaced with proper PWA manifest in `client/public/` |
+| In-game chat, rematch voting, score history | Built | No changes needed for v1.1 |
 
 ---
 
 ## Table Stakes
 
-Features that multiplayer browser game players expect. Missing = product feels unfinished.
+Features that must ship for v1.1 to meet its stated goals. Missing = milestone incomplete.
 
-### 1. Rematch in Same Room
+### 1. Persistent URL via Cloud Deployment
 
-**Why expected:** After any multiplayer game, the most natural next action is "again." Forcing players to leave, re-share a code, and re-join is friction that kills session continuity. Games like skribbl.io, Gartic Phone, and Jackbox all keep players in the room between rounds.
-
-**Concrete expected behavior:**
-- At game end, a "Revancha" (rematch) button appears for all players — not just host
-- Each player presses it; a lobby-style "ready" state shows who has confirmed
-- When all 4 press it, the server resets game state and starts a new game in the same room with the same seats
-- The room code does not change; the share link stays valid
-
-**Complexity:** Medium — requires server-side `room:rematch_ready` event and a new room phase transition (`'game_over'` → `'waiting_rematch'` → `'in_game'`).
-
-**Edge cases (must be specified before implementation):**
-
-| Edge Case | Expected Behavior |
-|-----------|-------------------|
-| A player disconnects before all 4 confirm | Timer or host-override: if a player has been disconnected > 30s and everyone else confirmed, allow the remaining 3 connected players to proceed (or host can force start) |
-| A player closes the tab (true leave) | Their slot opens; others can wait or host can navigate to lobby to invite a new player |
-| Mid-game rematch request (impossible with this flow) | Not applicable — rematch only surfaces at game end, never mid-game |
-| Host left during game, host promoted | New host has same rematch authority; fix `isHost` determination first (known bug in `RoundEndModal`) |
-| Server restart between game end and rematch confirm | Room is lost (in-memory); show "room expired" error and redirect to `/` |
-
-### 2. In-Game Chat — Free Text
-
-**Why expected:** These are 4 friends playing together. Trash talk, commentary, and coordination are core to the experience. Without chat, players are silent strangers. Every real-money or casual social game (Ludo King, Playtika, Rummy) has chat.
+**Why expected:** The entire point of "deploy" is a URL that works 24/7 without ngrok. Friends share a link, it just works.
 
 **Concrete expected behavior:**
-- Chat panel accessible during game without leaving the board view (slide-in drawer or fixed sidebar)
-- Messages show sender name + text + timestamp (relative: "just now", "2m ago")
-- New message badge/indicator when chat is collapsed so players know something was said
-- Messages are room-scoped and in-memory (no persistence across sessions)
-- Scroll to bottom on new message from others; do not auto-scroll if user is reading history
+- App accessible at `https://[app-name].[platform].app` (or custom domain)
+- Socket.io WebSocket connections persist (not serverless, not edge functions)
+- WebRTC `getUserMedia()` works (requires HTTPS -- secure context)
+- Server auto-restarts on crash (platform-managed)
 
-**Character limit:** 200 characters per message. Long enough for a sentence; short enough to prevent walls of text that obscure the board.
+**Complexity:** Low -- architecture is already production-ready. Express serves static files, Socket.io shares the HTTP server, config is env-based.
 
-**Message retention:** Last 50 messages in server memory per room. No persistence beyond server memory. On reconnect, player sees only messages received after reconnect (no replay).
+**Dependencies:** None on existing features. Unblocks PWA and production WebRTC.
 
-**Complexity:** Low-Medium — new socket events `chat:message` (client→server→all clients), minimal server state (array of last N messages in room).
+### 2. WebSocket Support on Hosting Platform
 
-### 3. In-Game Chat — Quick Reactions
+**Why expected:** Socket.io is the ENTIRE transport layer. Zero REST endpoints. A platform that doesn't support persistent WebSocket connections is unusable.
 
-**Why expected:** In fast-paced card/tile games, typing mid-turn is too slow. Quick reactions (preset phrases or emojis) let players respond to a great play without breaking focus. Boardgame Arena, online Uno, and Dominoes Gold all have quick-tap reactions.
+**Concrete requirements:**
+- Persistent process (not serverless/lambda)
+- WebSocket upgrade support (not just HTTP long-polling)
+- No aggressive idle timeout (Socket.io `pingInterval` is 25s, `pingTimeout` is 60s -- platform must not kill idle connections faster than this)
+
+**Complexity:** Low -- platform selection constraint, not a code change.
+
+**Eliminates:** Vercel (serverless), Netlify Functions (serverless), AWS Lambda (without complex API Gateway WebSocket config).
+
+### 3. HTTPS in Production
+
+**Why expected:** WebRTC `getUserMedia()` is blocked on insecure origins in all modern browsers. Camera/mic features break without HTTPS. PWA installability also requires secure context.
+
+**Complexity:** Low -- Railway, Render, and Fly.io all provide free auto-managed TLS certificates.
+
+### 4. CORS Configured for Production Origin
+
+**Why expected:** Server currently has `cors({ origin: config.CLIENT_ORIGIN })`. In production with same-origin serving (Express serves client), CORS headers are technically unnecessary for same-origin requests. However, Socket.io's CORS config also needs to allow the production origin.
+
+**Concrete fix:** In production, set `CLIENT_ORIGIN` to the Railway domain (e.g., `https://dominos-pr.up.railway.app`), or configure Socket.io CORS to allow same-origin by detecting production mode.
+
+**Complexity:** Low -- environment variable configuration.
+
+### 5. PWA Manifest + Service Worker (Minimal)
+
+**Why expected:** "Installable from browser" is a stated v1.1 goal. Browser installability criteria: (1) valid `manifest.json` with `name`, `icons`, `start_url`, `display`; (2) registered service worker; (3) HTTPS.
 
 **Concrete expected behavior:**
-- Reaction picker: 6–8 preset options accessible with a single tap (no typing)
-- Reactions appear as floating toast/bubble anchored near the reacting player's seat, then fade after 2–3 seconds
-- Reactions are NOT stored in chat history (ephemeral, not persistent in the message list)
-- Reaction options must be in Spanish to match the game's language: e.g., "¡Capicú!", "¡Buena jugada!", "🤔", "😂", "🔥", "😤"
+- Chrome/Safari show "Add to Home Screen" option
+- App launches in standalone mode (no browser chrome)
+- Home screen icon shows a domino-themed image
+- Status bar matches app theme color
 
-**Complexity:** Low — a subset of the chat socket infrastructure (same `chat:reaction` event, client-side animation only).
+**Complexity:** Low -- `vite-plugin-pwa` generates manifest and service worker from config.
+
+**Critical note on service worker scope:** The SW should cache static assets (JS, CSS, fonts, images) for faster subsequent loads. It must NOT intercept Socket.io WebSocket traffic or attempt offline game state caching. This is a real-time-only app.
+
+### 6. PWA Icons (192px + 512px, Regular + Maskable)
+
+**Why expected:** Install prompt and home screen require icons. Without them, the browser uses a generic icon or screenshot.
+
+**Requirements:** 192x192 regular, 512x512 regular, 192x192 maskable, 512x512 maskable. Domino-themed design matching the dark aesthetic.
+
+**Complexity:** Low -- design/asset creation task.
+
+### 7. Circular Video in Player Seat Positions
+
+**Why expected:** Headline feature of v1.1. Replace the 32x32 initials circle in `PlayerSeat` with a live video feed.
+
+**Concrete expected behavior:**
+- Each player seat shows a circular video when camera is active
+- CSS approach: `border-radius: 50%` + `object-fit: cover` + `overflow: hidden` on the container
+- Falls back to initials when: player not in call, camera off, no stream
+- Turn indicator glow (existing `neon-glow` + team color border) applies to video circle
+- Tile count badge stays visible (absolute-positioned overlay)
+- Disconnect indicator preserved
+
+**Complexity:** Medium
+- Size consideration: current avatar is `w-8 h-8` (32px). Video needs at least 48-64px diameter to show a recognizable face. This means adjusting `PlayerSeat` sizing and potentially affecting game table layout
+- 4 simultaneous `<video>` elements on mobile needs performance testing
+- Muted attribute: video elements MUST be muted (audio plays through separate `<audio>` elements, already established pattern)
+- Layout positions: `PlayerSeat` is used at top/bottom/left/right with different flex directions. The larger avatar must work in all orientations
+
+**Dependencies:** Existing `callStore.remoteStreams` and `callStore.localStream`. No new WebRTC code.
+
+### 8. Audio Element Relocation
+
+**Why expected:** Currently `<audio>` elements for remote streams live inside `VideoCallPanel` (the side panel). If the side panel is removed/replaced, audio playback breaks.
+
+**Concrete fix:** Move `RemoteAudio` components to a parent component that's always rendered (e.g., `GameTable` or `AppRoutes`), independent of any video UI panel.
+
+**Complexity:** Low -- extract and relocate existing `RemoteAudio` pattern from `VideoCallPanel.tsx` lines 135-144.
 
 ---
 
 ## Differentiators
 
-Features that would set this apart from other free domino apps but are not baseline expectations.
+Features that elevate beyond minimum expectations but are not required.
 
-### 1. Score History Panel — Per-Hand Log
-
-**What it is:** A collapsible log showing each completed hand's outcome: points scored, which team won, any bonuses (Capicú, Chuchazo, blocked). The current `ScorePanel` shows only the running cumulative total.
-
-**Value proposition:** Players can review "how did we get here?" during a tense game. Useful for Modo 500 where 5+ hands may be played.
-
-**Expected format:**
-```
-Mano 1: Equipo A +45  (Capicú +100)  →  A: 145 | B: 0
-Mano 2: Equipo B +30               →  A: 145 | B: 30
-Mano 3: Trancado, Equipo A +15     →  A: 160 | B: 30
-```
-
-**When visible:** Accessible via a tap on the score bar (expand/collapse). Not shown by default — board space is precious on mobile.
-
-**Data source:** Server already emits `game:round_ended` with full `RoundEndPayload`. Client can accumulate these in an array in `gameStore` during the session. No new server state needed.
-
-**Complexity:** Low (client-only) — `gameStore` accumulates round payloads already received; panel renders the array.
-
-### 2. Disconnect/Reconnect Notification Toast
-
-**What it is:** Visible UI notification when a player disconnects or reconnects mid-game. Currently `connection:player_disconnected` and `connection:player_reconnected` are received but only `console.log`'d (CONCERNS.md confirmed).
-
-**Value proposition:** Players know why the game is paused. Without this, a stall feels like a bug.
-
-**Concrete behavior:** Toast at bottom of screen: "[Player] se desconectó. Esperando reconexión..." — dismisses automatically when they reconnect or after 10 seconds.
-
-**Complexity:** Very Low — hook into existing events in `useSocket.ts`, emit to `uiStore` toast queue (same pattern as `pasoNotifications`).
-
-### 3. Per-Player Reaction Animations Anchored to Seats
-
-**What it is:** Quick reactions appear floating above the reacting player's seat position on the board, not just in a generic notification area.
-
-**Value proposition:** Creates spatial context — the reaction comes "from" the player who sent it. More immersive than a generic toast.
-
-**Complexity:** Medium — requires mapping `playerIndex` to seat DOM position, animating absolutely-positioned elements relative to the game table.
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| **Custom install prompt banner** | `beforeinstallprompt` event + custom UI increases install rate vs relying on browser's native prompt | Low | NOT available on iOS Safari. Banner only for Chrome/Android. Dismiss with localStorage for 7 days |
+| **iOS standalone meta tags** | `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style`, `apple-touch-icon` for polished iOS PWA feel | Low | Add to `client/index.html` head |
+| **Mic/camera toggle on avatar tap** | Quick control access after side panel removal | Medium | Tap own avatar shows floating control bar; auto-dismiss after 3s. Must not interfere with tile selection |
+| **Speaking indicator (pulsing ring)** | Visual feedback that a player is talking | Medium | `AudioContext.createAnalyser()` on remote `MediaStream`; animate border pulse when volume above threshold |
+| **Responsive avatar size** | Larger circles on tablet, smaller on phone | Low | Tailwind responsive classes `w-10 sm:w-12 md:w-14` |
+| **PWA splash screen** | Branded loading screen when app launches from home screen | Low | Manifest `theme_color` + `background_color` configuration only |
+| **Health check endpoint** | Monitoring for deployed server uptime | Very Low | Single `app.get('/health', ...)` returning 200 |
+| **Custom domain** | `dominos.pr` or similar is vastly more shareable than `*.up.railway.app` | Low | DNS CNAME + platform config. ~$12/year |
+| **TURN server configuration** | Reliable WebRTC across carrier NATs post-deployment | Medium | Metered.ca or Twilio TURN free tier. Env var for ICE server config. No code architecture changes |
 
 ---
 
 ## Anti-Features
 
-Features to explicitly NOT build in this milestone (and why).
+Features to explicitly NOT build in v1.1.
 
 | Anti-Feature | Why Avoid | What to Do Instead |
 |--------------|-----------|-------------------|
-| Chat message persistence across sessions | No database, no auth — in-memory only is the constraint. Persistence adds Redis or DB dependency not in scope. | Keep messages in-memory, lost on room cleanup |
-| Chat moderation / profanity filter | This is a private room game (friends only). A filter adds false-positive friction with no real benefit when players chose each other. | Trust the room-code social contract |
-| Individual "ready" checkboxes for rematch with countdown timer | Over-engineered for 4 friends. Simple "all confirm" is sufficient. | All-4-confirm or host-override after timeout |
-| Message read receipts ("seen by") | Adds complexity, not needed for this game context | Show unread count badge only |
-| Chat notifications (push/OS-level) | Browser game in a tab; OS notifications are inappropriate scope creep | In-tab badge only |
-| Rematch with seat shuffle / team swap | Puerto Rican dominoes has fixed social dynamics — people sit where they sit. Shuffling undermines the game's culture. | Keep same seats for rematch |
-| Host-only chat moderation (kick/mute) | Private room, 4 friends. No moderation layer needed. | N/A |
-| Score history export (PDF/image) | Nice idea, high complexity, zero demand signal yet | Defer indefinitely |
-| Spectator mode | Requires architectural changes to seat assignment and `buildClientGameState`. Explicitly out of scope. | N/A |
+| **Offline gameplay mode** | Entire app is real-time Socket.io. No local game engine exists. Offline play is impossible | SW caches static assets only; show "Sin conexion" when socket disconnects |
+| **Push notifications** | No accounts, no server-side user registry, no push subscription storage | Skip. Players coordinate via external messaging |
+| **Background sync** | No pending actions queue. Game state is ephemeral and server-authoritative | Skip |
+| **New getUserMedia calls in PlayerSeat** | Streams already managed in `callStore`/`useWebRTC`. Duplicate acquisition creates permission prompts and stream conflicts | Pass `MediaStream \| null` as prop. PlayerSeat renders, does not acquire |
+| **Side panel AND avatar cameras simultaneously** | Redundant video display. Two places showing same streams wastes space and confuses UX | Replace side panel with avatar cameras. Relocate audio elements |
+| **Full offline-first PWA with Workbox strategies** | Over-engineered for a real-time game with zero local state persistence | `vite-plugin-pwa` with `registerType: 'autoUpdate'` and default precaching |
+| **Canvas-based video processing** | Face detection, background blur, circular crop via canvas are all unnecessary | Pure CSS `border-radius: 50%` + `overflow: hidden` + `object-fit: cover` |
+| **Database** | No persistent data exists. Rooms are in-memory. Explicitly out of scope per PROJECT.md | Keep zero-database architecture |
+| **CI/CD pipeline** | Over-engineering for this project stage | Railway auto-deploys from GitHub push |
+| **Dockerfile** | Railway Nixpacks handles Node.js monorepos natively | Let platform auto-detect |
+| **Adaptive bitrate / simulcast** | Avatars are small (48-64px). Even low bitrate WebRTC video looks fine at that size | Use default WebRTC quality negotiation |
 
 ---
 
 ## Feature Dependencies
 
 ```
-Quick Reactions → In-Game Chat socket infrastructure
-  (reactions use same socket event plumbing as text chat)
+Cloud Deployment (persistent process + HTTPS)
+  |--> PWA installability (HTTPS required for service worker registration)
+  |--> WebRTC works in production (getUserMedia requires secure context)
+  |--> Permanent shareable URL
+  |--> Can test PWA install flow (only fires on served HTTPS origins)
 
-Disconnect Toast → No dependency (standalone useSocket.ts hook change)
+CORS config for production origin
+  |--> Socket.io connects successfully in production
 
-Score History Panel → No new server state (client accumulates existing round_ended payloads)
+PWA manifest + icons + service worker
+  |--> Browser "Add to Home Screen" prompt
+  |--> beforeinstallprompt event for custom banner (Chrome/Android only)
 
-Rematch Flow → Fix isHost bug in RoundEndModal first
-  (same host-determination logic is needed in GameEndModal for rematch)
+Existing callStore streams (localStream, remoteStreams)
+  |--> Circular avatar cameras (consume existing streams, no new WebRTC code)
 
-Rematch Flow → Fix game:next_hand starter bug (CONCERNS.md)
-  (if rematch resets the game, starter logic must be correct from hand 1 of the new game)
+PlayerSeat component modification
+  |--> Circular video avatars (modify existing, don't create separate component)
+  |--> Must preserve: initials fallback, tile count badge, turn glow, disconnect indicator
+
+Audio element relocation (from VideoCallPanel to always-rendered parent)
+  |--> Safe to remove VideoCallPanel
+  |--> Audio continues playing when panel is gone
+
+Call join controls relocation
+  |--> Currently "join call" buttons are in VideoCallPanel
+  |--> Need new UX for late-joining a call (button near avatars? lobby reminder?)
 ```
+
+**Key insight:** Deploy must come first. Both PWA and avatar cameras can be developed locally, but PWA install prompts only fire on HTTPS origins and WebRTC camera permissions behave differently on localhost vs production. Deploy early, iterate in production.
 
 ---
 
 ## MVP Recommendation
 
-**Priority 1 — Rematch in same room**
-- Highest user value; eliminates the biggest UX cliff (forced re-share after every game)
-- Requires: new server room phase, `room:rematch_ready` event, reset of `ServerGameState`
-- Prerequisite: fix `isHost` determination (CONCERNS.md bug) before gating any button on host status
+**Phase 1: Deploy** (unblocks everything, no UI changes)
+1. Deploy to Railway -- persistent process, free HTTPS, WebSocket support
+2. Set `CLIENT_ORIGIN`, `PORT`, `NODE_ENV=production` environment variables
+3. Verify Socket.io connects over public internet
+4. Verify WebRTC video/audio works (may reveal TURN server need)
 
-**Priority 2 — In-game chat (text + quick reactions)**
-- New socket channel, minimal server state (last 50 messages array in Room object)
-- Text chat first; quick reactions are a thin layer on top
-- Mobile layout must be designed so chat does not obscure the board
+**Phase 2: Circular Avatar Cameras** (highest UX impact)
+1. Modify `PlayerSeat` to accept `stream: MediaStream | null` + `cameraOff: boolean` props
+2. Render `<video>` inside rounded-full container with `object-fit: cover`
+3. Increase avatar diameter from 32px to ~48-56px for video visibility
+4. Preserve all existing overlays (tile count, turn glow, disconnect indicator)
+5. Extract `<audio>` elements from `VideoCallPanel` to always-rendered parent
+6. Add compact mic/camera controls (tap own avatar or dedicated small buttons)
+7. Remove `VideoCallPanel` side panel (or convert to controls-only)
 
-**Priority 3 — Disconnect/reconnect notification toasts**
-- Very low effort, very high perceived quality. Server events already exist. Client just needs UI.
+**Phase 3: PWA** (polish layer, minimal code)
+1. Install `vite-plugin-pwa`, configure manifest with icons
+2. Add minimal service worker (static asset precaching, autoUpdate)
+3. Add iOS meta tags to `client/index.html`
+4. Add `viewport-fit=cover` for fullscreen feel
+5. Optional: custom install prompt banner for Android/Chrome
 
-**Defer to subsequent milestone:**
-- Score history panel (client-only, low urgency, but nice for completeness)
-- Per-seat reaction animations (fun, but layout complexity on mobile is non-trivial)
-
----
-
-## Chat Feature Specification (Detailed)
-
-### Server-Side
-
-**New Room state fields:**
-```typescript
-chatMessages: ChatMessage[]  // max 50, in Room object
-```
-
-```typescript
-interface ChatMessage {
-  id: string           // nanoid or incrementing int
-  playerIndex: number
-  playerName: string
-  text: string         // max 200 chars, server-enforced trim + length check
-  timestamp: number    // Date.now()
-  type: 'text' | 'reaction'
-}
-```
-
-**New socket events (client → server):**
-- `chat:send_message` — `{ text: string }` — server validates length, appends to room, broadcasts to all 4
-- `chat:send_reaction` — `{ reactionKey: string }` — server validates key against allowlist, broadcasts ephemeral event
-
-**New socket events (server → client):**
-- `chat:message` — `ChatMessage` — received by all players in room
-- `chat:reaction` — `{ playerIndex: number; reactionKey: string }` — ephemeral, not stored
-
-**Spam prevention:** Rate limit `chat:send_message` to 5 messages per 10 seconds per socket (simple token bucket in `gameHandlers.ts`). Excess messages are silently dropped (no error shown). This fits within the existing "no rate limiting" tech debt noted in CONCERNS.md.
-
-**Input sanitization:** Server must enforce `text.trim().slice(0, 200)`. No HTML stripping needed (React escapes JSX output). `playerName` is already stored server-side from join — use that, do not trust the client to send it.
-
-### Client-Side
-
-**State:** New `chatStore.ts` (fourth Zustand store) OR add chat to `uiStore` — preference is a separate `chatStore` to keep store boundaries clean per existing convention.
-
-**UI layout options:**
-- Option A: Slide-in drawer from right, overlays game partially, closes with tap outside or X button
-- Option B: Fixed bottom panel below score bar, collapses to a single line with unread badge
-- Recommendation: **Option B** (bottom panel) — less disruptive on mobile, always visible, no modal stack complexity
-
-**Unread badge:** `uiStore.unreadChatCount: number` — increments when a `chat:message` arrives and chat is collapsed; resets to 0 when panel is expanded.
+**Defer:**
+- **TURN server:** Monitor post-deploy. Add only if users report connection failures
+- **Custom domain:** After deployment verified stable
+- **Speaking indicator:** Future polish pass
 
 ---
 
-## Rematch Flow Specification (Detailed)
+## Complexity Assessment
 
-### State Machine
-
-```
-'in_game' → game ends → 'game_over'
-'game_over' → all players confirm → 'in_game' (new hand 1, same room, same seats)
-'game_over' → host force-starts (after timeout or disconnected player) → 'in_game'
-'game_over' → any player leaves → remaining players see "waiting for player" state
-```
-
-### Server-Side
-
-**New `room:rematch_ready` event (client → server):**
-- Server records `socketId` as ready in a `rematchReady: Set<string>` on the Room object
-- Broadcasts updated ready state to all players: `room:rematch_status` → `{ readyCount: number; playerStates: { name, ready }[] }`
-- When all connected players are ready: call `resetGameForRematch(room)`, transition to `'in_game'`, broadcast `game:state_snapshot`
-
-**`resetGameForRematch(room: Room)`:**
-- Clear `room.game` (or reset all fields)
-- Reset `room.status = 'in_game'`
-- Re-deal tiles, find first player (double-six rule), set up `ServerGameState` from scratch
-- Seats and teams are unchanged (players[0]&[2] = Team A, players[1]&[3] = Team B)
-- Reset team scores to 0 (new game, not continuation)
-- Clear `rematchReady` set
-
-**Host force-override:** If a player has `connected: false` for > 30 seconds and all connected players are ready, host can emit `room:rematch_force` to start without the disconnected player. The disconnected player's seat becomes effectively an auto-pass machine until they reconnect (existing disconnect handling handles this, per CONCERNS.md recommendation).
-
-### Client-Side
-
-**`GameEndModal` changes:**
-- Replace "Jugar de Nuevo" (which exits to `/`) with two buttons:
-  - "Revancha" — emits `room:rematch_ready`; button becomes "Esperando..." disabled state
-  - "Salir" — existing behavior (emit `room:leave`, navigate to `/`)
-- Show ready count: "3/4 listos"
-- When `game:state_snapshot` arrives with new `hand === 1` and `scores = { team0: 0, team1: 0 }`, dismiss modal automatically — the new game begins
-
-**Known bug that must be fixed first:** `isHost` determination in `RoundEndModal.tsx:20` is wrong (checks `players[0].connected && myPlayerIndex === 0`). The same pattern exists in `GameEndModal`. Fix before adding host-specific rematch controls. Server already tracks `hostSocketId` in `getRoomInfo()` — expose it in the client room payload.
-
----
-
-## Score History Panel Specification (Detailed)
-
-### Data Model
-
-The `RoundEndPayload` already contains everything needed per hand. Client can accumulate these.
-
-**`gameStore` addition:**
-```typescript
-roundHistory: RoundEndPayload[]  // appended each time setRoundEnd() is called
-```
-
-Reset to `[]` on `resetGame()` (new game start).
-
-### UI
-
-**Trigger:** Tapping the `ScorePanel` bar expands it into a scrollable log below. Same tap collapses it.
-
-**Per-hand row:**
-```
-Mano 3 | Equipo A | +45 pts | ¡Capicú! | A: 190 | B: 30
-```
-
-Columns: hand number, winning team (color-coded), points scored, bonus label (if any), running cumulative scores after that hand.
-
-**Running totals:** Derived from the accumulated `roundHistory` array on the client — no new server data needed.
-
-**Height constraint:** Max 3 rows visible; scroll for older hands. Do not expand so far that it covers the board.
+| Feature Area | Estimated Effort | Risk | Notes |
+|--------------|-----------------|------|-------|
+| Cloud deployment | 2-4 hours | Low | Architecture is production-ready. Config + deploy + verify |
+| Circular avatar cameras | 4-8 hours | Medium | CSS is simple but: avatar sizing affects layout, controls need new UX, audio relocation, removing side panel without regressions |
+| PWA support | 2-3 hours | Low | `vite-plugin-pwa` handles 90%. Icon creation is main manual work |
+| TURN server (if needed) | 2-4 hours | Medium | Provider signup + env config. No architecture changes |
+| Custom install banner | 1-2 hours | Low | `beforeinstallprompt` + simple component |
 
 ---
 
 ## Sources
 
-This research is based on:
-- Direct codebase analysis: `GameEndModal.tsx`, `RoundEndModal.tsx`, `ScorePanel.tsx`, `RoomManager.ts`, `gameStore.ts`, `uiStore.ts`, `gameHandlers.ts`
-- Project context: `.planning/PROJECT.md`
-- Known defects and gaps: `.planning/codebase/CONCERNS.md`
-- Domain knowledge of multiplayer browser game UX conventions (skribbl.io, Gartic Phone, Jackbox, Boardgame Arena, Ludo King patterns) — MEDIUM confidence (no live web search available in this session; patterns are well-established and stable)
-- Puerto Rican dominoes cultural context: same seats for rematch is conventional in the game's social setting
+- **Direct codebase analysis (HIGH confidence):**
+  - `server/src/index.ts` lines 30-34: production static serving implemented
+  - `server/src/config.ts`: env-based config for `PORT`, `CLIENT_ORIGIN`, `NODE_ENV`
+  - `client/vite.config.ts`: dev proxy config (irrelevant in production same-origin setup)
+  - `PlayerSeat.tsx`: 32x32 (`w-8 h-8`) initials circle, team color border, tile count badge, turn glow
+  - `VideoTile.tsx`: 56x42 video with `showVideo` conditional, mic/camera toggle buttons, `videoRef` pattern
+  - `VideoCallPanel.tsx`: side panel with `RemoteAudio` audio elements (lines 135-144), call join buttons, ordered player indices
+  - `web/manifest.json`: stale Flutter boilerplate with `"description": "A new Flutter project."` -- clearly not for this app
+  - `client/index.html`: no PWA meta tags, no manifest link, no service worker
+  - `client/package.json`: Vite 5, React 18, no PWA plugin yet
+  - Socket.io config: `pingTimeout: 60000`, `pingInterval: 25000` -- platform must support these keepalive intervals
+
+- **PWA installability criteria (HIGH confidence):** W3C Web App Manifest standard. Secure context + manifest + service worker. Stable since 2019.
+
+- **WebRTC secure context requirement (HIGH confidence):** `getUserMedia()` restricted to HTTPS in all modern browsers. Established W3C/IETF spec.
+
+- **Deployment platform capabilities (MEDIUM confidence):** Training data on Railway, Render, Fly.io. WebSocket support and free HTTPS are documented features. Verify current pricing/free tier limits at deployment time.
+
+- **`vite-plugin-pwa` (MEDIUM confidence):** Widely used Vite plugin for PWA. Verify specific API and latest version during implementation.
 
 **Confidence assessment:**
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Table stakes categorization | HIGH | Directly derived from codebase gaps + domain conventions |
-| Chat character/retention limits | MEDIUM | Industry conventions, not project-specific requirements — validate with stakeholder |
-| Rematch flow state machine | HIGH | Derived from existing RoomManager code + CONCERNS.md gaps |
-| Score history panel | HIGH | Client-only change; existing server payloads cover all data needed |
-| Anti-features list | MEDIUM | Rationale is sound; some (e.g. seat shuffle) are cultural assumptions worth confirming |
+| Deployment readiness | HIGH | Verified by reading actual production mode code in `server/src/index.ts` |
+| PWA requirements | HIGH | Browser installability criteria are a stable W3C standard |
+| Avatar camera feasibility | HIGH | Existing `VideoTile` proves the pattern; `PlayerSeat` modification is mechanical |
+| Audio relocation necessity | HIGH | Verified `RemoteAudio` lives inside `VideoCallPanel` -- must be relocated |
+| Platform recommendations | MEDIUM | Training data only; verify current pricing before committing |
+| `vite-plugin-pwa` API | MEDIUM | Verify during implementation |
+| TURN server necessity | LOW | Depends on actual user network conditions post-deploy |

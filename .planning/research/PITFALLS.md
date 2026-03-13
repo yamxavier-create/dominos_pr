@@ -1,136 +1,151 @@
 # Domain Pitfalls
 
-**Domain:** Real-time multiplayer game social features (chat, rematch, score history) on Socket.io
-**Researched:** 2026-03-06
-**Confidence:** HIGH (codebase-grounded) / MEDIUM (general Socket.io patterns from training data)
+**Domain:** Cloud deployment, PWA support, and circular video avatars for an Express+Socket.io+WebRTC real-time game
+**Researched:** 2026-03-13
+**Milestone:** v1.1 Deploy & Polish
+**Confidence:** HIGH (codebase-grounded) / MEDIUM (deployment and PWA patterns from training data, no web search available)
 
 ---
 
 ## Critical Pitfalls
 
-Mistakes that cause rewrites, data loss, or broken game state.
+Mistakes that cause broken deploys, unusable video, or production outages.
 
 ---
 
-### Pitfall 1: Rematch Race Condition — Both Players Trigger Reset Simultaneously
+### Pitfall 1: STUN-Only WebRTC Fails for ~15% of Users Behind Symmetric NAT
 
-**What goes wrong:** Two or more players click "Rematch" within milliseconds of each other. The server receives two `game:rematch_vote` events concurrently and starts the reset sequence twice. The second reset runs on a partially-initialized `ServerGameState`, corrupting tile distribution or losing the score tally.
+**What goes wrong:** The current `useWebRTC.ts` uses only Google's public STUN server (`stun:stun.l.google.com:19302`). STUN works when both peers are behind cone NATs (most home routers). It fails silently when either peer is behind a symmetric NAT (common in corporate networks, mobile carriers, university WiFi, and some 4G/5G connections). The 15-second timeout in `createPC` fires, `peerState` becomes `'failed'`, and the user sees no video with no actionable error.
 
-**Why it happens:** There is no guard state between "game ended" and "rematch in progress." The current pattern in `gameHandlers.ts` uses early-return guards like `if (!room?.game) return`, but a half-reset game still has `room.game` populated.
+**Why it happens:** STUN only discovers the peer's public IP. Symmetric NATs assign different port mappings per destination, so the STUN-discovered port is useless for the actual peer connection. Only a TURN relay can bridge symmetric NATs.
 
-**Consequences:** Duplicate `game:started` emissions to some players; two players may receive different initial hands; accumulated game score is wiped on the first reset and not restored for the second.
+**Consequences:** Video calling works perfectly in development (same LAN) and testing (same home network), then fails for a significant fraction of real users once deployed. Users blame the app, not their network.
 
 **Prevention:**
-- Add a `room.rematchPhase: 'idle' | 'voting' | 'starting'` field to the Room type.
-- Server only transitions from `'idle'` → `'voting'` → `'starting'` — never backwards without a full vote reset.
-- Once `'starting'` is set, all subsequent `game:rematch_vote` events are no-ops.
-- Use a single flag, not a counter: the host triggers the actual rematch; others only register readiness.
+- Add at least one TURN server to the `iceServers` config. Free options: Metered.ca free tier (500MB/month), or self-hosted coturn on the same VPS as the game server.
+- Configuration: `iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'turn:your-server:3478', username: '...', credential: '...' }]`
+- TURN credentials should be time-limited (TURN REST API pattern) or at minimum loaded from environment variables, never hardcoded.
+- Test with a phone on mobile data connecting to a peer on home WiFi -- this is the most common symmetric NAT scenario.
 
-**Detection (warning signs):**
-- Players receive two `game:started` events in quick succession.
-- Score panel shows 0-0 at the start of what should be round 2.
-- Console shows `broadcastState` called twice within the same tick.
+**Detection:** WebRTC `iceConnectionState` stays at `'checking'` and never reaches `'connected'`. The 15-second timeout fires. Check `pc.getStats()` for `candidateType: 'relay'` -- if no relay candidates exist, TURN is not configured.
 
-**Phase:** Rematch implementation phase. Must be designed into the state machine before writing any handler code.
+**Phase:** Deploy phase. Must be addressed before the app goes live to external users.
 
 ---
 
-### Pitfall 2: Chat Messages Contain Unsanitized HTML — React Escape Is Not Enough
+### Pitfall 2: Socket.io WebSocket Upgrade Blocked by Reverse Proxy / PaaS
 
-**What goes wrong:** Player names and chat messages are displayed in React JSX, which does escape HTML by default. However, the existing codebase already has a known gap: player names are only trimmed on the server (`roomHandlers.ts:8`), with no length enforcement or character stripping beyond the client-side `maxLength` attribute. Chat text — which is longer and more varied — will share this same path. A message containing `<script>` or SQL-style payloads is harmless in JSX rendering, but becomes dangerous if the message is ever: (a) passed to `dangerouslySetInnerHTML` for rich text or emoji rendering, (b) logged server-side and viewed in a log viewer that renders HTML, or (c) stored and later used in a non-React context.
+**What goes wrong:** Socket.io starts with HTTP long-polling and upgrades to WebSocket. Many cloud platforms (Railway, Render, Fly.io, Heroku) and reverse proxies (nginx, Cloudflare) require explicit WebSocket upgrade configuration. Without it, Socket.io stays on long-polling, which works but adds 100-300ms latency per event and breaks the real-time feel of tile plays.
 
-**Why it happens:** React's JSX escaping is a defense at the render layer only. The raw strings still travel over the socket, are stored in memory, and are re-emitted to other players without sanitization. A future developer adds emoji rendering via `innerHTML` without realizing the data is untrusted.
+**Why it happens:** The current `server/src/index.ts` creates a Socket.io `Server` attached to `httpServer`. The client in `client/src/socket.ts` likely connects with default transport options (polling + websocket). The upgrade handshake requires the proxy to forward `Upgrade: websocket` and `Connection: Upgrade` headers. Most PaaS defaults strip these unless configured.
 
-**Consequences:**
-- If `dangerouslySetInnerHTML` is ever used for emoji rendering (a common pattern for quick reactions): stored XSS across the room.
-- Player names with angle brackets break downstream tooling.
+**Consequences:** The game technically works but feels sluggish. Tile plays take 200-500ms instead of 30-50ms. Auto-pass cascades feel broken because each pass notification is delayed. Users on mobile notice most.
 
 **Prevention:**
-- Server-side: validate chat message length (e.g., max 200 chars) and strip non-printable characters before re-emitting to the room. Apply same validation to player names (CONCERNS.md already flags this).
-- Client-side: never use `dangerouslySetInnerHTML` for any user-supplied content, including emoji/reaction strings. Use a static emoji map keyed by reaction ID instead (`{ thumbsup: '👍', ... }` — client renders the emoji; server only stores the key).
-- Apply a single shared `sanitizeText(input: string): string` utility on the server used for both player names and chat.
+- **Railway/Render:** WebSocket support is enabled by default on these platforms. Verify by checking `socket.io.engine.transport.name` in the browser console -- it should say `'websocket'`, not `'polling'`.
+- **Fly.io:** Requires `force_https = false` in `fly.toml` for the internal service, plus explicit `[services.ports]` config for WebSocket.
+- **nginx (if self-hosted):** Add `proxy_http_version 1.1; proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection "upgrade";` to the location block.
+- **Cloudflare (if fronting the domain):** Enable "WebSockets" in the Network tab. Without this, Cloudflare strips the Upgrade header.
+- **Client-side verification:** Add a one-time check after connection: `socket.io.engine.on('upgrade', () => console.log('Upgraded to WebSocket'))`. If this never fires, the proxy is blocking upgrades.
 
-**Detection:** Attempt to send a message containing `<b>bold</b>` — it should render as literal text, not bold.
+**Detection:** Open browser DevTools Network tab, filter by `WS`. If no WebSocket connection appears and only XHR polling requests are visible, the upgrade failed.
 
-**Phase:** Chat implementation. Must be done before the feature ships.
+**Phase:** Deploy phase. Must be verified immediately after first deployment.
 
 ---
 
-### Pitfall 3: Late-Join / Reconnect Gets No Chat History
+### Pitfall 3: SERVICE_ORIGIN / CLIENT_ORIGIN CORS Mismatch in Production
 
-**What goes wrong:** A player disconnects mid-game and reconnects. The existing reconnect path in `roomHandlers.ts` sends the current `game:state_snapshot` only. Chat messages sent during the disconnection are lost to that player — they rejoin mid-conversation with no context.
+**What goes wrong:** The server's `config.ts` reads `CLIENT_ORIGIN` from env (defaulting to `http://localhost:5173`). Socket.io CORS is configured with this value. In production, the client is served from the same origin (Express static middleware), so CORS is not needed at all -- but the `cors` middleware and Socket.io CORS config are still active with the wrong origin. If the deployment URL is `https://dominos.example.com` but `CLIENT_ORIGIN` is unset or set to `localhost`, Socket.io connections from the production client will be CORS-rejected.
 
-**Why it happens:** Chat state is not part of `ServerGameState` or `Room`. There is no chat buffer to include in the reconnect payload. The reconnect path (`roomHandlers.ts:36`) already has a known tech debt issue (dynamic `require` instead of static import), so adding chat to this path without fixing that issue first risks a silent runtime crash.
+**Why it happens:** In dev, Vite proxies `/socket.io` to `localhost:3001` (configured in `vite.config.ts`). In production, both client and server share the same origin. The CORS config is only relevant if they are on different origins. But the env variable must still match the actual deployment URL for same-origin detection to work with Socket.io's CORS check.
 
-**Consequences:** Reconnected players are confused; they see ongoing conversation without prior messages. For quick reactions, they miss acknowledgments of game events that already happened.
+**Consequences:** The app loads (static files are served) but socket connection fails silently. No room creation, no game, no chat. The user sees a blank lobby that never connects.
 
 **Prevention:**
-- Add a `chatLog: ChatMessage[]` array to the `Room` object (not `ServerGameState` — chat persists across hands).
-- Cap at last 50 messages (memory bound for in-process storage).
-- On reconnect, include `chatLog` in the reconnect payload alongside the game state snapshot.
-- Fix the dynamic `require` in `roomHandlers.ts:36` before touching the reconnect path (CONCERNS.md flags this).
+- For same-origin production deployment: set `CLIENT_ORIGIN` to the deployment URL (`https://dominos.example.com`), OR better, detect same-origin and skip CORS entirely:
+  ```typescript
+  const io = new Server(httpServer, {
+    cors: config.NODE_ENV === 'production' ? undefined : {
+      origin: config.CLIENT_ORIGIN,
+      methods: ['GET', 'POST'],
+    },
+  })
+  ```
+- Add a health check endpoint (`app.get('/api/health', ...)`) that the client can ping on startup to verify connectivity before attempting socket connection.
+- Document the required env variables for deployment in a `.env.example` file.
 
-**Detection:** Send 3 chat messages, disconnect, reconnect — verify all 3 appear in the chat panel.
+**Detection:** After deploying, open browser console and look for `CORS policy` errors on the WebSocket connection attempt.
 
-**Phase:** Chat implementation. History replay must be built from day one, not added later.
+**Phase:** Deploy phase. Must be configured before first production deployment.
 
 ---
 
-### Pitfall 4: Score History Shows Stale Data After Blocked Game or Capicú
+### Pitfall 4: PWA Service Worker Caches Socket.io Polling Requests
 
-**What goes wrong:** The score panel reads accumulated totals from `ClientGameState`. After a blocked game (`handleBlockedGame`) or a Capicú/Chuchazo win, the score update is sent as part of `game:round_ended`, not as a `game:state_snapshot`. If the score panel reads from `gameStore.gameState.scores` (which is the in-play state) rather than `gameStore.roundEndPayload.scores`, it will display the pre-round score until the next hand starts.
+**What goes wrong:** A service worker registered with a broad cache strategy (e.g., Workbox `NetworkFirst` or `StaleWhileRevalidate` on all routes) intercepts Socket.io's HTTP long-polling fallback requests (`/socket.io/?EIO=4&transport=polling&...`). The SW returns a cached response, the socket connection receives stale data or fails entirely, and real-time events stop flowing.
 
-**Why it happens:** `broadcastStateWithAction` sends the final board state, but scores are only finalized in the `game:round_ended` payload. There are two score sources and the panel may read the wrong one depending on timing.
+**Why it happens:** Vite PWA plugins (like `vite-plugin-pwa` with Workbox) generate a service worker that caches navigation routes and static assets. If the `navigateFallback` is set to `index.html` and the exclude patterns do not include `/socket.io/`, the SW captures polling requests. Even if WebSocket is the primary transport, Socket.io falls back to polling during reconnection.
 
-**Consequences:** Score panel shows 0-0 or last round's score during the round-end modal, which is the exact moment players are most likely to look at it.
+**Consequences:** The game appears to work on first load, but after the SW activates (second visit or after install), socket connections become unreliable. Reconnections after network blips fail because the SW serves cached polling responses. This is extremely difficult to debug because clearing the cache "fixes" it temporarily.
 
 **Prevention:**
-- Define one canonical score source for the panel: use `game:round_ended` payload scores when `roundEndPayload` is non-null (modal is showing), fall back to `gameState.scores` during active play.
-- Never derive display scores by summing `gameState.board` or player tile counts client-side — always use what the server sends.
-- Include cumulative game score (not just round delta) in every `game:state_snapshot` so the running panel always has current data.
+- Explicitly exclude Socket.io paths from the service worker's fetch handler:
+  ```typescript
+  // vite-plugin-pwa config
+  workbox: {
+    navigateFallback: '/index.html',
+    navigateFallbackDenylist: [/^\/socket\.io/],
+    runtimeCaching: [] // no runtime caching for this app
+  }
+  ```
+- Use `CacheFirst` only for truly static assets (JS bundles, CSS, images, fonts). Never cache API or WebSocket paths.
+- Consider a minimal service worker that only handles the install prompt and offline fallback page, without any fetch interception beyond static asset precaching.
+- Test the SW by: enabling it in dev (Workbox dev mode), connecting, then refreshing -- verify socket still connects on second load.
 
-**Detection:** Play out a blocked game. Verify the score panel updates before or at the same moment the round-end modal appears.
+**Detection:** After installing the PWA, check `chrome://serviceworker-internals` or Application > Service Workers in DevTools. Look for `/socket.io/` requests being intercepted in the "Fetch/XHR" network tab -- they should NOT show "(from ServiceWorker)".
 
-**Phase:** Score history panel implementation.
+**Phase:** PWA phase. The service worker must be configured correctly from the first implementation.
 
 ---
 
-### Pitfall 5: Animation Regression When Fixing Left-End Tile Bug
+### Pitfall 5: getUserMedia Permissions Lost After PWA Install on iOS
 
-**What goes wrong:** The known animation bug (`useSocket.ts:56`) reads `board.tiles[board.tiles.length - 1]` to find the newest tile. The fix is to find the tile with the maximum `sequence`. This change touches the same code path that drives `lastTileSequence` in `gameStore`, which is used by `BoardTile` to trigger the CSS flash animation. An incorrect fix (e.g., using `Math.max` but forgetting to handle an empty board, or using `find` instead of `reduce` and missing ties) will silently break animations for ALL tile plays, not just left-end plays.
+**What goes wrong:** On iOS Safari, `getUserMedia` permissions are granted per-origin per-session. When the app is "installed" as a PWA (Add to Home Screen), it runs in a standalone WKWebView context that does not share permissions with Safari. The user must re-grant camera/mic permission every time they open the PWA. Worse, iOS sometimes blocks `getUserMedia` entirely in standalone PWA mode depending on the iOS version.
 
-**Why it happens:** Zero test coverage. `computeSnakeLayout` and the animation sequence are purely visual and untested. Any regression is invisible until a human playtests the exact scenario.
+**Why it happens:** iOS treats standalone web apps as separate browsing contexts. Permission grants are not shared between Safari and the standalone PWA. The `navigator.mediaDevices` API is available, but `getUserMedia` may prompt on every launch or fail silently in some iOS versions (pre-iOS 16.4 had severe restrictions; 16.4+ improved but still has quirks).
 
-**Consequences:** No tile highlight animation ever plays, or it plays on the wrong tile for every right-end play (regression introduced by the fix).
+**Consequences:** Users install the PWA for convenience, then find video calling broken or requiring re-permission every session. They blame the app and uninstall.
 
 **Prevention:**
-- Before changing `useSocket.ts:56`, write a test or inline assertion verifying the current behavior for right-end plays.
-- The fix (`Math.max(...board.tiles.map(t => t.sequence))`) must guard for empty array: `board.tiles.length === 0 ? null : Math.max(...)`.
-- After the fix, manually verify: (a) right-end play flashes correct tile, (b) left-end play flashes correct tile, (c) first-tile play (board was empty before) does not throw.
-- This is an isolated change — do not bundle it with any board layout refactoring or `SNAKE_CAP` constant changes. The snake layout fragility (CONCERNS.md: pixel constants) makes combined changes dangerous.
+- Display a clear in-app message when running in standalone mode (`window.matchMedia('(display-mode: standalone)').matches`) explaining that camera/mic permission may need re-granting.
+- Handle `getUserMedia` rejection gracefully: show a "Camera access needed -- tap to retry" button instead of silently failing. The current `acquireLocalStream` in `useWebRTC.ts` catches errors but returns `null` without user notification.
+- Test the PWA on actual iOS devices (not just Safari desktop). The Simulator does not accurately reproduce permission behavior.
+- Consider making video calling a "nice to have" feature in PWA mode on iOS, with clear fallback to initials-only avatars.
 
-**Detection (regression):** Play a right-end tile immediately after the fix is applied and verify the rightmost tile flashes.
+**Detection:** Install PWA on iPhone, close and reopen, attempt to join a video call -- observe whether permission prompt appears and whether `getUserMedia` succeeds.
 
-**Phase:** Bug fix phase (first, before social features). Must not be bundled with layout changes.
+**Phase:** PWA phase, specifically when testing on iOS devices.
 
 ---
 
-### Pitfall 6: Rematch Resets Game Score Instead of Accumulating It
+### Pitfall 6: Circular Avatar Video Aspect Ratio Distortion
 
-**What goes wrong:** "Rematch" is ambiguous: does it mean "play another hand in this session" (accumulating score) or "start fresh" (resetting score to 0-0)? The existing `GameEndModal` offers "Jugar de Nuevo" which calls `room:leave` and sends players to `/`. If rematch is implemented as a room-level game reset, the score must be explicitly preserved or explicitly cleared — whichever is intended. Getting this wrong means the score panel shows incorrect accumulated totals or resets mid-session.
+**What goes wrong:** The current `VideoTile.tsx` uses a 56x42px rectangle with `object-fit: cover`. Switching to a circular avatar (`border-radius: 50%`) on a non-square container clips the video asymmetrically. If the container is made square but the video stream is 16:9, `object-cover` crops the sides heavily, potentially cutting off the user's face. If `object-contain` is used instead, black bars appear inside the circle, which looks broken.
 
-**Why it happens:** `ServerGameState` is re-created by `game:start` handler which initializes scores to zero. A rematch handler that re-uses this same initialization path will wipe scores. The distinction between "new hand" (score accumulates) and "new game" (score resets) must be explicit in the server state machine.
+**Why it happens:** Webcam streams are typically 4:3 (640x480) or 16:9 (1280x720). A circle is 1:1. There is no way to display a non-square video in a circle without cropping. The question is where and how much to crop.
 
-**Consequences:** Players who won game 1 see the score reset; they have no evidence of their victory. Alternatively, if scores accidentally carry over, game 2 starts in a winning state.
+**Consequences:** Users' faces are partially cut off (forehead/chin missing in landscape video) or the avatar circle has ugly letterboxing.
 
 **Prevention:**
-- Define clearly in the `Room` type: `gameScore: { team0: number, team1: number }` persists across rematches (session-level); `ServerGameState.scores` is per-game.
-- Rematch creates a new `ServerGameState` (fresh) but increments `room.gameScore` based on the completed game's winner.
-- The score history panel displays `room.gameScore` (session wins), not `game.scores` (current game points).
+- Use a square container (e.g., `w-10 h-10` or `w-12 h-12`) with `border-radius: 50%` and `overflow: hidden`.
+- Always use `object-fit: cover` with `object-position: center top` -- this crops from the bottom (chest), keeping the face visible. Standard pattern for video calling avatars.
+- Request a more square aspect ratio from `getUserMedia` when targeting avatar display: `{ video: { width: { ideal: 240 }, height: { ideal: 240 }, facingMode: 'user' } }`. Most cameras will serve the closest supported resolution.
+- The existing `w-8 h-8` initials circle in `PlayerSeat.tsx` is the target size. Video at 8x8 Tailwind units (32x32px) is too small to be useful. Increase to `w-10 h-10` (40x40px) minimum, ideally `w-12 h-12` (48x48px).
 
-**Detection:** Win a game, trigger rematch, verify the score panel shows the session win record without wiping to 0-0.
+**Detection:** Open video call with two players, observe whether faces are fully visible in the circular crop. Test with both laptop webcam (16:9) and phone front camera (4:3).
 
-**Phase:** Rematch implementation.
+**Phase:** Avatar cameras phase.
 
 ---
 
@@ -138,88 +153,136 @@ Mistakes that cause rewrites, data loss, or broken game state.
 
 ---
 
-### Pitfall 7: Chat Spam Floods Other Players
+### Pitfall 7: In-Memory State Lost on PaaS Auto-Restart / Deploy
 
-**What goes wrong:** Any player can emit `chat:message` at unlimited frequency. A single player can send hundreds of messages per second, flooding the other three players' chat panels and causing React to re-render at unacceptable frequency.
+**What goes wrong:** Cloud platforms (Railway, Render, Fly.io) restart the server process on deploy, on crashes, and sometimes on idle timeout (Render free tier sleeps after 15 minutes of inactivity). Every restart wipes all in-memory `Room` objects. Active games are lost with no recovery.
 
-**Why it happens:** No rate limiting exists on any socket event (CONCERNS.md already flags this for `game:play_tile`). Chat is a higher-frequency event type and more easily abused because there is no server-side validation (unlike tile plays, which must match `getValidPlays()`).
+**Why it happens:** The project explicitly accepts in-memory state (PROJECT.md: "no persistence"). This is fine for local dev but becomes a user-facing issue in production where deploys happen during active games.
+
+**Consequences:** Players mid-game see their connection drop. Reconnect finds no room. The game is lost.
 
 **Prevention:**
-- Server: token-bucket rate limit per `socket.id` for `chat:message` — e.g., 5 messages per 3 seconds. Drop excess without error (or send a soft `chat:throttled` event to the sender only).
-- Client: debounce the send button and disable it for 500ms after each send.
-- Cap message length at 200 characters server-side (not just client-side `maxLength`).
+- Accept this limitation for v1.1 -- it is explicitly out of scope to add persistence.
+- Choose a platform that does NOT sleep on idle: Railway (Pro plan), Fly.io (machines stay up with `auto_stop_machines = false`), or a VPS (DigitalOcean, Hetzner).
+- Avoid Render free tier (sleeps after 15 min inactivity).
+- For deploys: use zero-downtime deploy strategies. Railway and Fly.io support this by default (new instance starts before old one stops). However, Socket.io connections will still be dropped during the switchover.
+- Add a client-side reconnection message: "El servidor se actualizo. Crea una nueva sala." rather than letting the user stare at a broken game screen.
+- Long term (v2+): consider Redis-backed session store or socket.io-redis adapter for horizontal scaling and persistence.
 
-**Detection:** Emit 20 `chat:message` events in 1 second from the browser console and observe server behavior.
+**Detection:** Deploy a code change while a game is active. Observe whether players receive an error message or just see a frozen screen.
 
-**Phase:** Chat implementation.
+**Phase:** Deploy phase. Platform selection must account for this.
 
 ---
 
-### Pitfall 8: Partial Rematch State — One Player Disconnects After Voting
+### Pitfall 8: PORT and HOST Binding Mismatch on PaaS
 
-**What goes wrong:** Player A votes to rematch. Player B disconnects before voting. The server has 1/4 votes. Player B reconnects. The server now has their socket ID registered again but their vote status is lost — they appear as "not voted" and the rematch never proceeds unless they vote again. Worse, if the server counted B's reconnect as a new player, it may now show 1/5 votes.
+**What goes wrong:** The server's `config.ts` defaults to `PORT=3001`. Most PaaS platforms inject their own `PORT` environment variable (Railway, Render, Fly.io all do this). If the app ignores the injected port or binds to `127.0.0.1` instead of `0.0.0.0`, the platform's health check fails and the container is killed.
 
-**Why it happens:** Rematch vote state is transient and tied to socket IDs. Reconnection re-uses name-based matching (CONCERNS.md), so the socket ID changes but the seat is preserved. Vote state keyed by old socket ID is now orphaned.
+**Why it happens:** `httpServer.listen(config.PORT)` in `server/src/index.ts` uses `config.PORT` which reads from `process.env.PORT`. This is correct. However, the `listen` call does not specify a host, which defaults to `0.0.0.0` in Node.js -- also correct. The risk is that the root `package.json` dev script hardcodes `PORT=3001`, and if this leaks into a production `Dockerfile` or start command, it overrides the platform's injected port.
+
+**Consequences:** The server starts but the platform cannot route traffic to it. The health check fails. The deployment shows as "crashed" even though the process is running.
 
 **Prevention:**
-- Key rematch votes by seat index (0-3), not socket ID. On reconnect, the seat is the stable identifier.
-- Include current vote state in the reconnect payload so the reconnecting player sees what they missed.
-- Set a rematch vote timeout (e.g., 60 seconds) — if not all four vote, auto-cancel and return to post-game state.
+- Never hardcode `PORT` in the production start command. Use only `npm run start` which runs `npm run start --workspace=server`, which should simply run `node dist/index.js` without a PORT override.
+- Verify the server workspace's `start` script does NOT set `PORT`.
+- Add explicit host binding: `httpServer.listen(config.PORT, '0.0.0.0', ...)` for clarity.
+- Set `NODE_ENV=production` in the platform's env variables so the static file serving activates.
 
-**Detection:** Player A votes, Player B disconnects and reconnects — verify B can still cast their vote and the count doesn't corrupt.
+**Detection:** Check platform logs immediately after deploy. Look for "listening on port XXXX" where XXXX matches the platform's expected port.
 
-**Phase:** Rematch implementation.
+**Phase:** Deploy phase. First thing to verify.
 
 ---
 
-### Pitfall 9: Score Panel Causes Unnecessary Re-renders During Active Play
+### Pitfall 9: PWA Install Prompt Never Fires Without Proper Manifest
 
-**What goes wrong:** The score history panel subscribes to `gameStore`. Every `game:state_snapshot` updates `gameStore`, which triggers a re-render of everything subscribed to that store — including the score panel, even when scores have not changed. At 28 tile plays per hand, this is 28 unnecessary score panel re-renders.
+**What goes wrong:** The existing `web/manifest.json` is a leftover from a Flutter project (description says "A new Flutter project"). It references icons in `web/icons/` that do not exist in the Vite client build. The `start_url` is `.` which may resolve incorrectly. Without a valid manifest linked from `index.html` with correct icon paths, the browser never triggers the `beforeinstallprompt` event, and "Add to Home Screen" silently fails.
 
-**Why it happens:** `gameStore` is a monolithic Zustand store. Components subscribed to it receive all updates. The existing `computeSnakeLayout` memoization issue (CONCERNS.md) is the same root cause.
+**Why it happens:** Chrome's PWA installability criteria require: (1) valid `manifest.json` linked via `<link rel="manifest">`, (2) at least one 192x192 and one 512x512 icon that actually loads, (3) `start_url` that resolves, (4) `display: standalone` or `fullscreen`, (5) registered service worker with a fetch handler. Missing any one of these silently prevents the install prompt.
+
+**Consequences:** The PWA "works" in the sense that the site loads, but it is never installable. Users cannot add it to their home screen. The entire PWA feature is silently non-functional.
 
 **Prevention:**
-- Use Zustand selector subscriptions: `const scores = useGameStore(s => s.gameState?.scores)` — this will only re-render when `scores` itself changes (once per round end).
-- Do not create a separate store for scores — the three-store pattern must be preserved (ARCHITECTURE.md).
+- Create a new `manifest.json` in `client/public/` (Vite copies `public/` to `dist/` at build time). Do NOT reuse the Flutter-era `web/manifest.json`.
+- Generate proper icons: 192x192, 512x512, and maskable variants. Use a domino-themed icon.
+- Set `start_url: "/"`, `display: "standalone"`, `theme_color` matching the app's dark theme.
+- Link from `client/index.html`: `<link rel="manifest" href="/manifest.json">`
+- Verify installability in Chrome DevTools > Application > Manifest -- it will show specific errors if criteria are not met.
+- Register a minimal service worker even if it does nothing beyond the install event (the fetch handler requirement was relaxed in recent Chrome versions, but a basic SW is still needed).
 
-**Detection:** Add a render counter to the score panel component and play through a full hand — it should re-render at most once per round end, not once per tile play.
+**Detection:** Open Chrome DevTools > Application > Manifest. If "Installability" shows warnings, the manifest is not valid. Run Lighthouse PWA audit for a comprehensive check.
 
-**Phase:** Score panel implementation.
+**Phase:** PWA phase. Manifest and icons must be the first task, before service worker work.
 
 ---
 
-### Pitfall 10: `isHost` Bug Breaks Rematch Trigger
+### Pitfall 10: Replacing PlayerSeat with Video Avatar Breaks Layout for Non-Call Players
 
-**What goes wrong:** The existing `isHost` bug in `RoundEndModal.tsx:20` (CONCERNS.md) — which computes host incorrectly as `players[0].connected && myPlayerIndex === 0` — will affect the rematch UI in exactly the same way it already breaks "Siguiente Mano." If rematch uses the same pattern, the "Rematch" button may never appear after a host transfer.
+**What goes wrong:** The current game table renders `PlayerSeat` for all four player positions. When video calling is active, `VideoTile` replaces it. If circular avatar cameras are integrated directly into `PlayerSeat`, players who did not join the video call (or whose camera is off) lose their initials avatar, tile count badge, team label, and disconnection indicator. The layout breaks because the video container has different dimensions than the initials circle.
 
-**Why it happens:** The server does not expose `isHost` in the client payload. The client guesses based on seat index, which is wrong after host promotion.
+**Why it happens:** `PlayerSeat` and `VideoTile` are separate components with different layouts. `VideoTile` is 56x42px rectangular; `PlayerSeat` uses an 8x8 circle plus text. Merging them requires a unified container that gracefully falls back when no video stream exists.
 
-**Consequences:** After the original host disconnects and host promotion occurs, no player sees a rematch button — the game is stuck.
+**Consequences:** Players without video see a broken/empty avatar area. The tile count badge (critical game information) disappears. The turn indicator stops working because the new component does not apply the `neon-glow` class or turn-based border color.
 
 **Prevention:**
-- Fix `isHost` before implementing rematch. The fix is documented in CONCERNS.md: expose `hostSocketId` or a per-player `isHost: boolean` in the room info payload.
-- All host-gated actions (next hand, rematch) must use this server-authoritative flag, not a client-side seat-index guess.
+- Design the unified component as "PlayerSeat with optional video overlay." The base is always the initials circle with tile count badge, team label, and turn indicator. When a video stream exists, overlay it inside the circle, replacing the initials but keeping the badge and indicators.
+- Component structure:
+  ```
+  <CircularAvatar>
+    {hasVideoStream ? <video ... /> : <Initials />}
+    <TileCountBadge />   // always visible
+    <TurnIndicator />    // always visible
+  </CircularAvatar>
+  <PlayerName />
+  <TeamLabel />
+  ```
+- Do NOT conditionally render entirely different components based on call state. Use a single component with conditional video content inside a consistent frame.
+- Keep the `PlayerSeat` component as the source of truth for position-dependent layout (vertical for left/right, horizontal for top/bottom). Video is just a visual replacement for the initials inside the circle.
 
-**Detection:** Original host (seat 0) leaves lobby; confirm seat 1 is promoted; trigger game end; verify the rematch button appears for seat 1, not seat 0.
+**Detection:** Start a game where only 2 of 4 players have video enabled. Verify all four seats show name, tile count, team label, and turn indicator correctly.
 
-**Phase:** Must be fixed before rematch UI is built. Ideally fixed in the bug-fix phase.
+**Phase:** Avatar cameras phase. Architecture decision before any code is written.
 
 ---
 
-### Pitfall 11: `selectedTileId` Leak Interferes with Chat Input Focus
+### Pitfall 11: Video Element autoplay Blocked on Mobile PWA Without User Gesture
 
-**What goes wrong:** The existing `selectedTileId` bug (CONCERNS.md) — where a selected tile ID is not cleared when the turn changes — can interact with the chat input. If a player selects a tile, then opens the chat panel and types, the board end badges may remain active for one render cycle. Pressing Enter to send a chat message could fire a board-end click handler if focus management is not explicit.
+**What goes wrong:** Mobile browsers (especially iOS Safari and Chrome on Android) block `<video autoplay>` unless the user has interacted with the page AND the video is muted. The current `VideoTile` sets `muted={isMe}` (only mutes own video). Remote peer videos have `autoplay` but are not muted, which can cause them to not play at all on mobile. In PWA standalone mode, autoplay policies are even stricter.
 
-**Why it happens:** `uiStore.selectedTileId` is global and not scoped to the game board. Adding chat input (which uses keyboard events) without clearing `selectedTileId` on focus-out from the board creates ambiguous key-event routing.
+**Why it happens:** Browser autoplay policies require a user gesture before unmuted media can play. The current app relies on `autoplay playsInline` attributes. This works in desktop browsers and sometimes in mobile Safari if the page has had prior user interaction (like tapping "Join Call"), but is not guaranteed.
+
+**Consequences:** Remote players' video feeds show a black frame. Audio from remote peers may not play. The user sees a frozen black circle where a video should be.
 
 **Prevention:**
-- Fix the `selectedTileId` clear-on-turn-change bug (CONCERNS.md) before adding chat.
-- Additionally, clear `selectedTileId` whenever the chat input receives focus.
-- End badge click handlers must check `isMyTurn` before acting — they already should, but verify this guard exists.
+- The current architecture uses a separate `<audio>` element for remote audio streams (per commit `c195c46`). This is correct -- keep it.
+- For video elements: call `videoRef.current.play().catch(() => {})` explicitly after setting `srcObject`, ideally inside a user-gesture handler (the "Join Call" button click is the right place).
+- Add a "Tap to enable video" overlay on mobile if autoplay fails. Detect failure by checking if `video.paused` is still `true` after setting srcObject.
+- In PWA mode: the initial "Join Call" tap counts as a user gesture. Do not add intermediate navigations or modal dismissals between the gesture and the `play()` call, as these can invalidate the gesture.
 
-**Detection:** Select a tile (two-step placement mode), then immediately open chat and press Enter — confirm no tile is played.
+**Detection:** Open the PWA on a phone, join a call, verify remote video plays. If video is black but audio works (via separate audio element), autoplay was blocked for the video element.
 
-**Phase:** Chat implementation.
+**Phase:** Avatar cameras phase.
+
+---
+
+### Pitfall 12: Deploying Without HTTPS Breaks getUserMedia and Service Worker
+
+**What goes wrong:** Both `getUserMedia` (WebRTC camera/mic) and Service Worker registration require a Secure Context (HTTPS or localhost). If the deployed app is served over plain HTTP, the camera permission prompt never appears, `navigator.mediaDevices` is `undefined`, and `navigator.serviceWorker` is `undefined`. Video calling and PWA install both silently fail.
+
+**Why it happens:** Development works because `localhost` is a secure context. Production on a custom domain without TLS is not. Some PaaS platforms (Railway, Render) provide HTTPS by default on their `.up.railway.app` / `.onrender.com` subdomains. But if using a custom domain with DNS pointing to a VPS without TLS, nothing works.
+
+**Consequences:** Every feature in this milestone (video avatars, PWA) is dead on arrival. The app appears to load but camera never works and PWA never installs.
+
+**Prevention:**
+- Choose a PaaS that provides automatic HTTPS (Railway, Render, Fly.io all do).
+- If self-hosting: use Let's Encrypt / certbot with nginx reverse proxy. Set up HTTPS before deploying the app, not after.
+- Verify by checking `window.isSecureContext` in the browser console after deploying.
+- Add an early check in the app: if `!window.isSecureContext`, show a warning banner.
+
+**Detection:** Navigate to the deployed URL. Open console. Type `window.isSecureContext` -- if `false`, nothing will work.
+
+**Phase:** Deploy phase. HTTPS is the foundation for everything else in this milestone.
 
 ---
 
@@ -227,47 +290,72 @@ Mistakes that cause rewrites, data loss, or broken game state.
 
 ---
 
-### Pitfall 12: Chat Messages Arrive Out of Order for Slow Clients
+### Pitfall 13: PWA Caches Stale Vite Build Hashes
 
-**What goes wrong:** Socket.io guarantees message ordering per-connection over TCP, but if a player's connection is slow, they may receive a `game:state_snapshot` (large payload) and a `chat:message` (small payload) in a different order than the server sent them. The chat message appears before the board state that prompted it.
-
-**Why it happens:** Socket.io multiplexes events on a single connection. Large payloads are fragmented; small payloads may be enqueued after. In practice this is rare and cosmetic only.
-
-**Prevention:** Add a server-assigned `timestamp` (or monotonic `seq` counter) to each `ChatMessage`. Client renders messages sorted by timestamp. No reordering of game events is needed — this is cosmetic for chat only.
-
-**Detection:** Low-priority; test on a throttled connection (Chrome DevTools Network → Slow 3G).
-
-**Phase:** Chat implementation — minor addition to the message schema.
-
----
-
-### Pitfall 13: Rematch Offer Shown After Server Restart Loses Room
-
-**What goes wrong:** A server restart during the post-game state clears all in-memory rooms. If a client shows a rematch modal and the player clicks "Rematch," the `game:rematch_vote` event goes to a server that has no record of that room. The server silently returns (early-return guard: `if (!room) return`). The client is stuck on the rematch modal with no feedback.
-
-**Why it happens:** In-process room state is acknowledged as acceptable for v1 (PROJECT.md). The gap is that the client has no mechanism to detect that the room it was in no longer exists.
+**What goes wrong:** Vite generates hashed filenames (`index-DUs88-Gi.css`). A service worker that precaches these files will serve the old bundle after a new deploy. The user sees the old version of the app until the SW updates and the page is refreshed. With Socket.io, a protocol mismatch between old client and new server can cause silent event handling failures.
 
 **Prevention:**
-- Server should emit `room:error` with code `ROOM_NOT_FOUND` for any event received after the room is gone (currently it silently returns for most event types).
-- Client: if `room:error` with `ROOM_NOT_FOUND` is received during the game or post-game phase, navigate to `/` and display a message like "La sala ya no existe."
+- Configure the service worker to use `skipWaiting()` and `clientsClaim()` so new versions activate immediately.
+- Add a version check: emit a `app:version` event on socket connection; if the server version does not match the client version, show a "New version available -- refresh" banner.
+- Alternatively, use `workbox-window` to detect SW updates and prompt the user to reload.
 
-**Detection:** Start dev server, complete a game, restart server, click rematch — verify client shows an error and navigates home rather than hanging.
-
-**Phase:** Rematch implementation. Low-effort guard with high UX payoff.
+**Phase:** PWA phase.
 
 ---
 
-### Pitfall 14: Score Panel Accumulates Across Server-Restart Boundary
+### Pitfall 14: Circular Video Clips Mic/Camera Toggle Buttons
 
-**What goes wrong:** Related to Pitfall 13. If in-memory room state is lost (server restart) and players somehow rejoin with the same room code (impossible with the current UUID-based codes, but possible if codes are manually reused), the score panel might show stale accumulated scores from `gameStore` (client state) while the server starts fresh at 0-0.
+**What goes wrong:** The current `VideoTile` places mic/camera toggle buttons at `absolute bottom-1 right-1` inside the video container. Switching to a circular container with `overflow: hidden` clips these buttons outside the visible area (corners of a circle are clipped).
 
-**Why it happens:** Client Zustand state persists across reconnects within the same browser session. If the server restarts and emits a fresh `game:started` with 0-0 scores, `gameStore` must fully overwrite (not merge) the previous state.
+**Prevention:**
+- Move toggle controls outside the circular video container. Place them below the avatar or in a separate control bar.
+- For the local player's avatar, consider a small floating control row beneath the circle rather than overlaid inside it.
+- Alternatively, use a tap-to-reveal overlay: tap the avatar circle to show controls, then auto-hide after 3 seconds.
 
-**Prevention:** `setGameState` in `gameStore` must be a full replacement, not a partial merge (`Object.assign`). Verify the Zustand setter replaces rather than merges.
+**Phase:** Avatar cameras phase.
 
-**Detection:** Complete a game, restart server, trigger a new game in the same browser tab — confirm score panel shows 0-0, not leftover totals.
+---
 
-**Phase:** Score panel implementation.
+### Pitfall 15: Vite Proxy Config Leaks Into Production Build
+
+**What goes wrong:** The `vite.config.ts` proxy (`/socket.io` -> `localhost:3001`) only applies in dev mode. In production, Vite is not running. If the client's socket connection URL is hardcoded or derived from `import.meta.env`, it may point to the wrong place. The current `client/src/socket.ts` likely uses a relative URL or auto-detection, which is correct -- but if anyone changes it to an absolute URL during development, production breaks.
+
+**Prevention:**
+- Verify `socket.ts` connects with a relative URL or no explicit URL (Socket.io client auto-detects the current host). Never hardcode `localhost:3001`.
+- In production, Socket.io shares the same HTTP server, so the client should connect to the same origin with no explicit URL.
+
+**Phase:** Deploy phase. Quick verification, not a code change.
+
+---
+
+### Pitfall 16: Missing `apple-touch-icon` and iOS PWA Metadata
+
+**What goes wrong:** iOS Safari uses `apple-touch-icon` (not the manifest icons) for the home screen icon. Without `<link rel="apple-touch-icon" href="...">` in `index.html`, iOS generates a screenshot thumbnail as the app icon, which looks unprofessional. Additionally, iOS requires `<meta name="apple-mobile-web-app-capable" content="yes">` and `<meta name="apple-mobile-web-app-status-bar-style">` for proper standalone behavior.
+
+**Prevention:**
+- Add to `client/index.html`:
+  ```html
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  ```
+- Generate a 180x180 `apple-touch-icon.png` and place it in `client/public/`.
+
+**Phase:** PWA phase.
+
+---
+
+### Pitfall 17: Platform Idle Timeout Kills Long Games
+
+**What goes wrong:** Some PaaS free tiers (Render free, some Fly.io configs) sleep the process after 15-30 minutes of "inactivity." If inactivity is measured by HTTP requests (not WebSocket frames), a game with active WebSocket traffic but no HTTP requests may still be considered idle and killed.
+
+**Prevention:**
+- Render free tier: the app sleeps after 15 minutes of no inbound requests. WebSocket pings do NOT count as requests on some platforms. Avoid Render free tier for this app.
+- Railway: does not sleep on hobby plan. Best option for always-on.
+- Fly.io: set `auto_stop_machines = false` and `min_machines_running = 1` in `fly.toml`.
+- If cost is a concern, add a client-side keepalive: `setInterval(() => fetch('/api/health'), 5 * 60 * 1000)` to prevent idle detection.
+
+**Phase:** Deploy phase. Platform selection.
 
 ---
 
@@ -275,30 +363,54 @@ Mistakes that cause rewrites, data loss, or broken game state.
 
 | Phase Topic | Likely Pitfall | Mitigation |
 |-------------|---------------|------------|
-| Animation bug fix (left-end tile) | Regression breaks all tile flash animations | Fix in isolation; verify right-end play still animates correctly; do not bundle with layout changes |
-| Animation bug fix | Empty board edge case in `Math.max` | Guard for `board.tiles.length === 0` before computing max sequence |
-| Chat — message schema | Missing `timestamp`/`seq` causes ordering ambiguity | Include server-assigned timestamp in every `ChatMessage` from day one |
-| Chat — server validation | Unsanitized text reaches `dangerouslySetInnerHTML` if quick reactions use innerHTML | Use static emoji map keyed by ID; never pass user text to `dangerouslySetInnerHTML` |
-| Chat — reconnect | Late joiners miss history | Add `chatLog: ChatMessage[]` to `Room`; send on reconnect; fix `roomHandlers.ts:36` dynamic require first |
-| Chat — spam | Unlimited emit rate floods clients | Token-bucket rate limit per socket ID; debounce send button |
-| Rematch — voting | Concurrent votes corrupt state | Guard with explicit `rematchPhase` state machine; host triggers start |
-| Rematch — disconnect during vote | Vote count corrupts after reconnect | Key votes by seat index, not socket ID |
-| Rematch — isHost display | Wrong player sees rematch button | Fix `isHost` bug (CONCERNS.md) before building rematch UI |
-| Rematch — score semantics | Score resets instead of accumulating | Separate session score (`room.gameScore`) from per-game score (`game.scores`) |
-| Score panel — data freshness | Panel shows pre-round scores at round end | Canonical source: `roundEndPayload.scores` during modal, `gameState.scores` during play |
-| Score panel — performance | Re-renders on every tile play | Zustand selector subscription to `scores` field only |
-| All new events | No rate limiting on any socket event | Apply per-socket limits to `chat:message`, `game:rematch_vote` at minimum |
-| All new server state | `isHost` computed client-side from seat 0 | Fix server payload to include authoritative `isHost` flag before any host-gated feature |
+| **Deploy: Platform selection** | Idle timeout kills active games (P17) | Choose Railway or Fly.io with always-on config; avoid Render free tier |
+| **Deploy: First deploy** | CORS mismatch blocks socket connection (P3) | Set `CLIENT_ORIGIN` env or disable CORS in production |
+| **Deploy: First deploy** | PORT binding mismatch (P8) | Never hardcode PORT in production start command |
+| **Deploy: First deploy** | No HTTPS = no getUserMedia, no SW (P12) | Use PaaS with automatic HTTPS; verify before any other testing |
+| **Deploy: WebSocket** | Proxy blocks WS upgrade (P2) | Verify `socket.io.engine.transport.name === 'websocket'` after deploy |
+| **Deploy: WebRTC** | STUN-only fails on mobile/corporate networks (P1) | Add TURN server before going live; test with phone on cellular |
+| **Deploy: State** | Server restart loses all rooms (P7) | Accept for v1.1; display clear error to users; avoid idle-sleep platforms |
+| **PWA: Manifest** | Install prompt never fires (P9) | New manifest in `client/public/`, valid icons, Lighthouse audit |
+| **PWA: Service worker** | SW caches socket.io polling (P4) | Exclude `/socket.io/` from SW fetch handler |
+| **PWA: iOS** | getUserMedia permissions lost per session (P5) | Graceful fallback; user-facing retry button |
+| **PWA: iOS** | Missing apple-touch-icon (P16) | Add apple-specific meta tags and icon |
+| **PWA: Updates** | Stale cached JS after deploy (P13) | skipWaiting + version check banner |
+| **Avatar: Layout** | Replacing PlayerSeat breaks non-video players (P10) | Single unified component with optional video overlay |
+| **Avatar: Aspect ratio** | Face cropped in circle (P6) | Square container, object-cover, object-position center top |
+| **Avatar: Controls** | Toggle buttons clipped by circular overflow (P14) | Move controls outside the circle |
+| **Avatar: Mobile** | autoplay blocked for remote video (P11) | Explicit play() after user gesture; tap-to-enable fallback |
+
+---
+
+## Integration Pitfalls (Cross-Feature)
+
+### Deploy + PWA: Service Worker Registration Timing
+
+The service worker should only be registered after the initial socket connection succeeds. If the SW registers first and has a buggy fetch handler, it can intercept and break the socket handshake on the very first page load, before the user ever sees the app.
+
+**Mitigation:** Register the SW in an `onload` handler or after a short delay, not in the module's top-level scope. Verify socket connection first, then register SW.
+
+### Deploy + Avatar Cameras: TURN Server Cost Scales with Video
+
+STUN is free. TURN relays all media through the server, consuming bandwidth proportional to the video bitrate multiplied by the number of relayed connections. A 4-player game with 3 TURN-relayed video streams at 250kbps each burns ~2.7GB/month per concurrent room.
+
+**Mitigation:** Use TURN only as fallback (ICE will prefer STUN/direct when possible). Set bandwidth limits on the TURN server. Monitor usage. For a free tier: Metered.ca offers 500MB/month TURN relay, which supports roughly 6 hours of 3-peer video per month.
+
+### PWA + Avatar Cameras: Standalone Mode Camera Lifecycle
+
+When a PWA is backgrounded on mobile, the OS may revoke camera access. When foregrounded, `getUserMedia` may need to be re-acquired. The current `useWebRTC.ts` acquires media once in `init()` and does not handle re-acquisition after background/foreground cycles.
+
+**Mitigation:** Listen for `document.visibilitychange`. On `visible`, check if `localStreamRef.current` tracks are still `live` (not `ended`). If ended, re-acquire and replace tracks on all active PeerConnections using `RTCRtpSender.replaceTrack()`.
 
 ---
 
 ## Sources
 
-- CONCERNS.md (codebase audit, 2026-03-06) — all fragile areas, known bugs, and tech debt referenced directly
-- ARCHITECTURE.md (codebase audit, 2026-03-06) — data flow, store isolation constraints, handler patterns
-- PROJECT.md (2026-03-06) — scope constraints (no persistence, no auth)
-- Training knowledge of Socket.io multiplayer patterns, React state management pitfalls, and XSS attack vectors (MEDIUM confidence for general patterns; HIGH confidence where grounded in the specific codebase)
+- Codebase analysis: `server/src/index.ts`, `server/src/config.ts`, `client/vite.config.ts`, `client/src/hooks/useWebRTC.ts`, `client/src/components/player/PlayerSeat.tsx`, `client/src/components/player/VideoTile.tsx`, `server/src/socket/webrtcHandlers.ts`
+- Existing `web/manifest.json` (Flutter-era leftover, not usable)
+- Project constraints: `.planning/PROJECT.md` (no persistence, no auth, in-memory rooms)
+- Training knowledge of WebRTC TURN/STUN requirements, PaaS deployment patterns, PWA installability criteria, iOS standalone mode limitations, and service worker caching strategies (MEDIUM confidence -- well-established patterns but could not verify against current 2026 documentation due to web search unavailability)
 
 ---
 
-*Pitfalls analysis: 2026-03-06*
+*Pitfalls analysis: 2026-03-13 -- v1.1 Deploy & Polish milestone*
