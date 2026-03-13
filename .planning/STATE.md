@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 08-02 boneyard draw animation -- all phases complete
-last_updated: "2026-03-13T00:57:55.481Z"
-last_activity: 2026-03-12 — Completed 08-02 boneyard draw animation
+stopped_at: Completed 09-01 camera/mic duo mode
+last_updated: "2026-03-13T01:25:10.688Z"
+last_activity: 2026-03-13 — Completed 09-01 camera/mic duo mode
 progress:
-  total_phases: 9
-  completed_phases: 8
-  total_plans: 22
-  completed_plans: 22
+  total_phases: 10
+  completed_phases: 9
+  total_plans: 23
+  completed_plans: 23
   percent: 100
 ---
 
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 
 ## Current Position
 
-Phase: 8 of 8 (Boneyard Visual & Draw Animation) - COMPLETE
-Plan: 2 of 2 in current phase - COMPLETE
+Phase: 9 of 9 (Camera and Microphone for Duo Mode) - COMPLETE
+Plan: 1 of 1 in current phase - COMPLETE
 Status: All phases complete
-Last activity: 2026-03-12 — Completed 08-02 boneyard draw animation
+Last activity: 2026-03-13 — Completed 09-01 camera/mic duo mode
 
 Progress: [██████████] 100%
 
@@ -71,6 +71,7 @@ Progress: [██████████] 100%
 | Phase 07 P04 | 12min | 3 tasks | 6 files |
 | Phase 08 P01 | 2min | 2 tasks | 3 files |
 | Phase 08 P02 | 3min | 3 tasks | 5 files |
+| Phase 09 P01 | 1min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -120,6 +121,8 @@ Recent decisions affecting current work:
 - [Phase 08]: BoneyardPile uses useRef timer for fade-out to avoid stale closure issues
 - [Phase 08]: Animation queue processes one draw at a time via isProcessingRef to prevent re-entrant useEffect
 - [Phase 08]: useSocket queues draws instead of immediately calling handleBoneyardDraw -- animation component owns the state transition timing
+- [Phase 09]: useWebRTC reads playerCount from gameStore with ?? 4 fallback for backward compatibility
+- [Phase 09]: VideoCallPanel derives playerCount from players.filter(Boolean).length -- no new imports needed
 
 ### Pending Todos
 
@@ -138,6 +141,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-13T01:18:00Z
-Stopped at: Completed 08-02 boneyard draw animation -- all phases complete
-Resume file: .planning/phases/08-boneyard-visual-draw-animation/08-02-SUMMARY.md
+Last session: 2026-03-13T01:25:00Z
+Stopped at: Completed 09-01 camera/mic duo mode
+Resume file: .planning/phases/09-camera-and-microphone-for-2-player-duo-mode/09-01-SUMMARY.md
