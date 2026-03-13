@@ -10,8 +10,8 @@ Requirements for Deploy & Polish milestone. Each maps to roadmap phases.
 ### Deployment
 
 - [x] **DEPLOY-01**: App is deployed to cloud hosting with HTTPS and permanent URL
-- [ ] **DEPLOY-02**: App supports custom domain configuration
-- [ ] **DEPLOY-03**: Push to main branch triggers automatic redeploy
+- [x] **DEPLOY-02**: App supports custom domain configuration
+- [x] **DEPLOY-03**: Push to main branch triggers automatic redeploy
 
 ### PWA
 
@@ -49,8 +49,8 @@ Requirements for Deploy & Polish milestone. Each maps to roadmap phases.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | DEPLOY-01 | Phase 10 | Complete |
-| DEPLOY-02 | Phase 10 | Pending |
-| DEPLOY-03 | Phase 10 | Pending |
+| DEPLOY-02 | Phase 10 | Complete |
+| DEPLOY-03 | Phase 10 | Complete |
 | PWA-01 | Phase 11 | Pending |
 | PWA-02 | Phase 11 | Pending |
 | PWA-03 | Phase 11 | Pending |

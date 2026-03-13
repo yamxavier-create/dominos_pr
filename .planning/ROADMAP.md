@@ -34,7 +34,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 
 ### v1.1 Deploy & Polish
 
-- [ ] **Phase 10: Cloud Deployment** - Deploy to Railway with HTTPS, WebSocket support, and auto-redeploy from main
+- [x] **Phase 10: Cloud Deployment** - Deploy to Railway with HTTPS, WebSocket support, and auto-redeploy from main (completed 2026-03-13)
 - [ ] **Phase 11: PWA Support** - Make the app installable from browser with standalone mode and proper branding
 - [ ] **Phase 12: Avatar Cameras** - Replace initials avatars with circular live video feeds and inline call controls
 
@@ -103,6 +103,6 @@ Phases execute in numeric order: 10 -> 11 -> 12
 | 7. Two-Player Mode | v1.0 | 4/4 | Complete | 2026-03-13 |
 | 8. Boneyard Animation | v1.0 | 2/2 | Complete | 2026-03-13 |
 | 9. Duo Camera/Mic | v1.0 | 1/1 | Complete | 2026-03-13 |
-| 10. Cloud Deployment | 1/2 | In Progress|  | - |
+| 10. Cloud Deployment | 2/2 | Complete   | 2026-03-13 | - |
 | 11. PWA Support | v1.1 | 0/? | Not started | - |
 | 12. Avatar Cameras | v1.1 | 0/? | Not started | - |
