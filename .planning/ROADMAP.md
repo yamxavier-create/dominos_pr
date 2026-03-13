@@ -173,3 +173,13 @@ Plans:
 Plans:
 - [ ] 08-01-PLAN.md — BoneyardPile component with face-down DominoTile prop, replacing text badge in GameTable
 - [ ] 08-02-PLAN.md — Draw animation queue, CSS flight keyframes, BoneyardDrawAnimation component, human verify
+
+### Phase 9: Camera and microphone for 2-player (duo) mode
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 8
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 9 to break down)

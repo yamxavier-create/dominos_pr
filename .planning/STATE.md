@@ -79,6 +79,7 @@ Progress: [██████████] 100%
 - Phase 5 added: Video & Audio Call — Players can see and talk to each other in real time via WebRTC while playing
 - Phase 7 added: Two-Player Mode with Boneyard — 2-player games with boneyard draw mechanic, individual scoring, adapted layout
 - Phase 8 added: Boneyard Visual & Draw Animation — boneyard tiles face-down on table, draw one at a time with animation
+- Phase 9 added: Camera and microphone for 2-player (duo) mode
 
 ### Decisions
 
