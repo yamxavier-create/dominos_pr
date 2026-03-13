@@ -36,7 +36,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 
 - [x] **Phase 10: Cloud Deployment** - Deploy to Railway with HTTPS, WebSocket support, and auto-redeploy from main (completed 2026-03-13)
 - [x] **Phase 11: PWA Support** - Make the app installable from browser with standalone mode and proper branding (completed 2026-03-13)
-- [ ] **Phase 12: Avatar Cameras** - Replace initials avatars with circular live video feeds and inline call controls
+- [x] **Phase 12: Avatar Cameras** - Replace initials avatars with circular live video feeds and inline call controls (completed 2026-03-13)
 
 ## Phase Details
 
@@ -105,4 +105,4 @@ Phases execute in numeric order: 10 -> 11 -> 12
 | 9. Duo Camera/Mic | v1.0 | 1/1 | Complete | 2026-03-13 |
 | 10. Cloud Deployment | 2/2 | Complete    | 2026-03-13 | - |
 | 11. PWA Support | 1/1 | Complete    | 2026-03-13 | - |
-| 12. Avatar Cameras | 1/2 | In Progress|  | - |
+| 12. Avatar Cameras | 2/2 | Complete   | 2026-03-13 | - |
