@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Deploy & Polish
-status: completed
-stopped_at: Completed 10-02-PLAN.md (Phase 10 complete)
-last_updated: "2026-03-13T16:21:56.146Z"
-last_activity: 2026-03-13 -- Completed 10-02 Railway deploy and verify
+status: in-progress
+stopped_at: Completed 11-01-PLAN.md (Phase 11 complete)
+last_updated: "2026-03-13T17:25:00.000Z"
+last_activity: 2026-03-13 -- Completed 11-01 PWA support with manifest, icons, service worker
 progress:
   total_phases: 3
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  completed_phases: 2
+  total_plans: 3
+  completed_plans: 3
   percent: 100
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13)
 
 **Core value:** Friends can start and finish a complete game of Puerto Rican dominoes online, in real time, from any device -- without friction.
-**Current focus:** Phase 10 - Cloud Deployment
+**Current focus:** Phase 12 - Avatar Cameras
 
 ## Current Position
 
-Phase: 10 of 12 (Cloud Deployment) -- COMPLETE
-Plan: 2 of 2 in current phase
+Phase: 11 of 12 (PWA Support) -- COMPLETE
+Plan: 1 of 1 in current phase
 Status: phase-complete
-Last activity: 2026-03-13 -- Completed 10-02 Railway deploy and verify
+Last activity: 2026-03-13 -- Completed 11-01 PWA support with manifest, icons, service worker
 
 Progress: [██████████] 100%
 
@@ -52,6 +52,7 @@ Progress: [██████████] 100%
 *Updated after each plan completion*
 | Phase 10 P01 | 3min | 1 tasks | 2 files |
 | Phase 10 P02 | human-gated | 2 tasks | 1 files |
+| Phase 11 P01 | human-gated | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -67,6 +68,9 @@ Recent decisions affecting current work:
 - [Phase 10]: Railway free tier sufficient for initial deployment
 - [Phase 10]: Custom domain documented but deferred until user acquires domain
 - [Phase 10]: App live at https://server-production-b2a8.up.railway.app
+- [Phase 11]: generateSW strategy for zero-maintenance service worker
+- [Phase 11]: Separate standard and maskable icon entries (no combined "any maskable")
+- [Phase 11]: navigateFallbackDenylist excludes /socket.io and /health from service worker
 
 ### Pending Todos
 
@@ -80,5 +84,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-13
-Stopped at: Completed 10-02-PLAN.md (Phase 10 complete)
+Stopped at: Completed 11-01-PLAN.md (Phase 11 complete)
 Resume file: None

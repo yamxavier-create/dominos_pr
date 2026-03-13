@@ -15,9 +15,9 @@ Requirements for Deploy & Polish milestone. Each maps to roadmap phases.
 
 ### PWA
 
-- [ ] **PWA-01**: User can install the app from browser on phone or desktop
-- [ ] **PWA-02**: Installed app runs in standalone mode (no browser chrome, with splash screen)
-- [ ] **PWA-03**: App manifest includes proper icons and metadata for Domino PR branding
+- [x] **PWA-01**: User can install the app from browser on phone or desktop
+- [x] **PWA-02**: Installed app runs in standalone mode (no browser chrome, with splash screen)
+- [x] **PWA-03**: App manifest includes proper icons and metadata for Domino PR branding
 
 ### Avatar Cameras
 
@@ -51,9 +51,9 @@ Requirements for Deploy & Polish milestone. Each maps to roadmap phases.
 | DEPLOY-01 | Phase 10 | Complete |
 | DEPLOY-02 | Phase 10 | Complete |
 | DEPLOY-03 | Phase 10 | Complete |
-| PWA-01 | Phase 11 | Pending |
-| PWA-02 | Phase 11 | Pending |
-| PWA-03 | Phase 11 | Pending |
+| PWA-01 | Phase 11 | Complete |
+| PWA-02 | Phase 11 | Complete |
+| PWA-03 | Phase 11 | Complete |
 | CAM-01 | Phase 12 | Pending |
 | CAM-02 | Phase 12 | Pending |
 | CAM-03 | Phase 12 | Pending |

@@ -35,7 +35,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 ### v1.1 Deploy & Polish
 
 - [x] **Phase 10: Cloud Deployment** - Deploy to Railway with HTTPS, WebSocket support, and auto-redeploy from main (completed 2026-03-13)
-- [ ] **Phase 11: PWA Support** - Make the app installable from browser with standalone mode and proper branding
+- [x] **Phase 11: PWA Support** - Make the app installable from browser with standalone mode and proper branding (completed 2026-03-13)
 - [ ] **Phase 12: Avatar Cameras** - Replace initials avatars with circular live video feeds and inline call controls
 
 ## Phase Details
@@ -68,7 +68,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 11-01-PLAN.md -- Configure vite-plugin-pwa with manifest, icons, service worker, and verify installability
+- [x] 11-01-PLAN.md -- Configure vite-plugin-pwa with manifest, icons, service worker, and verify installability
 
 ### Phase 12: Avatar Cameras
 **Goal**: Players see each other's live video as circular avatars in their seat positions, with inline controls
@@ -104,5 +104,5 @@ Phases execute in numeric order: 10 -> 11 -> 12
 | 8. Boneyard Animation | v1.0 | 2/2 | Complete | 2026-03-13 |
 | 9. Duo Camera/Mic | v1.0 | 1/1 | Complete | 2026-03-13 |
 | 10. Cloud Deployment | 2/2 | Complete    | 2026-03-13 | - |
-| 11. PWA Support | v1.1 | 0/1 | Not started | - |
+| 11. PWA Support | 1/1 | Complete   | 2026-03-13 | - |
 | 12. Avatar Cameras | v1.1 | 0/? | Not started | - |
