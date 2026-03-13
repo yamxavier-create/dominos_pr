@@ -3,11 +3,11 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 07-04-PLAN.md
-last_updated: "2026-03-13T00:09:10.732Z"
+stopped_at: Phase 8 context gathered
+last_updated: "2026-03-13T00:27:58.138Z"
 last_activity: 2026-03-12 — Completed 07-04 UI adaptation for 2-player mode
 progress:
-  total_phases: 8
+  total_phases: 9
   completed_phases: 7
   total_plans: 20
   completed_plans: 20
@@ -76,6 +76,7 @@ Progress: [██████████] 100%
 
 - Phase 5 added: Video & Audio Call — Players can see and talk to each other in real time via WebRTC while playing
 - Phase 7 added: Two-Player Mode with Boneyard — 2-player games with boneyard draw mechanic, individual scoring, adapted layout
+- Phase 8 added: Boneyard Visual & Draw Animation — boneyard tiles face-down on table, draw one at a time with animation
 
 ### Decisions
 
@@ -130,6 +131,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-13T00:05:22.373Z
-Stopped at: Completed 07-04-PLAN.md
-Resume file: None
+Last session: 2026-03-13T00:27:58.127Z
+Stopped at: Phase 8 context gathered
+Resume file: .planning/phases/08-boneyard-visual-draw-animation/08-CONTEXT.md
