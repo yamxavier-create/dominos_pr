@@ -1,4 +1,7 @@
 import { ClientPlayer } from '../../types/game'
+import { AvatarVideo } from './AvatarVideo'
+import { CallControls } from './CallControls'
+import { useCallStore } from '../../store/callStore'
 
 interface PlayerSeatProps {
   player: ClientPlayer
@@ -6,11 +9,30 @@ interface PlayerSeatProps {
   position: 'bottom' | 'top' | 'left' | 'right'
   teamLabel: string
   teamColor: string
+  stream?: MediaStream | null
+  isSpeaking?: boolean
+  isCameraOff?: boolean
+  isLocalPlayer?: boolean
 }
 
-export function PlayerSeat({ player, isCurrentTurn, position, teamLabel, teamColor }: PlayerSeatProps) {
+export function PlayerSeat({
+  player,
+  isCurrentTurn,
+  position,
+  teamLabel,
+  teamColor,
+  stream,
+  isSpeaking,
+  isCameraOff,
+  isLocalPlayer,
+}: PlayerSeatProps) {
   const isVertical = position === 'left' || position === 'right'
   const initials = player.name.slice(0, 2).toUpperCase()
+
+  // Only subscribe to call state for the local player to avoid unnecessary re-renders
+  const inCall = useCallStore(s =>
+    isLocalPlayer ? (s.myAudioEnabled || s.myVideoEnabled) : false
+  )
 
   return (
     <div
@@ -23,21 +45,15 @@ export function PlayerSeat({ player, isCurrentTurn, position, teamLabel, teamCol
     >
       {/* Avatar circle with tile-count badge */}
       <div className="relative shrink-0">
-        <div
-          className={`
-            flex items-center justify-center w-8 h-8 rounded-full font-header text-sm
-            ${isCurrentTurn ? 'neon-glow' : ''}
-          `}
-          style={{
-            background: isCurrentTurn
-              ? `radial-gradient(circle, ${teamColor}55 0%, ${teamColor}22 100%)`
-              : 'rgba(255,255,255,0.07)',
-            border: `2px solid ${isCurrentTurn ? teamColor : 'rgba(255,255,255,0.15)'}`,
-            color: isCurrentTurn ? teamColor : 'rgba(255,255,255,0.6)',
-          }}
-        >
-          {initials}
-        </div>
+        <AvatarVideo
+          stream={stream ?? null}
+          initials={initials}
+          teamColor={teamColor}
+          isCurrentTurn={isCurrentTurn}
+          isSpeaking={isSpeaking ?? false}
+          isCameraOff={isCameraOff ?? true}
+          size={40}
+        />
         {/* Tile count badge */}
         <span
           className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center font-bold font-body bg-surface border border-white/20"
@@ -59,7 +75,12 @@ export function PlayerSeat({ player, isCurrentTurn, position, teamLabel, teamCol
 
       {/* Disconnected indicator */}
       {!player.connected && (
-        <span className="text-accent text-xs">⚡</span>
+        <span className="text-accent text-xs">{'\u26A1'}</span>
+      )}
+
+      {/* Inline call controls for local player */}
+      {isLocalPlayer && inCall && (
+        <CallControls className="mt-1" />
       )}
     </div>
   )
