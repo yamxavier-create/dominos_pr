@@ -15,17 +15,22 @@ const GameEngine_1 = require("./game/GameEngine");
 const gameHandlers_1 = require("./socket/gameHandlers");
 const app = (0, express_1.default)();
 const httpServer = (0, http_1.createServer)(app);
-app.use((0, cors_1.default)({ origin: config_1.config.CLIENT_ORIGIN }));
+if (config_1.config.NODE_ENV !== 'production') {
+    app.use((0, cors_1.default)({ origin: config_1.config.CLIENT_ORIGIN }));
+}
 app.use(express_1.default.json());
 const io = new socket_io_1.Server(httpServer, {
-    cors: {
-        origin: config_1.config.CLIENT_ORIGIN,
-        methods: ['GET', 'POST'],
-    },
+    cors: config_1.config.NODE_ENV !== 'production'
+        ? { origin: config_1.config.CLIENT_ORIGIN, methods: ['GET', 'POST'] }
+        : undefined,
     pingTimeout: 60000,
     pingInterval: 25000,
 });
 const rooms = new RoomManager_1.RoomManager();
+// Health check for Railway
+app.get('/health', (_req, res) => {
+    res.status(200).json({ status: 'ok' });
+});
 // Serve built client files in production
 if (config_1.config.NODE_ENV === 'production') {
     const clientBuild = path_1.default.join(__dirname, '../../client/dist');

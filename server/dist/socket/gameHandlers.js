@@ -50,46 +50,48 @@ function broadcastStateWithAction(io, game, lastAction) {
  */
 function processAutoPassCascade(io, game, startPlayerIndex, tilePlayerIndex) {
     let idx = startPlayerIndex;
-    // Modo 200: partner of the tile player gets pass protection (no bonus).
-    // If the next opponent also passes, the deferred pass counts retroactively.
-    let deferredPartnerPass = false;
-    const partnerOfTilePlayer = (tilePlayerIndex + 2) % 4;
-    for (let i = 0; i < 4; i++) {
+    const playerCount = game.players.length;
+    const is2Player = playerCount === 2;
+    // Modo 200: the partner of the tile player gets pass protection.
+    // If the partner has to pass right after an opponent passes, that pass never
+    // counts as a point — it was caused by their own teammate's play.
+    // In 2-player mode there are no partners, so partnerOfTilePlayer = -1 (no partner).
+    const partnerOfTilePlayer = is2Player ? -1 : (tilePlayerIndex + 2) % 4;
+    for (let i = 0; i < playerCount; i++) {
+        // BONEYARD DRAW PHASE: draw tiles one by one until player can play or boneyard is empty
+        while (game.boneyard.length > 0) {
+            const checkPlays = (0, GameEngine_1.getValidPlays)(game.players[idx].tiles, game.board, game.firstPlayMade, game.forcedFirstTileId);
+            if (checkPlays.length > 0)
+                break; // player can play with current hand
+            // Draw one tile from boneyard
+            const drawnTile = game.boneyard.pop();
+            game.players[idx].tiles.push(drawnTile);
+            // Emit draw event to drawing player (with tile data)
+            const drawingSocket = game.players[idx].socketId;
+            io.to(drawingSocket).emit('game:boneyard_draw', {
+                tile: drawnTile,
+                boneyardRemaining: game.boneyard.length,
+                playerIndex: idx,
+            });
+            // Emit draw event to all others (without tile data)
+            io.to(game.roomCode).except(drawingSocket).emit('game:boneyard_draw', {
+                tile: null,
+                boneyardRemaining: game.boneyard.length,
+                playerIndex: idx,
+            });
+        }
         const validPlays = (0, GameEngine_1.getValidPlays)(game.players[idx].tiles, game.board, game.firstPlayMade, game.forcedFirstTileId);
         if (validPlays.length > 0) {
             // This player can play — it's their turn
             game.currentPlayerIndex = idx;
             return false;
         }
-        // Auto-pass this player
+        // Auto-pass this player (boneyard empty and no valid plays)
         let passBonusAwarded = null;
         if (game.gameMode === 'modo200') {
             const isPartnerPass = idx === partnerOfTilePlayer;
-            if (isPartnerPass && !deferredPartnerPass) {
-                // Partner protection: defer this pass (no bonus awarded)
-                deferredPartnerPass = true;
-                // passBonusAwarded stays null
-            }
-            else {
-                // If there's a deferred partner pass, apply it now (opponent passed after partner)
-                if (deferredPartnerPass) {
-                    const deferredScores = (0, GameEngine_1.applyPassBonus200)(game.scores, partnerOfTilePlayer, game.gamePassCount);
-                    game.scores = deferredScores;
-                    game.gamePassCount++;
-                    deferredPartnerPass = false;
-                    if ((0, GameEngine_1.scoresReachedTarget)(game.scores, game.targetScore)) {
-                        game.currentPlayerIndex = idx;
-                        game.consecutivePasses++;
-                        game.handPassCount++;
-                        io.to(game.roomCode).emit('game:player_passed', {
-                            playerIndex: idx,
-                            playerName: game.players[idx].name,
-                            passBonusAwarded: null,
-                        });
-                        return handleGameEnd(io, game);
-                    }
-                }
-                // Apply this pass bonus normally
+            if (!isPartnerPass) {
+                // Normal opponent pass: award bonus
                 passBonusAwarded = game.gamePassCount === 0 ? 2 : 1;
                 const updatedScores = (0, GameEngine_1.applyPassBonus200)(game.scores, idx, game.gamePassCount);
                 game.scores = updatedScores;
@@ -106,6 +108,7 @@ function processAutoPassCascade(io, game, startPlayerIndex, tilePlayerIndex) {
                     return handleGameEnd(io, game);
                 }
             }
+            // Partner pass: no bonus, no gamePassCount increment — pass is free
         }
         game.consecutivePasses++;
         game.handPassCount++;
@@ -114,13 +117,13 @@ function processAutoPassCascade(io, game, startPlayerIndex, tilePlayerIndex) {
             playerName: game.players[idx].name,
             passBonusAwarded,
         });
-        if ((0, GameEngine_1.isGameBlocked)(game.consecutivePasses)) {
+        if ((0, GameEngine_1.isGameBlocked)(game.consecutivePasses, playerCount)) {
             game.currentPlayerIndex = idx;
             return handleBlockedGame(io, game);
         }
-        idx = (0, GameEngine_1.nextPlayerIndex)(idx);
+        idx = (0, GameEngine_1.nextPlayerIndex)(idx, playerCount);
     }
-    // All 4 players can't play (shouldn't happen if isGameBlocked wasn't triggered)
+    // All players can't play (shouldn't happen if isGameBlocked wasn't triggered)
     game.currentPlayerIndex = idx;
     return handleBlockedGame(io, game);
 }
@@ -235,17 +238,12 @@ function registerGameHandlers(socket, io, rooms) {
             return socket.emit('room:error', { code: 'ROOM_NOT_FOUND', message: 'Sala no encontrada' });
         if (room.hostSocketId !== socket.id)
             return socket.emit('room:error', { code: 'NOT_HOST', message: 'Solo el host puede iniciar' });
-        if (room.players.length < 2)
-            return socket.emit('room:error', { code: 'NOT_ENOUGH_PLAYERS', message: 'Se necesitan al menos 2 jugadores' });
-        // Pad to 4 players with bots if fewer (for now, require exactly 4 — but allow 2 for testing)
-        // Game requires exactly 4 players; for testing allow 2–4 but pad with dummy AI seats
-        // DECISION: require exactly 4 for real game, allow <4 for dev testing by padding
-        // For simplicity, require exactly 4
-        if (room.players.length !== 4) {
-            return socket.emit('room:error', { code: 'NOT_ENOUGH_PLAYERS', message: 'Se necesitan exactamente 4 jugadores' });
+        if (room.players.length !== 2 && room.players.length !== 4) {
+            return socket.emit('room:error', { code: 'NOT_ENOUGH_PLAYERS', message: 'Se necesitan 2 o 4 jugadores' });
         }
+        const playerCount = room.players.length;
         const tiles = (0, GameEngine_1.shuffleTiles)((0, GameEngine_1.generateDoubleSixSet)());
-        const { hands } = (0, GameEngine_1.dealTiles)(tiles);
+        const { hands, boneyard } = (0, GameEngine_1.dealTiles)(tiles, playerCount);
         const { playerIndex: starterIdx, tile: forcedTile } = (0, GameEngine_1.findFirstPlayer)(hands);
         const game = {
             roomCode,
@@ -270,6 +268,7 @@ function registerGameHandlers(socket, io, rooms) {
             firstPlayMade: false,
             forcedFirstTileId: forcedTile.id,
             gameWinnerIndex: starterIdx,
+            boneyard,
         };
         room.game = game;
         room.status = 'in_game';
@@ -375,7 +374,7 @@ function registerGameHandlers(socket, io, rooms) {
             targetEnd,
         });
         // Process auto-pass cascade for next player(s)
-        const nextIdx = (0, GameEngine_1.nextPlayerIndex)(player.index);
+        const nextIdx = (0, GameEngine_1.nextPlayerIndex)(player.index, game.players.length);
         const ended = processAutoPassCascade(io, game, nextIdx, player.index);
         if (!ended) {
             broadcastState(io, game);
@@ -392,7 +391,7 @@ function registerGameHandlers(socket, io, rooms) {
             return;
         // Start new hand
         const tiles = (0, GameEngine_1.shuffleTiles)((0, GameEngine_1.generateDoubleSixSet)());
-        const { hands } = (0, GameEngine_1.dealTiles)(tiles);
+        const { hands, boneyard } = (0, GameEngine_1.dealTiles)(tiles, game.players.length);
         // Winner of previous hand starts the new hand
         const newStarterIdx = game.handStarterIndex;
         game.handNumber++;
@@ -400,6 +399,7 @@ function registerGameHandlers(socket, io, rooms) {
         game.board = { tiles: [], leftEnd: null, rightEnd: null };
         game.consecutivePasses = 0;
         game.handPassCount = 0;
+        game.boneyard = boneyard;
         // gamePassCount intentionally NOT reset — it tracks total passes for the entire game (Modo 200 bonus)
         game.firstPlayMade = false;
         // In subsequent hands, the previous hand winner starts
@@ -416,7 +416,7 @@ function registerGameHandlers(socket, io, rooms) {
         // We'll mark forcedFirstTileId = '' to skip forced-tile logic
         // The getValidPlays handles !firstPlayMade correctly: if forcedFirstTileId = '', it returns all valid plays
         // Deal new tiles
-        for (let i = 0; i < 4; i++) {
+        for (let i = 0; i < game.players.length; i++) {
             game.players[i].tiles = hands[i];
         }
         // Determine who starts: previous hand winner (stored in roundEndEvent nextStarterIndex)
@@ -445,7 +445,7 @@ function registerGameHandlers(socket, io, rooms) {
             return;
         // Shuffle and deal fresh tiles
         const tiles = (0, GameEngine_1.shuffleTiles)((0, GameEngine_1.generateDoubleSixSet)());
-        const { hands } = (0, GameEngine_1.dealTiles)(tiles);
+        const { hands, boneyard } = (0, GameEngine_1.dealTiles)(tiles, game.players.length);
         // Winner of the previous game starts the next game, plays any tile freely
         const nextStarter = game.gameWinnerIndex;
         // Reset full game state (scores, hand number, pass counts)
@@ -456,15 +456,17 @@ function registerGameHandlers(socket, io, rooms) {
         game.consecutivePasses = 0;
         game.handPassCount = 0;
         game.gamePassCount = 0;
+        game.boneyard = boneyard;
         game.firstPlayMade = false;
         game.currentPlayerIndex = nextStarter;
         game.handStarterIndex = nextStarter;
         game.gameWinnerIndex = nextStarter;
         game.forcedFirstTileId = ''; // no forced tile — winner plays freely
-        for (let i = 0; i < 4; i++) {
+        for (let i = 0; i < game.players.length; i++) {
             game.players[i].tiles = hands[i];
         }
         room.rematchVotes = [];
+        room.chatHistory = [];
         // Sync socket IDs from room (handles reconnections during game)
         syncPlayerSocketIds(game, rooms);
         // Send personalised game state to each player
@@ -492,12 +494,12 @@ function registerGameHandlers(socket, io, rooms) {
             votes: room.rematchVotes,
             playerNames: game.players.map(p => p.name),
         });
-        if (room.rematchVotes.length === 4) {
+        if (room.rematchVotes.length === game.players.length) {
             io.to(roomCode).emit('game:rematch_accepted', {});
             setTimeout(() => {
                 // Reuse next_game logic: shuffle, deal, reset scores, same seats
                 const tiles = (0, GameEngine_1.shuffleTiles)((0, GameEngine_1.generateDoubleSixSet)());
-                const { hands } = (0, GameEngine_1.dealTiles)(tiles);
+                const { hands, boneyard } = (0, GameEngine_1.dealTiles)(tiles, game.players.length);
                 const nextStarter = game.gameWinnerIndex;
                 game.phase = 'playing';
                 game.handNumber = 1;
@@ -506,15 +508,17 @@ function registerGameHandlers(socket, io, rooms) {
                 game.consecutivePasses = 0;
                 game.handPassCount = 0;
                 game.gamePassCount = 0;
+                game.boneyard = boneyard;
                 game.firstPlayMade = false;
                 game.currentPlayerIndex = nextStarter;
                 game.handStarterIndex = nextStarter;
                 game.gameWinnerIndex = nextStarter;
                 game.forcedFirstTileId = '';
-                for (let i = 0; i < 4; i++) {
+                for (let i = 0; i < game.players.length; i++) {
                     game.players[i].tiles = hands[i];
                 }
                 room.rematchVotes = [];
+                room.chatHistory = [];
                 syncPlayerSocketIds(game, rooms);
                 for (const p of game.players) {
                     const clientState = (0, GameEngine_1.buildClientGameState)(game, p.index);

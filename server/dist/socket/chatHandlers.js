@@ -2,9 +2,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.registerChatHandlers = registerChatHandlers;
 const crypto_1 = require("crypto");
-const QUICK_REACTIONS = ['¡Capicú!', '¡Trancado!', '¡Buena jugada!', '¡Mala suerte!', '🔥', '🤡'];
 const RATE_LIMIT_WINDOW = 10000; // 10 seconds
-const RATE_LIMIT_MAX = 5;
+const RATE_LIMIT_MAX = 15;
 // Rate limiter: socket.id -> timestamps of recent messages
 const rateLimits = new Map();
 function registerChatHandlers(socket, io, rooms) {
@@ -30,9 +29,6 @@ function registerChatHandlers(socket, io, rooms) {
         // Sanitize content
         let content = message.replace(/<[^>]*>/g, '').trim().slice(0, 200);
         if (!content)
-            return;
-        // Validate reactions against allowlist
-        if (type === 'reaction' && !QUICK_REACTIONS.includes(content))
             return;
         const chatMessage = {
             id: (0, crypto_1.randomUUID)(),

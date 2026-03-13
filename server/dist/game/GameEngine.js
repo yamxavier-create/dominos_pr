@@ -45,7 +45,13 @@ function shuffleTiles(tiles) {
     }
     return arr;
 }
-function dealTiles(tiles) {
+function dealTiles(tiles, playerCount = 4) {
+    if (playerCount === 2) {
+        return {
+            hands: [tiles.slice(0, 7), tiles.slice(7, 14)],
+            boneyard: tiles.slice(14),
+        };
+    }
     // 4-player: 7 tiles each, no boneyard
     return {
         hands: [tiles.slice(0, 7), tiles.slice(7, 14), tiles.slice(14, 21), tiles.slice(21, 28)],
@@ -83,9 +89,9 @@ function findFirstPlayer(hands) {
     return { playerIndex: 0, tile: hands[0][0] };
 }
 // ─── Turn Order (Counter-Clockwise) ──────────────────────────────────────────
-/** CCW with 4 players: 0 → 1 → 2 → 3 → 0 (left player plays next) */
-function nextPlayerIndex(current) {
-    return (current + 1) % 4;
+/** Turn order: 0 → 1 → … → (playerCount-1) → 0 */
+function nextPlayerIndex(current, playerCount = 4) {
+    return (current + 1) % playerCount;
 }
 /** Returns the team (0 or 1) for a given player index */
 function playerTeam(playerIndex) {
@@ -195,8 +201,8 @@ function applyTileToBoard(board, tile, targetEnd, playedByIndex) {
     return { tiles: newTiles, leftEnd: newLeftEnd, rightEnd: newRightEnd };
 }
 // ─── Blocked Game ─────────────────────────────────────────────────────────────
-function isGameBlocked(consecutivePasses) {
-    return consecutivePasses >= 4;
+function isGameBlocked(consecutivePasses, playerCount = 4) {
+    return consecutivePasses >= playerCount;
 }
 // ─── Scoring ─────────────────────────────────────────────────────────────────
 function handPipSum(tiles) {
@@ -211,6 +217,17 @@ function calculatePlayOutPoints(players, winnerIndex) {
 /** For a blocked game: determine winning team and points */
 function calculateBlockedResult(players) {
     const pipCounts = players.map(p => handPipSum(p.tiles));
+    if (players.length === 2) {
+        // 2-player: individual pip comparison
+        const p0 = pipCounts[0];
+        const p1 = pipCounts[1];
+        if (p0 < p1)
+            return { winningTeam: playerTeam(0), pointsScored: p1, pipCounts };
+        if (p1 < p0)
+            return { winningTeam: playerTeam(1), pointsScored: p0, pipCounts };
+        return { winningTeam: null, pointsScored: 0, pipCounts };
+    }
+    // 4-player: team sum comparison
     const teamA = pipCounts[0] + pipCounts[2];
     const teamB = pipCounts[1] + pipCounts[3];
     if (teamA < teamB)
@@ -322,5 +339,7 @@ function buildClientGameState(game, forPlayerIndex) {
             ? getValidPlays(hand, board, game.firstPlayMade, game.forcedFirstTileId)
             : [],
         forcedFirstTileId: !game.firstPlayMade ? game.forcedFirstTileId : null,
+        boneyardCount: game.boneyard.length,
+        playerCount: game.players.length,
     };
 }
