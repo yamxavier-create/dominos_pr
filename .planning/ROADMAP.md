@@ -65,10 +65,10 @@ Plans:
   2. Installed app launches in standalone mode with no browser chrome and a splash screen
   3. App icon on home screen shows Domino PR branding (not a generic browser icon)
   4. Socket.io connections work correctly after installing as PWA (service worker does not cache socket traffic)
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 11-01: TBD
+- [ ] 11-01-PLAN.md -- Configure vite-plugin-pwa with manifest, icons, service worker, and verify installability
 
 ### Phase 12: Avatar Cameras
 **Goal**: Players see each other's live video as circular avatars in their seat positions, with inline controls
@@ -104,5 +104,5 @@ Phases execute in numeric order: 10 -> 11 -> 12
 | 8. Boneyard Animation | v1.0 | 2/2 | Complete | 2026-03-13 |
 | 9. Duo Camera/Mic | v1.0 | 1/1 | Complete | 2026-03-13 |
 | 10. Cloud Deployment | 2/2 | Complete    | 2026-03-13 | - |
-| 11. PWA Support | v1.1 | 0/? | Not started | - |
+| 11. PWA Support | v1.1 | 0/1 | Not started | - |
 | 12. Avatar Cameras | v1.1 | 0/? | Not started | - |
