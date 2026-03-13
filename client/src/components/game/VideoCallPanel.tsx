@@ -32,14 +32,14 @@ function SingleTile({ player, playerIndex, isMe, isCurrentTurn, stream, micMuted
   const roomCode = useRoomStore(s => s.roomCode)
   const color = teamColor(playerIndex)
 
+  // Video element — always muted; audio plays through separate <audio> element in parent
   useEffect(() => {
     if (!videoRef.current) return
-    // React doesn't sync the `muted` prop to the DOM attribute — set it imperatively
-    videoRef.current.muted = isMe
+    videoRef.current.muted = true
     videoRef.current.srcObject = stream ?? null
     if (stream) videoRef.current.play().catch(() => {})
     return () => { if (videoRef.current) videoRef.current.srcObject = null }
-  }, [stream, isMe])
+  }, [stream])
 
   const handleToggleMic = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -78,6 +78,7 @@ function SingleTile({ player, playerIndex, isMe, isCurrentTurn, stream, micMuted
             ref={videoRef}
             autoPlay
             playsInline
+            muted
             className="w-full h-full object-cover"
           />
         ) : (
@@ -130,6 +131,18 @@ function SingleTile({ player, playerIndex, isMe, isCurrentTurn, stream, micMuted
   )
 }
 
+// Always-rendered audio element for remote streams — survives panel open/close and camera toggle
+function RemoteAudio({ stream }: { stream: MediaStream | null }) {
+  const audioRef = useRef<HTMLAudioElement>(null)
+  useEffect(() => {
+    if (!audioRef.current) return
+    audioRef.current.srcObject = stream ?? null
+    if (stream) audioRef.current.play().catch(e => console.warn('audio play blocked:', e))
+    return () => { if (audioRef.current) audioRef.current.srcObject = null }
+  }, [stream])
+  return <audio ref={audioRef} autoPlay />
+}
+
 export function VideoCallPanel({ players, myPlayerIndex, currentPlayerIndex }: VideoCallPanelProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [joining, setJoining] = useState(false)
@@ -158,6 +171,13 @@ export function VideoCallPanel({ players, myPlayerIndex, currentPlayerIndex }: V
   )
 
   return (
+    <>
+      {/* Audio elements for remote players — always rendered so audio plays even when panel is closed */}
+      {inCall && orderedIndices.map(idx => {
+        if (idx === myPlayerIndex) return null
+        const rs = remoteStreams[idx] ?? null
+        return <RemoteAudio key={`audio-${idx}`} stream={rs} />
+      })}
     <div
       className="fixed right-0 top-1/2 z-40 flex items-center"
       style={{ transform: 'translateY(-50%)' }}
@@ -236,5 +256,6 @@ export function VideoCallPanel({ players, myPlayerIndex, currentPlayerIndex }: V
         })}
       </div>
     </div>
+    </>
   )
 }
