@@ -80,11 +80,11 @@ Plans:
   3. Player can toggle mic and camera on/off during gameplay via visible controls
   4. The currently speaking player's avatar shows a visible glow or ring indicator
   5. Video calling works without the old side panel (VideoCallPanel removed, audio still plays)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 12-01: TBD
-- [ ] 12-02: TBD
+- [ ] 12-01-PLAN.md -- Create AvatarVideo, useSpeakingDetection, CallControls components and update callStore
+- [ ] 12-02-PLAN.md -- Wire components into GameTable/PlayerSeat, add JoinCallButton, remove VideoCallPanel
 
 ## Progress
 
@@ -105,4 +105,4 @@ Phases execute in numeric order: 10 -> 11 -> 12
 | 9. Duo Camera/Mic | v1.0 | 1/1 | Complete | 2026-03-13 |
 | 10. Cloud Deployment | 2/2 | Complete    | 2026-03-13 | - |
 | 11. PWA Support | 1/1 | Complete    | 2026-03-13 | - |
-| 12. Avatar Cameras | v1.1 | 0/? | Not started | - |
+| 12. Avatar Cameras | v1.1 | 0/2 | Not started | - |
