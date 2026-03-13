@@ -183,7 +183,16 @@ export function useWebRTC() {
     const playerCount = useGameStore.getState().gameState?.playerCount ?? 4
     for (let i = 0; i < playerCount; i++) {
       if (i === myPlayerIndex) continue
-      if (!pcsRef.current[i]) createPC(i)
+      const existingPC = pcsRef.current[i]
+      if (existingPC) {
+        // PC was auto-created by an incoming signal before we joined — add our tracks to it
+        const senders = existingPC.getSenders()
+        if (senders.length === 0) {
+          stream.getTracks().forEach(track => existingPC.addTrack(track, stream))
+        }
+      } else {
+        createPC(i)
+      }
     }
   }, [myPlayerIndex, roomCode, createPC])
 
