@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react'
 import { socket } from '../socket'
 import { useCallStore } from '../store/callStore'
 import { useRoomStore } from '../store/roomStore'
+import { useGameStore } from '../store/gameStore'
 
 const STUN_CONFIG: RTCConfiguration = {
   iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
@@ -179,7 +180,8 @@ export function useWebRTC() {
     getCallStore().setLocalStream(stream)
 
     // Connect to all other players (they may or may not have cameras — signal handler will handle incoming offers)
-    for (let i = 0; i < 4; i++) {
+    const playerCount = useGameStore.getState().gameState?.playerCount ?? 4
+    for (let i = 0; i < playerCount; i++) {
       if (i === myPlayerIndex) continue
       if (!pcsRef.current[i]) createPC(i)
     }
@@ -203,7 +205,8 @@ export function useWebRTC() {
       const iParticipate = myAudioEnabled || myVideoEnabled
 
       if (iParticipate) {
-        for (let i = 0; i < 4; i++) {
+        const playerCount = useGameStore.getState().gameState?.playerCount ?? 4
+        for (let i = 0; i < playerCount; i++) {
           if (i === myPlayerIndex) continue
           const peerOpt = lobbyOpts[i]
           if (peerOpt?.audio || peerOpt?.video) {
