@@ -50,11 +50,11 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
   3. Two players on different networks can create a room, play a complete game, and use video calling
   4. Pushing a commit to main branch triggers automatic redeploy without manual intervention
   5. App supports configuration for a custom domain
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 10-01: TBD
-- [ ] 10-02: TBD
+- [ ] 10-01-PLAN.md -- Prepare codebase for production (railway.toml, conditional CORS, health endpoint)
+- [ ] 10-02-PLAN.md -- Deploy to Railway, verify live app, document custom domain setup
 
 ### Phase 11: PWA Support
 **Goal**: Users can install the app to their home screen and launch it like a native app
@@ -103,6 +103,6 @@ Phases execute in numeric order: 10 -> 11 -> 12
 | 7. Two-Player Mode | v1.0 | 4/4 | Complete | 2026-03-13 |
 | 8. Boneyard Animation | v1.0 | 2/2 | Complete | 2026-03-13 |
 | 9. Duo Camera/Mic | v1.0 | 1/1 | Complete | 2026-03-13 |
-| 10. Cloud Deployment | v1.1 | 0/? | Not started | - |
+| 10. Cloud Deployment | v1.1 | 0/2 | Not started | - |
 | 11. PWA Support | v1.1 | 0/? | Not started | - |
 | 12. Avatar Cameras | v1.1 | 0/? | Not started | - |
