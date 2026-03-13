@@ -32,12 +32,19 @@ Friends can start and finish a complete game of Puerto Rican dominoes online, in
 
 ### Active
 
-(None — next milestone requirements TBD)
+## Current Milestone: v1.1 Deploy & Polish
+
+**Goal:** Make the app permanently accessible and improve the video call UX
+
+**Target features:**
+- Deploy to cloud hosting (permanent shareable link)
+- PWA support (installable from browser on phone/desktop)
+- Circular avatar cameras (replace initials avatar with live video feed)
 
 ### Out of Scope
 
 - Persistent accounts / login — in-memory rooms are sufficient for casual play
-- Mobile native app — web-first; mobile browser is acceptable for now
+- Native mobile app (App Store / Google Play) — deferred to future milestone
 - Offline mode — real-time is core value
 - Persistent chat history — in-memory is sufficient for casual play sessions
 - Spectator mode — requires seat assignment changes
@@ -72,5 +79,7 @@ Zero test coverage — pure functions in `GameEngine.ts` are ideal unit test tar
 | Rate limit 15/10s (not 5/10s) | Plan spec was incorrect; REQUIREMENTS.md authoritative at 15/10s | ✓ Good |
 | playerCount default=4 with ?? fallback | Backward-compatible 2/4 layout without breaking existing code | ✓ Good |
 
+| Circular avatar cameras over side panel | Video in player avatar position is less intrusive than side panel; works better on mobile | — Pending |
+
 ---
-*Last updated: 2026-03-13 after v1.0 milestone*
+*Last updated: 2026-03-13 after v1.1 milestone start*
