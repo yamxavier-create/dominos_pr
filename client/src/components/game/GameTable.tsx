@@ -1,13 +1,15 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useGameStore } from '../../store/gameStore'
 import { useRoomStore } from '../../store/roomStore'
 import { useUIStore } from '../../store/uiStore'
+import { useCallStore } from '../../store/callStore'
+import { useSpeakingDetection } from '../../hooks/useSpeakingDetection'
 import { getPosition } from '../../hooks/usePlayerPositions'
 import { GameBoard } from '../board/GameBoard'
 import { PlayerHand } from '../player/PlayerHand'
 import { OpponentHand } from '../player/OpponentHand'
 import { PlayerSeat } from '../player/PlayerSeat'
-import { VideoCallPanel } from './VideoCallPanel'
+import { JoinCallButton } from './JoinCallButton'
 import { TurnIndicator } from '../player/TurnIndicator'
 import { ScorePanel } from './ScorePanel'
 import { ScoreHistoryPanel } from './ScoreHistoryPanel'
@@ -31,6 +33,17 @@ function teamInfo(playerIndex: number, myPlayerIndex: number, playerCount: numbe
   }
 }
 
+function RemoteAudio({ stream }: { stream: MediaStream | null }) {
+  const audioRef = useRef<HTMLAudioElement>(null)
+  useEffect(() => {
+    if (!audioRef.current) return
+    audioRef.current.srcObject = stream ?? null
+    if (stream) audioRef.current.play().catch(e => console.warn('audio play blocked:', e))
+    return () => { if (audioRef.current) audioRef.current.srcObject = null }
+  }, [stream])
+  return <audio ref={audioRef} autoPlay />
+}
+
 export function GameTable() {
   const gameState = useGameStore(s => s.gameState)
   const scoreHistory = useGameStore(s => s.scoreHistory)
@@ -39,6 +52,18 @@ export function GameTable() {
   const showScoreHistory = useUIStore(s => s.showScoreHistory)
   const setShowScoreHistory = useUIStore(s => s.setShowScoreHistory)
   const showRoundEnd = useUIStore(s => s.showRoundEnd)
+
+  // Call store subscriptions
+  const localStream = useCallStore(s => s.localStream)
+  const remoteStreams = useCallStore(s => s.remoteStreams)
+  const speakingPeers = useCallStore(s => s.speakingPeers)
+  const cameraOffPeers = useCallStore(s => s.cameraOffPeers)
+  const cameraOff = useCallStore(s => s.cameraOff)
+  const myAudioEnabled = useCallStore(s => s.myAudioEnabled)
+  const myVideoEnabled = useCallStore(s => s.myVideoEnabled)
+
+  // Speaking detection
+  useSpeakingDetection(remoteStreams, localStream, myPlayerIndex)
 
   useEffect(() => {
     if (showRoundEnd) setShowScoreHistory(false)
@@ -76,6 +101,17 @@ export function GameTable() {
   const currentPlayerName = players[currentPlayerIndex]?.name ?? ''
 
   const getPaso = (idx: number) => pasoNotifications.find(n => n.playerIndex === idx) ?? null
+
+  // Helper to get call-related props for a seat
+  function seatCallProps(playerIndex: number) {
+    const isLocal = playerIndex === myPlayerIndex
+    return {
+      stream: isLocal ? localStream : (remoteStreams[playerIndex] ?? null),
+      isSpeaking: speakingPeers[playerIndex] ?? false,
+      isCameraOff: isLocal ? cameraOff : (cameraOffPeers[playerIndex] ?? true),
+      isLocalPlayer: isLocal,
+    }
+  }
 
   return (
     <div className="flex flex-col h-screen overflow-hidden select-none felt-table">
@@ -121,6 +157,7 @@ export function GameTable() {
                 isCurrentTurn={currentPlayerIndex === topIndex}
                 position={getPosition(topIndex, myPlayerIndex, playerCount)}
                 {...teamInfo(topIndex, myPlayerIndex, playerCount, players)}
+                {...seatCallProps(topIndex)}
               />
               <OpponentHand player={topPlayer} position="top" />
               {getPaso(topIndex) && (
@@ -142,6 +179,7 @@ export function GameTable() {
                 isCurrentTurn={currentPlayerIndex === leftIndex}
                 position={getPosition(leftIndex, myPlayerIndex, playerCount)}
                 {...teamInfo(leftIndex, myPlayerIndex, playerCount, players)}
+                {...seatCallProps(leftIndex)}
               />
               <OpponentHand player={leftPlayer} position="left" />
               {getPaso(leftIndex) && (
@@ -176,6 +214,7 @@ export function GameTable() {
                 isCurrentTurn={currentPlayerIndex === rightIndex}
                 position={getPosition(rightIndex, myPlayerIndex, playerCount)}
                 {...teamInfo(rightIndex, myPlayerIndex, playerCount, players)}
+                {...seatCallProps(rightIndex)}
               />
               <OpponentHand player={rightPlayer} position="right" />
               {getPaso(rightIndex) && (
@@ -196,6 +235,7 @@ export function GameTable() {
               isCurrentTurn={isMyTurn}
               position="bottom"
               {...teamInfo(myPlayerIndex, myPlayerIndex, playerCount, players)}
+              {...seatCallProps(myPlayerIndex)}
             />
           )}
           {getPaso(myPlayerIndex) && (
@@ -213,12 +253,17 @@ export function GameTable() {
         <div />
       </div>
 
-      {/* Collapsible video call panel */}
-      <VideoCallPanel
-        players={players}
-        myPlayerIndex={myPlayerIndex}
-        currentPlayerIndex={currentPlayerIndex}
-      />
+      {/* Remote audio elements — always rendered when in call to prevent audio loss */}
+      {(myAudioEnabled || myVideoEnabled) && (
+        <>
+          {Object.entries(remoteStreams).map(([idx, stream]) => (
+            <RemoteAudio key={`audio-${idx}`} stream={stream} />
+          ))}
+        </>
+      )}
+
+      {/* Join call button (hidden when already in call) */}
+      <JoinCallButton />
 
       {/* Overlays */}
       <RoundEndModal />
