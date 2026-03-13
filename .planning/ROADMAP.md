@@ -130,6 +130,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 6. Chat Bug Fixes & Verification | 0/1 | Not started | - |
 | 7. Two-Player Mode with Boneyard | 4/4 | Complete   | 2026-03-13 |
 | 8. Boneyard Visual & Draw Animation | 2/2 | Complete   | 2026-03-13 |
+| 9. Camera & Mic for Duo Mode | 0/1 | Not started | - |
 
 ### Phase 5: Video & Audio Call — Players can see and talk to each other in real time via WebRTC while playing
 
@@ -174,12 +175,16 @@ Plans:
 - [ ] 08-01-PLAN.md — BoneyardPile component with face-down DominoTile prop, replacing text badge in GameTable
 - [ ] 08-02-PLAN.md — Draw animation queue, CSS flight keyframes, BoneyardDrawAnimation component, human verify
 
-### Phase 9: Camera and microphone for 2-player (duo) mode
+### Phase 9: Camera and Microphone for 2-Player (Duo) Mode
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Make the existing WebRTC video/audio call system player-count-aware so camera and microphone work correctly in 2-player duo mode — same UI, same controls, no phantom peer connections
+**Requirements**: DUO-CAM-01, DUO-CAM-02, DUO-CAM-03
 **Depends on:** Phase 8
-**Plans:** 0 plans
+**Success Criteria** (what must be TRUE):
+  1. In a 2-player game, WebRTC creates exactly 1 peer connection per player (not 3 phantom connections)
+  2. VideoCallPanel shows exactly 2 video tiles in duo mode (not 4 with 2 empty)
+  3. Both client and server workspaces compile clean with TypeScript strict mode
+**Plans:** 1 plan
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 9 to break down)
+- [ ] 09-01-PLAN.md — Make useWebRTC.ts and VideoCallPanel.tsx player-count-aware (replace hardcoded 4-player loops)

@@ -61,6 +61,12 @@
 - **BONE-03**: Los robos consecutivos se animan uno por uno con pausa entre cada robo (~500ms), creando tension como en una mesa real
 - **BONE-04**: La pila se reduce visualmente conforme se roban fichas y desaparece con fade cuando se vacía
 
+### Camera & Microphone for Duo Mode
+
+- **DUO-CAM-01**: En modo 2 jugadores, WebRTC crea exactamente 1 peer connection por jugador (no 3 conexiones fantasma para jugadores inexistentes)
+- **DUO-CAM-02**: VideoCallPanel muestra exactamente 2 video tiles en modo duo (no 4 con 2 vacias)
+- **DUO-CAM-03**: Ambos workspaces (client y server) compilan limpio con TypeScript strict mode despues de los cambios
+
 ## v2 Requirements
 
 ### Chat avanzado
@@ -130,12 +136,15 @@ Actualizado durante la creación del roadmap.
 | BONE-02 | Phase 8 | Planned |
 | BONE-03 | Phase 8 | Planned |
 | BONE-04 | Phase 8 | Planned |
+| DUO-CAM-01 | Phase 9 | Planned |
+| DUO-CAM-02 | Phase 9 | Planned |
+| DUO-CAM-03 | Phase 9 | Planned |
 
 **Coverage:**
-- v1 requirements: 32 total
-- Mapped to phases: 32
+- v1 requirements: 35 total
+- Mapped to phases: 35
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-06*
-*Last updated: 2026-03-12 after Phase 8 requirement definition*
+*Last updated: 2026-03-12 after Phase 9 requirement definition*
