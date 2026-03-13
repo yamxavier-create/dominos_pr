@@ -54,6 +54,13 @@
 - **TWO-06**: El layout visual muestra al jugador local abajo y al oponente arriba; las posiciones izquierda y derecha se ocultan o adaptan
 - **TWO-07**: El juego se bloquea cuando ambos jugadores pasan consecutivamente (boneyard vacío y ninguno puede tirar)
 
+### Boneyard Visual & Draw Animation
+
+- **BONE-01**: Las fichas del boneyard se muestran como una pila de dominoes boca abajo en la mesa de juego, con un contador visible del numero de fichas restantes
+- **BONE-02**: Al robar del boneyard, una ficha boca abajo vuela animada desde la pila hacia la mano del jugador que roba, revelándose al llegar (para el jugador que roba) o desapareciendo en el area del oponente (para los demas)
+- **BONE-03**: Los robos consecutivos se animan uno por uno con pausa entre cada robo (~500ms), creando tension como en una mesa real
+- **BONE-04**: La pila se reduce visualmente conforme se roban fichas y desaparece con fade cuando se vacía
+
 ## v2 Requirements
 
 ### Chat avanzado
@@ -119,12 +126,16 @@ Actualizado durante la creación del roadmap.
 | TWO-05 | Phase 7 | Complete |
 | TWO-06 | Phase 7 | Complete |
 | TWO-07 | Phase 7 | Complete |
+| BONE-01 | Phase 8 | Planned |
+| BONE-02 | Phase 8 | Planned |
+| BONE-03 | Phase 8 | Planned |
+| BONE-04 | Phase 8 | Planned |
 
 **Coverage:**
-- v1 requirements: 28 total
-- Mapped to phases: 28
-- Unmapped: 0 ✓
+- v1 requirements: 32 total
+- Mapped to phases: 32
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-06*
-*Last updated: 2026-03-06 after initial definition*
+*Last updated: 2026-03-12 after Phase 8 requirement definition*

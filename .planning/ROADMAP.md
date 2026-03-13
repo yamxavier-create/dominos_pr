@@ -129,6 +129,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 5. Video & Audio Call | 5/5 | Complete   | 2026-03-10 |
 | 6. Chat Bug Fixes & Verification | 0/1 | Not started | - |
 | 7. Two-Player Mode with Boneyard | 4/4 | Complete   | 2026-03-13 |
+| 8. Boneyard Visual & Draw Animation | 0/2 | Not started | - |
 
 ### Phase 5: Video & Audio Call — Players can see and talk to each other in real time via WebRTC while playing
 
@@ -156,3 +157,19 @@ Plans:
 - [ ] 07-02-PLAN.md — Server handlers: game:start for 2 players, boneyard draw in processAutoPassCascade, dynamic rematch
 - [ ] 07-03-PLAN.md — Client types, gameStore boneyard handler, useSocket wiring, usePlayerPositions 2-player layout
 - [ ] 07-04-PLAN.md — Client UI: 2-seat GameTable, RoomLobby, ScorePanel/modals label adaptation, human verify
+
+### Phase 8: Boneyard Visual & Draw Animation
+
+**Goal:** Show boneyard tiles face-down on the game table and animate drawing one tile at a time — the pile shrinks visually as tiles are drawn and each draw animates individually with tension-building pacing
+**Requirements**: BONE-01, BONE-02, BONE-03, BONE-04
+**Depends on:** Phase 7
+**Success Criteria** (what must be TRUE):
+  1. Boneyard tiles appear as a stacked pile of face-down dominoes on the game table with a count badge
+  2. Drawing from the boneyard shows a face-down tile flying from the pile toward the player's hand
+  3. Multiple consecutive draws animate one at a time with ~500ms pause between each
+  4. The pile shrinks as tiles are drawn and fades away when emptied
+**Plans:** 2 plans
+
+Plans:
+- [ ] 08-01-PLAN.md — BoneyardPile component with face-down DominoTile prop, replacing text badge in GameTable
+- [ ] 08-02-PLAN.md — Draw animation queue, CSS flight keyframes, BoneyardDrawAnimation component, human verify
