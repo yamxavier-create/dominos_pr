@@ -1,7 +1,7 @@
 # Requirements: Dominos PR
 
 **Defined:** 2026-03-13
-**Core Value:** Friends can start and finish a complete game of Puerto Rican dominoes online, in real time, from any device — without friction.
+**Core Value:** Friends can start and finish a complete game of Puerto Rican dominoes online, in real time, from any device -- without friction.
 
 ## v1.1 Requirements
 
@@ -17,7 +17,7 @@ Requirements for Deploy & Polish milestone. Each maps to roadmap phases.
 
 - [ ] **PWA-01**: User can install the app from browser on phone or desktop
 - [ ] **PWA-02**: Installed app runs in standalone mode (no browser chrome, with splash screen)
-- [ ] **PWA-03**: App manifest includes proper icons and metadata for Dominó PR branding
+- [ ] **PWA-03**: App manifest includes proper icons and metadata for Domino PR branding
 
 ### Avatar Cameras
 
@@ -63,8 +63,8 @@ Requirements for Deploy & Polish milestone. Each maps to roadmap phases.
 **Coverage:**
 - v1.1 requirements: 11 total
 - Mapped to phases: 11
-- Unmapped: 0 ✓
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-13*
-*Last updated: 2026-03-13 after initial definition*
+*Last updated: 2026-03-13 after roadmap creation*
