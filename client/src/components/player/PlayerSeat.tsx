@@ -52,7 +52,7 @@ export function PlayerSeat({
           isCurrentTurn={isCurrentTurn}
           isSpeaking={isSpeaking ?? false}
           isCameraOff={isCameraOff ?? true}
-          size={40}
+          size={80}
         />
         {/* Tile count badge */}
         <span
