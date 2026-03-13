@@ -104,5 +104,5 @@ Phases execute in numeric order: 10 -> 11 -> 12
 | 8. Boneyard Animation | v1.0 | 2/2 | Complete | 2026-03-13 |
 | 9. Duo Camera/Mic | v1.0 | 1/1 | Complete | 2026-03-13 |
 | 10. Cloud Deployment | 2/2 | Complete    | 2026-03-13 | - |
-| 11. PWA Support | 1/1 | Complete   | 2026-03-13 | - |
+| 11. PWA Support | 1/1 | Complete    | 2026-03-13 | - |
 | 12. Avatar Cameras | v1.1 | 0/? | Not started | - |
