@@ -99,10 +99,24 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
       } else if (dir === 1) {
         cx = x + tileW / 2
         if (cx + tileW / 2 + EDGE_PAD > half && tilesInRow >= 2) {
-          // 1st corner tile — placed flush against previous tile, extends downward
+          // 1st corner tile — extends downward
           isCorner = true
           const effW = isHorizontal ? TILE_V_W : tileW
           const effH = isHorizontal ? TILE_V_H : tileH
+
+          // If previous tile is a double, place directly below it
+          if (tiles[i - 1].orientation === 'vertical') {
+            cx = raw[i - 1].x
+            const prevH = tileDisplaySize(tiles[i - 1], cornerFlags[i - 1]).h
+            const tileY = raw[i - 1].y + prevH / 2 + effH / 2
+            raw[i] = { x: cx, y: tileY }
+            cornerFlags[i] = true
+            flippedFlags[i] = false
+            dir = -1
+            pendingCorner = true
+            continue
+          }
+
           const prevW = tileDisplaySize(tiles[i - 1], cornerFlags[i - 1]).w
           cx = raw[i - 1].x + prevW / 2 + effW / 2
           // Top pip aligns with row center, tile extends downward
@@ -118,10 +132,24 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
       } else {
         cx = x - tileW / 2
         if (cx - tileW / 2 - EDGE_PAD < -half && tilesInRow >= 2) {
-          // 1st corner tile — placed flush against previous tile, extends downward
+          // 1st corner tile — extends downward
           isCorner = true
           const effW = isHorizontal ? TILE_V_W : tileW
           const effH = isHorizontal ? TILE_V_H : tileH
+
+          // If previous tile is a double, place directly below it
+          if (tiles[i - 1].orientation === 'vertical') {
+            cx = raw[i - 1].x
+            const prevH = tileDisplaySize(tiles[i - 1], cornerFlags[i - 1]).h
+            const tileY = raw[i - 1].y + prevH / 2 + effH / 2
+            raw[i] = { x: cx, y: tileY }
+            cornerFlags[i] = true
+            flippedFlags[i] = false
+            dir = 1
+            pendingCorner = true
+            continue
+          }
+
           const prevW = tileDisplaySize(tiles[i - 1], cornerFlags[i - 1]).w
           cx = raw[i - 1].x - prevW / 2 - effW / 2
           // Top pip aligns with row center, tile extends downward
@@ -188,10 +216,24 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
       } else if (dir === -1) {
         cx = x - tileW / 2
         if (cx - tileW / 2 - EDGE_PAD < -half && tilesInRow >= 2) {
-          // 1st corner tile — placed flush against previous tile, extends upward
+          // 1st corner tile — extends upward
           isCorner = true
           const effW = isHorizontal ? TILE_V_W : tileW
           const effH = isHorizontal ? TILE_V_H : tileH
+
+          // If previous tile is a double, place directly above it
+          if (tiles[i + 1].orientation === 'vertical') {
+            cx = raw[i + 1].x
+            const prevH = tileDisplaySize(tiles[i + 1], cornerFlags[i + 1]).h
+            const tileY = raw[i + 1].y - prevH / 2 - effH / 2
+            raw[i] = { x: cx, y: tileY }
+            cornerFlags[i] = true
+            flippedFlags[i] = false
+            dir = 1
+            pendingCorner = true
+            continue
+          }
+
           const prevW = tileDisplaySize(tiles[i + 1], cornerFlags[i + 1]).w
           cx = raw[i + 1].x - prevW / 2 - effW / 2
           // Bottom pip aligns with row center, tile extends upward
@@ -207,10 +249,24 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
       } else {
         cx = x + tileW / 2
         if (cx + tileW / 2 + EDGE_PAD > half && tilesInRow >= 2) {
-          // 1st corner tile — placed flush against previous tile, extends upward
+          // 1st corner tile — extends upward
           isCorner = true
           const effW = isHorizontal ? TILE_V_W : tileW
           const effH = isHorizontal ? TILE_V_H : tileH
+
+          // If previous tile is a double, place directly above it
+          if (tiles[i + 1].orientation === 'vertical') {
+            cx = raw[i + 1].x
+            const prevH = tileDisplaySize(tiles[i + 1], cornerFlags[i + 1]).h
+            const tileY = raw[i + 1].y - prevH / 2 - effH / 2
+            raw[i] = { x: cx, y: tileY }
+            cornerFlags[i] = true
+            flippedFlags[i] = false
+            dir = -1
+            pendingCorner = true
+            continue
+          }
+
           const prevW = tileDisplaySize(tiles[i + 1], cornerFlags[i + 1]).w
           cx = raw[i + 1].x + prevW / 2 + effW / 2
           // Bottom pip aligns with row center, tile extends upward
