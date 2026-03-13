@@ -108,7 +108,7 @@ export function GameTable() {
     return {
       stream: isLocal ? localStream : (remoteStreams[playerIndex] ?? null),
       isSpeaking: speakingPeers[playerIndex] ?? false,
-      isCameraOff: isLocal ? cameraOff : (cameraOffPeers[playerIndex] ?? true),
+      isCameraOff: isLocal ? cameraOff : (cameraOffPeers[playerIndex] ?? false),
       isLocalPlayer: isLocal,
     }
   }
