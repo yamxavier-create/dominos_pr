@@ -19,6 +19,7 @@ interface CallStore {
   peerStates: Record<number, PeerState>
   mutedPeers: Record<number, boolean>   // other players' mic state (received via socket)
   cameraOffPeers: Record<number, boolean> // other players' cam state
+  speakingPeers: Record<number, boolean>  // which players are currently speaking (audio detection)
 
   // Own controls
   micMuted: boolean
@@ -34,6 +35,7 @@ interface CallStore {
   setCameraOff: (off: boolean) => void
   setPeerMuted: (playerIndex: number, muted: boolean) => void
   setPeerCameraOff: (playerIndex: number, off: boolean) => void
+  setSpeakingPeers: (map: Record<number, boolean>) => void
   resetCallState: () => void
 }
 
@@ -46,6 +48,7 @@ const initialState = {
   peerStates: {},
   mutedPeers: {},
   cameraOffPeers: {},
+  speakingPeers: {},
   micMuted: false,
   cameraOff: false,
 }
@@ -67,5 +70,6 @@ export const useCallStore = create<CallStore>()((set) => ({
     set(s => ({ mutedPeers: { ...s.mutedPeers, [playerIndex]: muted } })),
   setPeerCameraOff: (playerIndex, off) =>
     set(s => ({ cameraOffPeers: { ...s.cameraOffPeers, [playerIndex]: off } })),
+  setSpeakingPeers: (map) => set({ speakingPeers: map }),
   resetCallState: () => set({ ...initialState }),
 }))
