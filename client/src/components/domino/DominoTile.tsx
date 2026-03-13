@@ -7,6 +7,7 @@ interface DominoTileProps {
   isPlayable?: boolean      // teal glow + brighter border
   isSelected?: boolean      // gold border + lifted
   isNew?: boolean           // triggers entry animation
+  faceDown?: boolean        // renders solid back instead of pips
   className?: string
   style?: React.CSSProperties
   onClick?: () => void
@@ -14,8 +15,21 @@ interface DominoTileProps {
 
 // Horizontal SVG: 80 × 40 viewBox
 function HorizontalTile({
-  pip1, pip2, isPlayable, isSelected, isNew, className, style, onClick
+  pip1, pip2, isPlayable, isSelected, isNew, faceDown, className, style, onClick
 }: DominoTileProps) {
+  if (faceDown) {
+    return (
+      <svg
+        viewBox="0 0 80 40"
+        className={`domino-tile ${className ?? ''}`}
+        style={{ display: 'block', ...style }}
+      >
+        <rect x="1" y="1" width="78" height="38" rx="4" fill="#2D4A3E" stroke="#1A332A" strokeWidth="1.5" />
+        <rect x="3" y="3" width="74" height="34" rx="3" fill="none" stroke="#3D5A4E" strokeWidth="1" />
+      </svg>
+    )
+  }
+
   const borderColor = isSelected ? '#FFD93D' : isPlayable ? '#0D7377' : '#8899aa'
   const bgColor = '#FFF8F0'
   const animClass = isNew ? 'tile-new' : ''
@@ -43,8 +57,21 @@ function HorizontalTile({
 
 // Vertical SVG: 40 × 80 viewBox
 function VerticalTile({
-  pip1, pip2, isPlayable, isSelected, isNew, className, style, onClick
+  pip1, pip2, isPlayable, isSelected, isNew, faceDown, className, style, onClick
 }: DominoTileProps) {
+  if (faceDown) {
+    return (
+      <svg
+        viewBox="0 0 40 80"
+        className={`domino-tile ${className ?? ''}`}
+        style={{ display: 'block', ...style }}
+      >
+        <rect x="1" y="1" width="38" height="78" rx="4" fill="#2D4A3E" stroke="#1A332A" strokeWidth="1.5" />
+        <rect x="3" y="3" width="34" height="74" rx="3" fill="none" stroke="#3D5A4E" strokeWidth="1" />
+      </svg>
+    )
+  }
+
   const borderColor = isSelected ? '#FFD93D' : isPlayable ? '#0D7377' : '#8899aa'
   const bgColor = '#FFF8F0'
   const animClass = isNew ? 'tile-new' : ''
