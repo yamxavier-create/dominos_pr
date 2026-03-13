@@ -11,6 +11,7 @@ import { VideoCallPanel } from './VideoCallPanel'
 import { TurnIndicator } from '../player/TurnIndicator'
 import { ScorePanel } from './ScorePanel'
 import { ScoreHistoryPanel } from './ScoreHistoryPanel'
+import { BoneyardPile } from './BoneyardPile'
 import { PasoChip } from './PasoChip'
 import { RoundEndModal } from './RoundEndModal'
 import { GameEndModal } from './GameEndModal'
@@ -156,11 +157,7 @@ export function GameTable() {
             playerName={currentPlayerName}
             isMyTurn={isMyTurn}
           />
-          {boneyardCount > 0 && (
-            <div className="absolute top-2 right-2 z-10 bg-black/60 backdrop-blur-sm rounded-lg px-2.5 py-1 border border-white/10">
-              <span className="font-body text-white/60 text-xs">{boneyardCount} fichas</span>
-            </div>
-          )}
+          {is2Player && <BoneyardPile count={boneyardCount} className="absolute bottom-2 right-2 z-10" />}
         </div>
 
         {/* Right opponent (4-player only) */}
