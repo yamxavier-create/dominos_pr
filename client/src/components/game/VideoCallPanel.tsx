@@ -152,12 +152,10 @@ export function VideoCallPanel({ players, myPlayerIndex, currentPlayerIndex }: V
   }
 
   // Order: me first, then others in seat order
-  const orderedIndices = [
-    myPlayerIndex,
-    (myPlayerIndex + 1) % 4,
-    (myPlayerIndex + 2) % 4,
-    (myPlayerIndex + 3) % 4,
-  ]
+  const playerCount = players.filter(Boolean).length || 4
+  const orderedIndices = Array.from({ length: playerCount }, (_, i) =>
+    (myPlayerIndex + i) % playerCount
+  )
 
   return (
     <div
