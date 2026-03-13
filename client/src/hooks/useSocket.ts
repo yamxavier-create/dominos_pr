@@ -105,10 +105,7 @@ export function useSocket() {
     })
 
     socket.on('game:boneyard_draw', (payload: BoneyardDrawPayload) => {
-      const myIdx = useRoomStore.getState().myPlayerIndex
-      if (myIdx !== null && myIdx !== undefined) {
-        useGameStore.getState().handleBoneyardDraw(payload, myIdx)
-      }
+      useGameStore.getState().queueBoneyardDraw(payload)
     })
 
     socket.on('game:round_ended', (data: RoundEndPayload) => {
