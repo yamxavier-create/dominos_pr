@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Deploy & Polish
-status: completed
-stopped_at: Completed 11-01-PLAN.md (Phase 11 complete)
-last_updated: "2026-03-13T17:30:03.681Z"
-last_activity: 2026-03-13 -- Completed 11-01 PWA support with manifest, icons, service worker
+status: in-progress
+stopped_at: Completed 12-01-PLAN.md
+last_updated: "2026-03-13T17:49:46Z"
+last_activity: 2026-03-13 -- Completed 12-01 avatar camera foundation components
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 3
-  completed_plans: 3
-  percent: 100
+  total_plans: 5
+  completed_plans: 4
+  percent: 96
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 
 ## Current Position
 
-Phase: 11 of 12 (PWA Support) -- COMPLETE
-Plan: 1 of 1 in current phase
-Status: phase-complete
-Last activity: 2026-03-13 -- Completed 11-01 PWA support with manifest, icons, service worker
+Phase: 12 of 12 (Avatar Cameras)
+Plan: 1 of 2 in current phase -- COMPLETE
+Status: in-progress
+Last activity: 2026-03-13 -- Completed 12-01 avatar camera foundation components
 
-Progress: [██████████] 100%
+Progress: [██████████] 96%
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Progress: [██████████] 100%
 | Phase 10 P01 | 3min | 1 tasks | 2 files |
 | Phase 10 P02 | human-gated | 2 tasks | 1 files |
 | Phase 11 P01 | human-gated | 2 tasks | 10 files |
+| Phase 12 P01 | 2min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,8 @@ Recent decisions affecting current work:
 - [Phase 11]: generateSW strategy for zero-maintenance service worker
 - [Phase 11]: Separate standard and maskable icon entries (no combined "any maskable")
 - [Phase 11]: navigateFallbackDenylist excludes /socket.io and /health from service worker
+- [Phase 12]: Speaking threshold 25 on first 8 FFT bins for speech frequency detection
+- [Phase 12]: Video muted in AvatarVideo (audio through separate WebRTC audio elements)
 
 ### Pending Todos
 
@@ -84,5 +87,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-13
-Stopped at: Completed 11-01-PLAN.md (Phase 11 complete)
+Stopped at: Completed 12-01-PLAN.md
 Resume file: None

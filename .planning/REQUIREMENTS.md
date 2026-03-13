@@ -21,11 +21,11 @@ Requirements for Deploy & Polish milestone. Each maps to roadmap phases.
 
 ### Avatar Cameras
 
-- [ ] **CAM-01**: Player's live video feed displays as a circular avatar above their name (replacing initials)
-- [ ] **CAM-02**: Avatar falls back to initials circle when camera is off or not joined
+- [x] **CAM-01**: Player's live video feed displays as a circular avatar above their name (replacing initials)
+- [x] **CAM-02**: Avatar falls back to initials circle when camera is off or not joined
 - [ ] **CAM-03**: Player can toggle mic on/off during a game
 - [ ] **CAM-04**: Player can toggle camera on/off during a game
-- [ ] **CAM-05**: Active speaker shows a visual glow/ring around their avatar
+- [x] **CAM-05**: Active speaker shows a visual glow/ring around their avatar
 
 ## Future Requirements
 
@@ -54,11 +54,11 @@ Requirements for Deploy & Polish milestone. Each maps to roadmap phases.
 | PWA-01 | Phase 11 | Complete |
 | PWA-02 | Phase 11 | Complete |
 | PWA-03 | Phase 11 | Complete |
-| CAM-01 | Phase 12 | Pending |
-| CAM-02 | Phase 12 | Pending |
+| CAM-01 | Phase 12 | Complete |
+| CAM-02 | Phase 12 | Complete |
 | CAM-03 | Phase 12 | Pending |
 | CAM-04 | Phase 12 | Pending |
-| CAM-05 | Phase 12 | Pending |
+| CAM-05 | Phase 12 | Complete |
 
 **Coverage:**
 - v1.1 requirements: 11 total
