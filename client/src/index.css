@@ -185,6 +185,33 @@ body {
   animation: slide-in-right 0.2s ease-out forwards;
 }
 
+/* Boneyard draw — tile flies from pile to player hand */
+@keyframes boneyard-fly-bottom {
+  0%   { opacity: 1; transform: translate(0, 0) scale(0.8); }
+  80%  { opacity: 1; transform: translate(-40px, 60px) scale(1); }
+  100% { opacity: 0; transform: translate(-40px, 80px) scale(0.9); }
+}
+@keyframes boneyard-fly-top {
+  0%   { opacity: 1; transform: translate(0, 0) scale(0.8); }
+  80%  { opacity: 1; transform: translate(-40px, -60px) scale(1); }
+  100% { opacity: 0; transform: translate(-40px, -80px) scale(0.9); }
+}
+@keyframes boneyard-fly-left {
+  0%   { opacity: 1; transform: translate(0, 0) scale(0.8); }
+  80%  { opacity: 1; transform: translate(-80px, 0) scale(1); }
+  100% { opacity: 0; transform: translate(-100px, 0) scale(0.9); }
+}
+@keyframes boneyard-fly-right {
+  0%   { opacity: 1; transform: translate(0, 0) scale(0.8); }
+  80%  { opacity: 1; transform: translate(80px, 0) scale(1); }
+  100% { opacity: 0; transform: translate(100px, 0) scale(0.9); }
+}
+
+.boneyard-fly-bottom { animation: boneyard-fly-bottom 0.35s ease-out forwards; }
+.boneyard-fly-top    { animation: boneyard-fly-top 0.35s ease-out forwards; }
+.boneyard-fly-left   { animation: boneyard-fly-left 0.35s ease-out forwards; }
+.boneyard-fly-right  { animation: boneyard-fly-right 0.35s ease-out forwards; }
+
 .felt-table {
   background:
     radial-gradient(ellipse at center, #173022 0%, #0A1A0F 80%, #060E08 100%);

@@ -12,6 +12,7 @@ import { TurnIndicator } from '../player/TurnIndicator'
 import { ScorePanel } from './ScorePanel'
 import { ScoreHistoryPanel } from './ScoreHistoryPanel'
 import { BoneyardPile } from './BoneyardPile'
+import { BoneyardDrawAnimation } from './BoneyardDrawAnimation'
 import { PasoChip } from './PasoChip'
 import { RoundEndModal } from './RoundEndModal'
 import { GameEndModal } from './GameEndModal'
@@ -158,6 +159,12 @@ export function GameTable() {
             isMyTurn={isMyTurn}
           />
           {is2Player && <BoneyardPile count={boneyardCount} className="absolute bottom-2 right-2 z-10" />}
+          {is2Player && (
+            <BoneyardDrawAnimation
+              myPlayerIndex={myPlayerIndex}
+              playerCount={playerCount}
+            />
+          )}
         </div>
 
         {/* Right opponent (4-player only) */}
