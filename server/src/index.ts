@@ -12,19 +12,25 @@ import { checkRematchCancellation } from './socket/gameHandlers'
 const app = express()
 const httpServer = createServer(app)
 
-app.use(cors({ origin: config.CLIENT_ORIGIN }))
+if (config.NODE_ENV !== 'production') {
+  app.use(cors({ origin: config.CLIENT_ORIGIN }))
+}
 app.use(express.json())
 
 const io = new Server(httpServer, {
-  cors: {
-    origin: config.CLIENT_ORIGIN,
-    methods: ['GET', 'POST'],
-  },
+  cors: config.NODE_ENV !== 'production'
+    ? { origin: config.CLIENT_ORIGIN, methods: ['GET', 'POST'] }
+    : undefined,
   pingTimeout: 60000,
   pingInterval: 25000,
 })
 
 const rooms = new RoomManager()
+
+// Health check for Railway
+app.get('/health', (_req, res) => {
+  res.status(200).json({ status: 'ok' })
+})
 
 // Serve built client files in production
 if (config.NODE_ENV === 'production') {
