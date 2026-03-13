@@ -167,7 +167,6 @@ export function useWebRTC() {
   // Join call mid-game: acquire media, create PCs for all other players
   const joinCall = useCallback(async (audio: boolean, video: boolean) => {
     getCallStore().setMyLobbyOpt(audio, video)
-    socket.emit('webrtc:lobby_opt', { roomCode, audio, video })
 
     const stream = await navigator.mediaDevices.getUserMedia({ video, audio }).catch(async () => {
       // fallback: audio only
@@ -179,21 +178,23 @@ export function useWebRTC() {
     localStreamRef.current = stream
     getCallStore().setLocalStream(stream)
 
-    // Connect to all other players (they may or may not have cameras — signal handler will handle incoming offers)
+    // Close any PCs that were auto-created by incoming signals before we had media —
+    // they have no local tracks and can't renegotiate reliably. Recreate them fresh.
     const playerCount = useGameStore.getState().gameState?.playerCount ?? 4
     for (let i = 0; i < playerCount; i++) {
       if (i === myPlayerIndex) continue
       const existingPC = pcsRef.current[i]
       if (existingPC) {
-        // PC was auto-created by an incoming signal before we joined — add our tracks to it
-        const senders = existingPC.getSenders()
-        if (senders.length === 0) {
-          stream.getTracks().forEach(track => existingPC.addTrack(track, stream))
-        }
-      } else {
-        createPC(i)
+        existingPC.close()
+        delete pcsRef.current[i]
+        getCallStore().setRemoteStream(i, null)
       }
+      createPC(i)
     }
+
+    // Notify peers AFTER media is acquired and PCs are ready —
+    // prevents race where remote peer sends offer before we have a stream
+    socket.emit('webrtc:lobby_opt', { roomCode, audio, video })
   }, [myPlayerIndex, roomCode, createPC])
 
   // Initialize: get media, create PCs for all opted-in peers, register socket handler
