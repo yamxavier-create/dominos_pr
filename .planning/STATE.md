@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 8 context gathered
-last_updated: "2026-03-13T00:27:58.138Z"
-last_activity: 2026-03-12 — Completed 07-04 UI adaptation for 2-player mode
+status: in-progress
+stopped_at: Completed 08-01 boneyard visual pile
+last_updated: "2026-03-13T00:41:24.885Z"
+last_activity: 2026-03-12 — Completed 08-01 boneyard visual pile
 progress:
   total_phases: 9
   completed_phases: 7
-  total_plans: 20
-  completed_plans: 20
-  percent: 100
+  total_plans: 22
+  completed_plans: 21
+  percent: 95
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 
 ## Current Position
 
-Phase: 7 of 8 (Two-Player Mode with Boneyard) - COMPLETE
-Plan: 4 of 4 in current phase - COMPLETE
-Status: Phase 7 Complete
-Last activity: 2026-03-12 — Completed 07-04 UI adaptation for 2-player mode
+Phase: 8 of 8 (Boneyard Visual & Draw Animation)
+Plan: 1 of 2 in current phase - COMPLETE
+Status: Plan 08-01 Complete, continuing to 08-02
+Last activity: 2026-03-12 — Completed 08-01 boneyard visual pile
 
-Progress: [██████████] 100%
+Progress: [██████████] 95%
 
 ## Performance Metrics
 
@@ -69,6 +69,7 @@ Progress: [██████████] 100%
 | Phase 07 P03 | 2min | 2 tasks | 4 files |
 | Phase 07 P02 | 3min | 2 tasks | 1 files |
 | Phase 07 P04 | 12min | 3 tasks | 6 files |
+| Phase 08 P01 | 2min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -113,6 +114,8 @@ Recent decisions affecting current work:
 - [Phase 07]: No RoomManager changes needed -- 2-or-4 validation at game:start, max 4 cap at join unchanged
 - [Phase 07]: Boneyard draws emit per-tile game:boneyard_draw events with split emit (tile to drawer, null to opponents)
 - [Phase 07]: is2Player derived from gameState.playerCount across all components for consistent branching
+- [Phase 08]: faceDown tiles use dark green (#2D4A3E) with subtle inner border to match felt table aesthetic
+- [Phase 08]: BoneyardPile uses useRef timer for fade-out to avoid stale closure issues
 
 ### Pending Todos
 
@@ -131,6 +134,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-13T00:27:58.127Z
-Stopped at: Phase 8 context gathered
-Resume file: .planning/phases/08-boneyard-visual-draw-animation/08-CONTEXT.md
+Last session: 2026-03-13T00:41:00Z
+Stopped at: Completed 08-01 boneyard visual pile
+Resume file: .planning/phases/08-boneyard-visual-draw-animation/08-01-SUMMARY.md
