@@ -20,7 +20,8 @@ interface UIStore {
   showGameEnd: boolean
   showScoreHistory: boolean
   // Sound
-  soundEnabled: boolean
+  sfxEnabled: boolean
+  musicEnabled: boolean
   // Rematch voting
   rematchVotes: number[]
   rematchPlayerNames: string[]
@@ -36,7 +37,8 @@ interface UIStore {
   setShowRoundEnd: (v: boolean) => void
   setShowGameEnd: (v: boolean) => void
   setShowScoreHistory: (v: boolean) => void
-  toggleSound: () => void
+  toggleSfx: () => void
+  toggleMusic: () => void
   setRematchVotes: (votes: number[], playerNames: string[]) => void
   setRematchCancelled: (data: { playerIndex: number; playerName: string } | null) => void
   clearRematchState: () => void
@@ -52,7 +54,8 @@ export const useUIStore = create<UIStore>(set => ({
   showRoundEnd: false,
   showGameEnd: false,
   showScoreHistory: false,
-  soundEnabled: true,
+  sfxEnabled: true,
+  musicEnabled: true,
   rematchVotes: [],
   rematchPlayerNames: [],
   rematchCancelled: null,
@@ -75,7 +78,8 @@ export const useUIStore = create<UIStore>(set => ({
   setShowRoundEnd: showRoundEnd => set({ showRoundEnd }),
   setShowGameEnd: showGameEnd => set({ showGameEnd }),
   setShowScoreHistory: showScoreHistory => set({ showScoreHistory }),
-  toggleSound: () => set(state => ({ soundEnabled: !state.soundEnabled })),
+  toggleSfx: () => set(state => ({ sfxEnabled: !state.sfxEnabled })),
+  toggleMusic: () => set(state => ({ musicEnabled: !state.musicEnabled })),
   setRematchVotes: (votes, playerNames) => set({ rematchVotes: votes, rematchPlayerNames: playerNames }),
   setRematchCancelled: rematchCancelled => set({ rematchCancelled }),
   clearRematchState: () => set({ rematchVotes: [], rematchPlayerNames: [], rematchCancelled: null }),

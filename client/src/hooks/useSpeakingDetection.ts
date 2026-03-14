@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useCallStore } from '../store/callStore'
+import { getAudioContext } from '../audio/audioContext'
 
 interface AnalyserEntry {
   playerIndex: number
@@ -19,7 +20,6 @@ export function useSpeakingDetection(
   const prevSpeakingRef = useRef<Record<number, boolean>>({})
   const prevStreamIdsRef = useRef<string>('')
   const analysersRef = useRef<AnalyserEntry[]>([])
-  const audioCtxRef = useRef<AudioContext | null>(null)
   const rafRef = useRef<number>(0)
 
   useEffect(() => {
@@ -45,10 +45,6 @@ export function useSpeakingDetection(
       try { entry.source.disconnect() } catch {}
     })
     analysersRef.current = []
-    if (audioCtxRef.current) {
-      audioCtxRef.current.close().catch(() => {})
-      audioCtxRef.current = null
-    }
 
     // If no streams, clear speaking state
     if (Object.keys(allStreams).length === 0) {
@@ -59,13 +55,8 @@ export function useSpeakingDetection(
       return
     }
 
-    // Create new AudioContext
-    const audioCtx = new AudioContext()
-    audioCtxRef.current = audioCtx
-
-    if (audioCtx.state === 'suspended') {
-      audioCtx.resume().catch(() => {})
-    }
+    // Use shared AudioContext singleton
+    const audioCtx = getAudioContext()
 
     // Create analysers for each stream with audio tracks
     const entries: AnalyserEntry[] = []
@@ -126,8 +117,6 @@ export function useSpeakingDetection(
       entries.forEach(entry => {
         try { entry.source.disconnect() } catch {}
       })
-      audioCtx.close().catch(() => {})
-      audioCtxRef.current = null
       prevStreamIdsRef.current = ''
     }
   }, [remoteStreams, localStream, myIndex])
