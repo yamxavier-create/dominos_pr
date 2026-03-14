@@ -10,6 +10,7 @@ import { PlayerHand } from '../player/PlayerHand'
 import { OpponentHand } from '../player/OpponentHand'
 import { PlayerSeat } from '../player/PlayerSeat'
 import { JoinCallButton } from './JoinCallButton'
+import { SfxToggleButton } from './SfxToggleButton'
 import { TurnIndicator } from '../player/TurnIndicator'
 import { ScorePanel } from './ScorePanel'
 import { ScoreHistoryPanel } from './ScoreHistoryPanel'
@@ -262,7 +263,8 @@ export function GameTable() {
         </>
       )}
 
-      {/* Join call button (hidden when already in call) */}
+      {/* SFX toggle + Join call button */}
+      <SfxToggleButton />
       <JoinCallButton />
 
       {/* Overlays */}

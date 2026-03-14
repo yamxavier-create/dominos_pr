@@ -6,7 +6,7 @@ import { useRoomStore } from '../store/roomStore'
 import { useUIStore, ChatMessage } from '../store/uiStore'
 import { useCallStore } from '../store/callStore'
 import { signalHandlerRef, peerJoinedCallRef } from './useWebRTC'
-import { playSfx, preloadSfx, playPassSfx } from '../audio/sfx'
+import { playSfx, preloadSfx } from '../audio/sfx'
 import { ClientGameState, RoundEndPayload, GameEndPayload, PassPayload, RematchVoteUpdate, RematchCancelled, BoneyardDrawPayload } from '../types/game'
 
 export function useSocket() {
@@ -99,14 +99,10 @@ export function useSocket() {
         setLastTileSequence(last.sequence)
         setTimeout(() => setLastTileSequence(null), 500)
       }
-      if (gameState.isMyTurn && !prevIsMyTurn) {
-        playSfx('turnNotify')
-      }
     })
 
     socket.on('game:player_passed', (payload: PassPayload) => {
       addPasoNotification(payload)
-      playPassSfx()
       setTimeout(() => {
         useUIStore.getState().removePasoNotification(payload.playerIndex)
       }, 2500)
