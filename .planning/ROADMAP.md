@@ -79,7 +79,9 @@ Plans:
   2. User hears a notification sound when it becomes their turn (useful when tabbed away or distracted)
   3. User hears a distinct sound when any player passes, including during auto-pass cascades (rapid consecutive passes are debounced, not stacked)
   4. All three sounds play without delay or audio glitches on mobile Safari and Chrome
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 14-01-PLAN.md -- Generate 3 SFX audio files, create sfx.ts module, wire triggers into useSocket.ts
 
 ### Phase 15: Background Music & Controls
 **Goal**: Users enjoy ambient music in the lobby and have independent control over music and sound effects
@@ -112,6 +114,6 @@ Phases execute in numeric order: 13 -> 14 -> 15
 | 10. Cloud Deployment | v1.1 | 2/2 | Complete | 2026-03-13 |
 | 11. PWA Support | v1.1 | 1/1 | Complete | 2026-03-13 |
 | 12. Avatar Cameras | v1.1 | 2/2 | Complete | 2026-03-13 |
-| 13. Audio Foundation | 2/2 | Complete    | 2026-03-14 | - |
-| 14. Game Sound Effects | v1.2 | 0/? | Not started | - |
+| 13. Audio Foundation | v1.2 | 2/2 | Complete | 2026-03-14 |
+| 14. Game Sound Effects | v1.2 | 0/1 | Not started | - |
 | 15. Background Music & Controls | v1.2 | 0/? | Not started | - |
