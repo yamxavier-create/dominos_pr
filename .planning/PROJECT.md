@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A real-time multiplayer Puerto Rican dominoes web app supporting 2 or 4 players. Players join via room codes, play with full Puerto Rican rules (Modo 200 / Modo 500), and see the game unfold on an animated snake board. Includes in-game chat, rematch voting, per-hand score history, WebRTC video/audio calling, and a 2-player mode with boneyard draw mechanics. Built with React + Socket.io — no backend database, no accounts, just share a code and play.
+A real-time multiplayer Puerto Rican dominoes web app supporting 2 or 4 players. Players join via room codes, play with full Puerto Rican rules (Modo 200 / Modo 500), and see the game unfold on an animated snake board. Includes in-game chat, rematch voting, per-hand score history, WebRTC video/audio calling with circular live video avatars, and a 2-player mode with boneyard draw mechanics. Deployed as a PWA at a public HTTPS URL — installable from browser, no accounts needed, just share a code and play.
 
 ## Core Value
 
@@ -29,17 +29,16 @@ Friends can start and finish a complete game of Puerto Rican dominoes online, in
 - ✓ 2-player mode with boneyard draw mechanic — v1.0
 - ✓ Boneyard visual pile with draw animation — v1.0
 - ✓ Duo mode camera/mic (player-count-aware WebRTC) — v1.0
+- ✓ Cloud deployment with HTTPS, health checks, and auto-deploy — v1.1
+- ✓ Custom domain configuration guide — v1.1
+- ✓ PWA installable from browser with standalone mode and branded icons — v1.1
+- ✓ Circular live video avatars in player seat positions — v1.1
+- ✓ Camera and mic toggle controls during gameplay — v1.1
+- ✓ Speaking detection with visual glow indicator — v1.1
 
 ### Active
 
-## Current Milestone: v1.1 Deploy & Polish
-
-**Goal:** Make the app permanently accessible and improve the video call UX
-
-**Target features:**
-- Deploy to cloud hosting (permanent shareable link)
-- PWA support (installable from browser on phone/desktop)
-- Circular avatar cameras (replace initials avatar with live video feed)
+(No active requirements — next milestone not yet defined)
 
 ### Out of Scope
 
@@ -48,20 +47,23 @@ Friends can start and finish a complete game of Puerto Rican dominoes online, in
 - Offline mode — real-time is core value
 - Persistent chat history — in-memory is sufficient for casual play sessions
 - Spectator mode — requires seat assignment changes
+- TURN server — monitor post-deploy; add only if users report WebRTC connection failures
 
 ## Context
 
-Shipped v1.0 with 5,721 LOC TypeScript across 147 commits in 7 days.
+Shipped v1.1 with 6,132 LOC TypeScript across 12 phases (28 plans) in two milestones over 7 days.
 Tech stack: React + Vite, Express + Socket.io, Zustand, WebRTC, TailwindCSS.
 Monorepo: `client/` and `server/`, both TypeScript strict mode.
 No REST API — all game state flows exclusively through Socket.io events.
 Server is sole authority: game logic, scoring, and valid-move computation live only server-side.
 Zero test coverage — pure functions in `GameEngine.ts` are ideal unit test targets when ready.
+Deployed to Railway at https://server-production-b2a8.up.railway.app with auto-deploy from main.
+PWA installable with service worker (socket.io and /health excluded from caching).
 
 ## Constraints
 
 - **Tech Stack**: React + Socket.io + Zustand + Express + WebRTC — no new frameworks without clear justification
-- **No persistence**: In-memory room state only; server restart loses active games (acceptable for v1)
+- **No persistence**: In-memory room state only; server restart loses active games (acceptable for current scope)
 - **No auth**: Players identified by display name + socket ID; reconnection by name match
 - **TypeScript strict**: Both client and server enforce `"strict": true`
 
@@ -78,8 +80,11 @@ Zero test coverage — pure functions in `GameEngine.ts` are ideal unit test tar
 | ChatMessage type duplicated client/server | No shared types package; duplication is acceptable for 1 interface | ⚠️ Revisit if types grow |
 | Rate limit 15/10s (not 5/10s) | Plan spec was incorrect; REQUIREMENTS.md authoritative at 15/10s | ✓ Good |
 | playerCount default=4 with ?? fallback | Backward-compatible 2/4 layout without breaking existing code | ✓ Good |
-
-| Circular avatar cameras over side panel | Video in player avatar position is less intrusive than side panel; works better on mobile | — Pending |
+| Railway for cloud hosting | WebSocket support, auto-HTTPS, no Dockerfile needed, GitHub auto-deploy | ✓ Good |
+| CORS disabled in production | Same-origin serving from Express eliminates cross-origin requests | ✓ Good |
+| vite-plugin-pwa for PWA | Single dev dependency, ~20 lines config, zero-maintenance generateSW | ✓ Good |
+| Circular avatar cameras over side panel | Video in player avatar position is less intrusive than side panel; works better on mobile | ✓ Good |
+| Speaking threshold 25 on first 8 FFT bins | Reliable speech frequency detection without over-sensitivity | ✓ Good |
 
 ---
-*Last updated: 2026-03-13 after v1.1 milestone start*
+*Last updated: 2026-03-13 after v1.1 milestone completion*

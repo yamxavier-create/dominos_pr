@@ -52,15 +52,63 @@
 
 ---
 
+## Milestone: v1.1 — Deploy & Polish
+
+**Shipped:** 2026-03-13
+**Phases:** 3 | **Plans:** 5 | **Timeline:** 7 days (overlapping with v1.0 final phases)
+
+### What Was Built
+- Cloud deployment to Railway with HTTPS, health endpoint, auto-deploy from main
+- Custom domain configuration guide (CNAME/DNS/SSL documentation)
+- PWA support: installable from browser, standalone mode, branded icons, service worker
+- Circular live video avatars embedded in player seat positions (replacing VideoCallPanel side panel)
+- Speaking detection with green glow ring using Web Audio API frequency analysis
+- Inline call controls (mic/camera toggle) and mid-game join button
+
+### What Worked
+- Railway deployment was straightforward: only 2 code files changed (railway.toml + index.ts), rest was config
+- vite-plugin-pwa required minimal code: ~20 lines in vite.config.ts for full PWA support
+- Avatar cameras architecture was clean: seatCallProps helper centralized stream routing to all 4 seats
+- Phase dependencies worked well: Phase 10 (HTTPS) → Phase 11 (SW requires HTTPS) → Phase 12 (getUserMedia requires HTTPS)
+
+### What Was Inefficient
+- SUMMARY one_liner fields were null — summary-extract returned empty accomplishments
+- Phase 10 verification was mostly human_needed (4/5 items) — deployment phases inherently resist automated verification
+- VideoCallPanel.tsx left as dead code after Phase 12 replaced it — should have been deleted in the plan
+
+### Patterns Established
+- `seatCallProps(playerIndex)` helper for routing per-seat call data in GameTable
+- Service worker denylist pattern for socket.io and health paths
+- Conditional CORS: disabled in production (same-origin serving), enabled in dev
+
+### Key Lessons
+1. Deployment phases generate mostly human-verification items — consider inline checkpoint tasks during execution
+2. Delete replaced files in the same plan that removes their usage — prevents dead code accumulation
+3. PWA + Railway + WebRTC all work together cleanly over HTTPS without special config
+4. Avatar integration was simpler than expected because callStore already had all needed state from v1.0
+
+### Cost Observations
+- Model mix: opus for execution, sonnet for research/planning/integration-checking
+- 5 plans executed, 3 human-gated (deployment/PWA verification), 2 automated (~2-3min each)
+- Milestone audit revealed only tech debt, no blockers — clean completion
+
+---
+
 ## Cross-Milestone Trends
 
-| Metric | v1.0 |
-|--------|------|
-| Phases | 10 |
-| Plans | 23 |
-| Timeline | 7 days |
-| LOC | 5,721 |
-| Commits | 147 |
-| Avg plan duration | ~3.3 min |
-| Audit gaps found | 5 critical, 3 non-critical |
-| Gap-closure phases needed | 1 |
+| Metric | v1.0 | v1.1 |
+|--------|------|------|
+| Phases | 10 | 3 |
+| Plans | 23 | 5 |
+| Timeline | 7 days | 7 days |
+| LOC | 5,721 | 6,132 |
+| Commits | 147 | 29 |
+| Avg plan duration | ~3.3 min | ~3 min (2 automated) |
+| Audit gaps found | 5 critical, 3 non-critical | 0 critical, 3 tech debt |
+| Gap-closure phases needed | 1 | 0 |
+
+### Top Lessons (Verified Across Milestones)
+
+1. Always run milestone audit before completion — catches real gaps both times (v1.0: 5 critical, v1.1: 3 tech debt)
+2. Phase dependency ordering matters — both milestones benefited from foundation-first execution
+3. Additive architecture scales well — v1.0 built callStore/WebRTC, v1.1 layered avatar cameras on top without touching core
