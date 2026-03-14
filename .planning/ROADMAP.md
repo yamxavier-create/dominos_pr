@@ -92,7 +92,9 @@ Plans:
   2. Background music stops when the game starts (no music competing with gameplay SFX or voice chat)
   3. User can toggle SFX off while keeping music on (and vice versa) using separate controls
   4. Audio toggle states are visible in the game UI and reflect the current on/off status
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 15-01-PLAN.md -- Music singleton, route-aware hook, AudioControls component with independent SFX/Music toggles
 
 ## Progress
 
@@ -116,4 +118,4 @@ Phases execute in numeric order: 13 -> 14 -> 15
 | 12. Avatar Cameras | v1.1 | 2/2 | Complete | 2026-03-13 |
 | 13. Audio Foundation | v1.2 | 2/2 | Complete | 2026-03-14 |
 | 14. Game Sound Effects | 1/1 | Complete    | 2026-03-14 | - |
-| 15. Background Music & Controls | v1.2 | 0/? | Not started | - |
+| 15. Background Music & Controls | v1.2 | 0/1 | Not started | - |
