@@ -1,70 +1,85 @@
 # Architecture Patterns
 
-**Domain:** Real-time multiplayer domino web app -- v1.1 deploy, PWA, and circular avatar cameras
-**Researched:** 2026-03-13
-**Confidence:** MEDIUM (deploy platform and PWA plugin recommendations based on training data; CSS/WebRTC patterns are HIGH confidence)
+**Domain:** Game audio integration -- sound effects and background music for existing domino web app
+**Researched:** 2026-03-14
+**Confidence:** HIGH (Web Audio API and HTMLAudioElement are stable browser APIs; patterns are well-established for game audio in React)
 
 ---
 
 ## Current Architecture Snapshot
 
-Before describing changes, here is what exists:
-
 ```
 [Browser]                          [Server (Express + Socket.io)]
   React 18 + Vite 5                  Express 4 serves client/dist in production
   Zustand (gameStore, roomStore,     Socket.io 4.7 on same HTTP server
-    uiStore, callStore)              RoomManager (in-memory, 10-min cleanup)
+    uiStore, callStore)              RoomManager (in-memory)
   Socket.io-client (ws://)           GameEngine (pure functions only)
-  WebRTC peer-to-peer                webrtcHandlers (signaling relay)
-  useWebRTC hook (Perfect Neg.)      No database, no auth
-  VideoCallPanel (side panel)        PORT from env, CLIENT_ORIGIN from env
+  WebRTC peer-to-peer                No database, no auth
+  useWebRTC hook
+  Pages: MenuPage, LobbyPage,       Server has ZERO audio responsibility
+    GamePage
 ```
 
-**Key invariants preserved by this milestone:**
-- Server is a single Node.js process with in-memory state
-- Express serves Vite build (`client/dist/`) in production mode
-- Socket.io shares the same HTTP server -- single origin, no CORS needed in production
-- `socket.ts` client uses relative URL `SOCKET_URL = '/'` -- works on any domain
-- WebRTC is peer-to-peer with STUN only (`stun:stun.l.google.com:19302`)
-- `GameEngine.ts` pure functions are NOT touched by any v1.1 feature
-- All game state flows through Socket.io -- no REST API
+**Key existing audio-related state:**
+- `uiStore.soundEnabled: boolean` -- exists but currently unused
+- `uiStore.toggleSound()` -- toggles the boolean, never actually triggers audio
 
-**None of the v1.1 features modify core game logic, socket events, or store architecture.**
+**What does NOT change:**
+- Server code: zero changes. Audio is 100% client-side
+- GameEngine.ts: untouched
+- Socket events: no new events. Sounds trigger from existing events
+- gameStore, roomStore: untouched
+- callStore, useWebRTC: untouched (WebRTC audio is separate from game audio)
 
 ---
 
-## High-Level Change Map
+## Recommended Architecture
+
+### Core Decision: useAudio Custom Hook + AudioManager Singleton
+
+**Use a singleton AudioManager class** instantiated once, accessed by a `useAudio` hook. Do NOT use a Zustand store for audio playback state -- audio is imperative (play/stop/fade), not declarative React state.
+
+**Use HTMLAudioElement for background music** (simple, supports loop, volume control) and **Web Audio API (AudioContext) for sound effects** (low latency, can play overlapping sounds, no pop/click artifacts). This is the standard split for browser game audio.
+
+**Do NOT use Howler.js or use-sound.** The app needs ~5 sound effects and 1 music track. Howler.js adds 10KB gzipped for sprite sheets, spatial audio, and codec fallbacks this app does not need. Web Audio API + HTMLAudioElement covers everything with zero dependencies.
+
+### Architecture Diagram
 
 ```
-FEATURE 1: Cloud Deployment
-  MODIFY: server/src/config.ts (production CLIENT_ORIGIN handling)
-  MODIFY: package.json (add "engines" field for Node version)
-  NEW:    .env.example (document required env vars)
-  NO CHANGE: socket.ts (already uses relative '/')
-  NO CHANGE: vite.config.ts proxy (dev-only, ignored in production)
-  NO CHANGE: server/src/index.ts production serving (already correct)
-
-FEATURE 2: PWA Support
-  NEW:    client/public/manifest.json
-  NEW:    client/public/icons/ (192px, 512px, maskable app icons)
-  MODIFY: client/vite.config.ts (add VitePWA plugin)
-  MODIFY: client/index.html (theme-color meta, apple-touch-icon link)
-  MODIFY: client/package.json (add vite-plugin-pwa as devDependency)
-  NO CHANGE: server (PWA is entirely client-side)
-  NO CHANGE: Socket.io (WebSocket bypasses service workers)
-
-FEATURE 3: Circular Avatar Cameras
-  NEW:    client/src/components/player/AvatarCamera.tsx
-  NEW:    client/src/components/game/FloatingCallControls.tsx
-  MODIFY: client/src/components/player/PlayerSeat.tsx (embed AvatarCamera, add playerIndex prop)
-  MODIFY: client/src/components/game/GameTable.tsx (remove VideoCallPanel, add FloatingCallControls)
-  MODIFY: client/src/pages/GamePage.tsx (move RemoteAudio elements here)
-  DELETE: client/src/components/game/VideoCallPanel.tsx (replaced entirely)
-  NO CHANGE: client/src/hooks/useWebRTC.ts (streams stay in callStore)
-  NO CHANGE: client/src/store/callStore.ts (already stores streams by player index)
-  NO CHANGE: server (WebRTC signaling unchanged)
+                    uiStore (state)
+                    +-----------------------+
+                    | musicEnabled: boolean |  <-- persisted to localStorage
+                    | sfxEnabled: boolean   |
+                    +-----------------------+
+                           |
+                           | reads via getState()
+                           v
+                    AudioManager (singleton)
+                    +-----------------------+
+                    | audioCtx: AudioContext |  <-- created on first user gesture
+                    | bgMusic: HTMLAudioElement
+                    | sfxBuffers: Map<string, AudioBuffer>
+                    | currentVolume: number  |
+                    +-----------------------+
+                       ^              ^
+                      /                \
+           useAudio hook            Direct calls from
+           (React bridge)           useSocket handlers
+           - exposes play/stop      - playSound('tilePlace')
+           - manages music          - playSound('pass')
+             lifecycle on           - playSound('yourTurn')
+             route change
 ```
+
+### Why NOT a Zustand Store for Audio
+
+Audio playback is imperative: you call `audioBuffer.start()` or `audio.play()`. Putting "isPlaying" in a store creates synchronization problems -- the store says playing but the browser paused (tab backgrounded, autoplay blocked). The AudioManager owns playback truth. The store only owns user preferences (enabled/disabled).
+
+### Why NOT Trigger All Sounds from Components
+
+Socket events fire regardless of which component is mounted. `game:player_passed` fires even when the pass notification component hasn't rendered yet. The `useSocket` hook is always mounted (via `AppRoutes`) and receives every event -- it is the correct place to trigger game event sounds.
+
+Background music, however, is route-dependent (menu/lobby yes, game no) -- that belongs in a hook that responds to route changes.
 
 ---
 
@@ -72,446 +87,561 @@ FEATURE 3: Circular Avatar Cameras
 
 | Component | Responsibility | Communicates With |
 |-----------|---------------|-------------------|
-| **Deploy config** (.env, Railway) | Platform setup, port binding, build pipeline | Railway platform, Express server |
-| **vite-plugin-pwa** (build plugin) | Generates service worker + injects manifest | Vite build pipeline, browser PWA APIs |
-| **manifest.json** | PWA metadata (name, icons, display mode) | Browser install prompt, OS launcher |
-| **Service Worker** (auto-generated) | Cache app shell, offline fallback | Browser Cache API, network |
-| **AvatarCamera** (new) | Renders circular `<video>` from MediaStream | `callStore` (reads stream), `PlayerSeat` (parent) |
-| **PlayerSeat** (modified) | Player info + circular avatar (video or initials) | `AvatarCamera`, `callStore`, `GameTable` |
-| **FloatingCallControls** (new) | Mic/camera toggle, join/leave call buttons | `callStore`, `socket` (webrtc:toggle emit) |
-| **GamePage** (modified) | Hosts RemoteAudio elements (moved from VideoCallPanel) | `callStore` |
+| **AudioManager** (new singleton) | Manages AudioContext, preloads buffers, plays SFX, controls music | uiStore (reads preferences), browser Audio APIs |
+| **useAudio** (new hook) | React bridge to AudioManager; manages music lifecycle on route changes; handles autoplay unlock | AudioManager, uiStore, React Router location |
+| **uiStore** (modified) | Stores `musicEnabled` and `sfxEnabled` preferences | AudioManager reads via getState(), UI components read via selectors |
+| **useSocket** (modified) | Calls `AudioManager.playSound()` in existing event handlers | AudioManager |
+| **useGameActions** (modified) | Calls `AudioManager.playSound('tilePlace')` on tile emit | AudioManager |
+| **AudioControls** (new UI component) | Toggle buttons for music/SFX in game HUD | uiStore |
 
 ---
 
-## Feature 1: Cloud Deployment
+## Data Flow
 
-### Architecture Decision: Single-Process Deploy on Railway
-
-**Use Railway** because Express + Socket.io on the same HTTP server is a single-process architecture. Railway natively supports WebSocket upgrades on its proxy, auto-deploys from GitHub, provides HTTPS by default, and supports custom domains. The app needs zero architectural changes.
-
-**Why not Vercel/Netlify:** Optimized for serverless/static. Socket.io requires a persistent process for WebSocket connections. Vercel Functions have execution timeouts (10s free, 60s pro) and do not support WebSocket upgrades. Would force splitting client and server to separate hosts, requiring CORS and absolute socket URL.
-
-**Why not Fly.io:** Works but requires Dockerfile and `fly.toml`. Railway auto-detects Node.js and runs scripts directly. Less config friction.
-
-**Why not Render:** Comparable to Railway. Either works. Railway's usage-based pricing is slightly better for intermittent hobby traffic vs Render's free tier spin-down after 15 min inactivity.
-
-### Deployment Data Flow
+### Sound Effect Trigger Flow
 
 ```
-[GitHub push to main] --> [Railway auto-deploy]
-  1. npm install (all workspaces -- monorepo detected)
-  2. npm run build
-     a. client: tsc && vite build --> client/dist/
-     b. server: tsc --> server/dist/
-  3. npm start --> node server/dist/index.js
-     - Express serves client/dist as static files
-     - Socket.io attaches to same HTTP server
-     - PORT injected by Railway (process.env.PORT)
-  4. Railway proxy terminates HTTPS, upgrades WebSocket
-```
-
-### Server Config Changes
-
-Current `config.ts` already reads `PORT`, `CLIENT_ORIGIN`, `NODE_ENV` from env:
-
-```typescript
-export const config = {
-  PORT: parseInt(process.env.PORT || '3001', 10),
-  CLIENT_ORIGIN: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
-  NODE_ENV: process.env.NODE_ENV || 'development',
-}
-```
-
-- **PORT**: Railway auto-injects. Already handled. No change.
-- **CLIENT_ORIGIN**: In production, set to the Railway URL via dashboard env vars. Simplest approach -- no code change needed. The CORS middleware and Socket.io CORS config use this value.
-- **NODE_ENV**: Railway sets to `'production'` by default.
-
-### Socket.io Path in Production
-
-Client `socket.ts` already uses `SOCKET_URL = '/'` (relative URL). In production, this connects to the same Express origin -- correct. The Vite dev proxy is irrelevant in production builds. No changes needed.
-
-### WebSocket Considerations
-
-- Railway proxy supports WebSocket upgrades natively
-- `pingTimeout: 60000` and `pingInterval: 25000` are production-appropriate
-- STUN-only WebRTC will fail for symmetric NAT pairs (common on cellular). Consider adding TURN as a fast follow if users report video failures. Not blocking for initial deploy.
-
-### What Does NOT Change
-
-- `socket.ts` client: relative `'/'` URL works on any domain
-- `vite.config.ts` proxy: dev-only, not in production build
-- `index.ts` production static serving: already implemented (lines 30-34)
-- `RoomManager`: in-memory rooms acceptable. Server restart loses rooms (accepted)
-
----
-
-## Feature 2: PWA Support
-
-### Architecture Decision: vite-plugin-pwa with Network-First Navigation
-
-**Use vite-plugin-pwa** because it is the standard PWA plugin for Vite. Auto-generates service worker via Workbox, handles manifest, integrates with build pipeline. Manual service worker would be more work for no benefit.
-
-**Cache strategy:** Network-first for navigation, cache-first for static assets. The app is real-time multiplayer -- caching game state or Socket.io would break the app. SW caches only the app shell for fast repeat-visit loading.
-
-**No offline mode** because core value is real-time multiplayer. Offline dominos against AI is a different product. Cache the shell, show "Sin conexion" when offline.
-
-### PWA Data Flow
-
-```
-[First visit]
-  Browser loads app --> SW registers --> precaches shell assets
-  Browser may show "Add to Home Screen" prompt
-
-[Subsequent visits]
-  SW serves cached shell --> app boots instantly
-  Socket.io connects over WebSocket (bypasses SW entirely)
-  If offline --> SW serves fallback, socket fails to connect
-
-[App update after deploy]
-  New SW hash --> browser downloads update in background
-  registerType: 'autoUpdate' --> activates on next navigation
-```
-
-### Critical Configuration: Socket.io Denylist
-
-**The service worker MUST NOT intercept Socket.io polling URLs.** Socket.io falls back to HTTP long-polling when WebSocket fails. If the SW matches `/socket.io/*` and serves cached HTML, the connection silently breaks.
-
-```typescript
-navigateFallbackDenylist: [/^\/socket\.io/]
-```
-
-This is the single most important line in the PWA configuration.
-
-### vite.config.ts Changes
-
-```typescript
-import { VitePWA } from 'vite-plugin-pwa'
-
-export default defineConfig({
-  plugins: [
-    react(),
-    VitePWA({
-      registerType: 'autoUpdate',
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/socket\.io/],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com/,
-            handler: 'StaleWhileRevalidate',
-            options: { cacheName: 'google-fonts-stylesheets' }
-          },
-          {
-            urlPattern: /^https:\/\/fonts\.gstatic\.com/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-webfonts',
-              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 }
-            }
-          }
-        ]
-      },
-      manifest: false, // Use manual manifest.json in public/
-    })
-  ],
-  // ... existing server, host, proxy config unchanged
-})
-```
-
-### manifest.json (new: client/public/manifest.json)
-
-```json
-{
-  "name": "Domino PR",
-  "short_name": "Domino PR",
-  "description": "Domino puertorriqueno en linea",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#0a0a0a",
-  "theme_color": "#0a0a0a",
-  "orientation": "portrait",
-  "icons": [
-    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "/icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
-  ]
-}
-```
-
-- `display: "standalone"` hides browser chrome
-- `orientation: "portrait"` -- game table designed for portrait
-- Colors match dark felt-table background
-- Maskable icon for Android adaptive icons
-
-### index.html Additions
-
-```html
-<head>
-  <meta name="theme-color" content="#0a0a0a" />
-  <link rel="manifest" href="/manifest.json" />
-  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-  <!-- existing preconnect + font tags stay -->
-</head>
-```
-
-### What Does NOT Change
-
-- Server code: PWA is client-side only
-- Socket.io: WebSocket bypasses service workers
-- React Router: SPA fallback (`app.get('*', ...)`) already serves `index.html`
-
----
-
-## Feature 3: Circular Avatar Cameras
-
-### Architecture Decision: Embed Video in PlayerSeat, Delete Side Panel
-
-Current `PlayerSeat` renders a 32x32px circle with 2-letter initials. Current `VideoCallPanel` renders 160x120px rectangular video tiles in a collapsible right-side panel. Avatar cameras replace the initials circle with live circular video, eliminating the side panel.
-
-**Embed in PlayerSeat (not overlay)** because PlayerSeat already occupies the correct position in the 3x3 game grid. Overlaying video would duplicate position logic.
-
-**Delete VideoCallPanel (not keep both)** because two video displays of the same stream confuse users and waste space. Side panel was v1.0 pragmatic choice; avatar cameras are the intended UX per PROJECT.md decision.
-
-### Target Component Architecture
-
-```
-GamePage
-  +-- GameTable
-  |     +-- PlayerSeat (bottom = me)
-  |     |     +-- AvatarCamera (localStream, circular, mirrored)
-  |     |     +-- Name + tile count badge
-  |     +-- PlayerSeat (top)
-  |     |     +-- AvatarCamera (remoteStreams[topIndex] or initials)
-  |     +-- PlayerSeat (left)
-  |     |     +-- AvatarCamera (remoteStreams[leftIndex] or initials)
-  |     +-- PlayerSeat (right)
-  |     |     +-- AvatarCamera (remoteStreams[rightIndex] or initials)
-  |     +-- FloatingCallControls (join/leave, mic, camera toggles)
+Socket event arrives (e.g., game:player_passed)
   |
-  +-- RemoteAudio x N (hidden <audio> elements, moved from VideoCallPanel)
-  +-- ChatButton + ChatPanel (existing)
+  v
+useSocket handler fires (already exists)
+  |
+  +-- existing logic (addPasoNotification, etc.)
+  |
+  +-- NEW: audioManager.playSound('pass')
+        |
+        +-- checks uiStore.getState().sfxEnabled
+        |   (if false, return immediately)
+        |
+        +-- audioCtx.createBufferSource()
+        +-- source.buffer = sfxBuffers.get('pass')
+        +-- source.connect(audioCtx.destination)
+        +-- source.start()
 ```
 
-### AvatarCamera Component Design
+### Background Music Lifecycle Flow
+
+```
+User lands on MenuPage
+  |
+  v
+useAudio hook detects route = '/' or '/lobby'
+  |
+  +-- audioManager.startMusic()
+        |
+        +-- checks uiStore.getState().musicEnabled
+        +-- bgMusic.play() (may need user gesture first)
+        +-- bgMusic.loop = true
+        +-- bgMusic.volume = 0.3
+  |
+User navigates to /game (game:started event)
+  |
+  v
+useAudio hook detects route = '/game'
+  |
+  +-- audioManager.fadeOutMusic(1000)  // 1s fade
+        +-- gradual volume reduction via requestAnimationFrame
+        +-- bgMusic.pause() when volume reaches 0
+  |
+User returns to lobby (game ends, navigates back)
+  |
+  v
+useAudio hook detects route = '/lobby'
+  |
+  +-- audioManager.fadeInMusic(1000)
+```
+
+### User Preference Flow
+
+```
+User taps SFX toggle in AudioControls
+  |
+  v
+uiStore.toggleSfx()
+  |
+  +-- sfxEnabled flips to false
+  +-- localStorage.setItem('sfxEnabled', 'false')
+  |
+  v
+Next playSound() call:
+  audioManager.playSound('tilePlace')
+    +-- reads uiStore.getState().sfxEnabled === false
+    +-- returns immediately, no sound
+```
+
+---
+
+## Integration Points: Existing Code Changes
+
+### 1. uiStore.ts -- Replace `soundEnabled` with Two Toggles
 
 ```typescript
-interface AvatarCameraProps {
-  playerIndex: number
-  initials: string
-  isMe: boolean
-  isCurrentTurn: boolean
-  teamColor: string
-  size?: number  // 48 for opponents, 56 for local player
+// REMOVE
+soundEnabled: boolean
+toggleSound: () => void
+
+// ADD
+musicEnabled: boolean
+sfxEnabled: boolean
+toggleMusic: () => void
+toggleSfx: () => void
+setMusicEnabled: (v: boolean) => void
+setSfxEnabled: (v: boolean) => void
+```
+
+Initialize from localStorage with defaults:
+```typescript
+musicEnabled: localStorage.getItem('musicEnabled') !== 'false',  // default true
+sfxEnabled: localStorage.getItem('sfxEnabled') !== 'false',      // default true
+```
+
+Persist on change:
+```typescript
+toggleMusic: () => set(state => {
+  const next = !state.musicEnabled
+  localStorage.setItem('musicEnabled', String(next))
+  return { musicEnabled: next }
+}),
+toggleSfx: () => set(state => {
+  const next = !state.sfxEnabled
+  localStorage.setItem('sfxEnabled', String(next))
+  return { sfxEnabled: next }
+}),
+```
+
+### 2. useSocket.ts -- Add Sound Triggers to Existing Handlers
+
+Add to existing handlers (NOT new event listeners):
+
+| Existing Handler | Add Sound Call |
+|-----------------|----------------|
+| `game:state_snapshot` (when `lastAction?.type === 'play_tile'`) | `audioManager.playSound('tilePlace')` |
+| `game:state_snapshot` (when `gameState.isMyTurn` becomes true) | `audioManager.playSound('yourTurn')` |
+| `game:player_passed` | `audioManager.playSound('pass')` |
+| `game:round_ended` | `audioManager.playSound('roundEnd')` |
+| `game:game_ended` | `audioManager.playSound('gameEnd')` |
+| `game:started` | `audioManager.playSound('gameStart')` |
+
+**Critical: isMyTurn detection.** The `game:state_snapshot` handler receives every state update. To play "your turn" sound only when it becomes your turn (not on every snapshot), compare previous and current `isMyTurn`:
+
+```typescript
+// Inside game:state_snapshot handler
+const wasMyTurn = useGameStore.getState().gameState?.isMyTurn ?? false
+setGameState(gameState)  // existing
+if (!wasMyTurn && gameState.isMyTurn) {
+  audioManager.playSound('yourTurn')
 }
 ```
 
-**Implementation details:**
+### 3. useGameActions.ts -- Optional: Tile Place Sound on Emit
 
-1. **Circular video via CSS:** Container gets `border-radius: 50%` + `overflow: hidden`. `<video>` uses `object-fit: cover`. Standard CSS, all browsers. No clip-path, no canvas.
-
-2. **Stream sourcing from callStore (fine-grained selectors):**
-   ```typescript
-   const stream = useCallStore(s =>
-     isMe ? s.localStream : (s.remoteStreams[playerIndex] ?? null)
-   )
-   const cameraOff = useCallStore(s =>
-     isMe ? s.cameraOff : (s.cameraOffPeers[playerIndex] ?? false)
-   )
-   ```
-   Component only re-renders when its own stream changes. No prop drilling through GameTable.
-
-3. **Fallback to initials:** When `stream === null` or `cameraOff === true`, render existing initials circle. Same visual as current PlayerSeat.
-
-4. **Mirror local video:** `transform: scaleX(-1)` on local player's `<video>`. Users expect mirror self-view. Remote videos NOT mirrored.
-
-5. **Muted video element:** `<video muted={true}>` always. Audio through separate `<audio>` elements. Prevents echo, satisfies autoplay policies.
-
-6. **Size increase:** From 32x32 to 48x48 opponents, 56x56 self. Fits existing grid:
-   - Top: plenty of vertical space
-   - Left/Right: narrow columns accommodate 48px with existing `px-1` padding
-   - Bottom: most space available
-
-7. **Turn indicator glow:** Existing neon border effect applies to video circle container div, not the `<video>` element.
-
-### Preventing Video Element Remount Flashes
-
-If `<video>` unmounts/remounts, `srcObject` must be reassigned and `play()` called again, causing a visible black flash. Prevention:
-
-- **`React.memo` on AvatarCamera** -- prevents re-renders from parent state changes (like `currentPlayerIndex` changing every turn)
-- **`useEffect` depends only on `[stream]`** -- not on parent state
-- **Stable props from PlayerSeat** -- `playerIndex`, `isMe`, `initials` are stable within a game
-
-### Data Flow (No New Plumbing)
-
-```
-callStore.localStream ──────────────────────┐
-callStore.remoteStreams[playerIndex] ────────┤
-callStore.cameraOffPeers[playerIndex] ──────┤
-                                            v
-                             AvatarCamera (Zustand selector, React.memo)
-                                            |
-                                            v
-                             <video> circular or initials fallback
-```
-
-callStore already stores everything needed. The only code change: PlayerSeat gains a `playerIndex` prop so AvatarCamera can look up the correct stream.
-
-### RemoteAudio Relocation
-
-`RemoteAudio` components (hidden `<audio>` for remote peer audio) currently live in `VideoCallPanel`. Since that is being deleted, move to **GamePage.tsx** -- always mounted during gameplay. NOT inside PlayerSeat (presentational component should not manage audio lifecycle).
+For immediate audio feedback (before server confirms), play tile sound on emit:
 
 ```typescript
-// In GamePage.tsx, after <GameTable />:
-{inCall && peerIndices.map(idx => (
-  <RemoteAudio key={`audio-${idx}`} stream={remoteStreams[idx] ?? null} />
-))}
+// In selectTile, when emitting game:play_tile:
+socket.emit('game:play_tile', { roomCode, tileId, targetEnd: 'right' })
+audioManager.playSound('tilePlace')  // instant feedback
 ```
 
-### FloatingCallControls (New Component)
+**Trade-off:** Playing on emit gives instant feedback but the play might be rejected by server. Playing on `game:state_snapshot` is authoritative but has network latency. **Recommendation: play on emit** -- server rejections are rare (client only shows valid plays), and the latency improvement matters more for game feel.
 
-With side panel removed, controls need a new home.
+If playing on emit, do NOT also play on `game:state_snapshot` for the local player's own tile plays. Detect by checking if the `lastAction.playerIndex` matches `myPlayerIndex`.
 
-**Fixed bar at bottom of screen, above PlayerHand:**
+### 4. App.tsx -- Mount useAudio Hook
 
+```typescript
+function AppRoutes() {
+  useSocket()   // existing
+  useAudio()    // NEW: manages music lifecycle, preloads sounds
+
+  return (
+    <Routes>...</Routes>
+  )
+}
 ```
-  ┌──────────────────────────────────────┐
-  │  [Mic] [Camera] [Leave Call]         │  <-- FloatingCallControls
-  ├──────────────────────────────────────┤
-  │  PlayerSeat (me) + AvatarCamera      │
-  │  [tile] [tile] [tile] [tile] ...     │  <-- PlayerHand
-  └──────────────────────────────────────┘
+
+### 5. vite.config.ts -- Add Audio File Types to PWA Cache
+
+```typescript
+globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,mp3,ogg}'],
 ```
 
-States:
-- **Not in call:** Show "Unirse" button (replaces VideoCallPanel join buttons)
-- **In call:** Mic toggle, camera toggle, leave-call button
+Add `mp3` and `ogg` to the service worker precache glob so audio files are cached for offline-capable fast loading.
 
-Reads from callStore, emits `webrtc:toggle` and `webrtc:lobby_opt` via socket -- same logic from VideoCallPanel, relocated.
+---
 
-### PlayerSeat Modification
+## New Files
 
-Current props: `player, isCurrentTurn, position, teamLabel, teamColor`
-New props: `player, isCurrentTurn, position, teamLabel, teamColor, playerIndex`
-
-GameTable already knows each player's index. Pass through to PlayerSeat.
-
-### GameTable Modification
-
-1. Remove `<VideoCallPanel>` render and import
-2. Add `playerIndex` prop to each `<PlayerSeat>` call
-3. Add `<FloatingCallControls>` at bottom of layout
-4. No changes to 3x3 grid structure -- avatars live inside existing PlayerSeat cells
+| File | Purpose |
+|------|---------|
+| `client/src/audio/AudioManager.ts` | Singleton class: AudioContext, buffer loading, SFX playback, music control |
+| `client/src/hooks/useAudio.ts` | React hook: preload on mount, music lifecycle on route, autoplay unlock |
+| `client/src/components/ui/AudioControls.tsx` | Toggle buttons for music and SFX |
+| `client/public/sounds/tile-place.mp3` | Tile clack sound (~50KB) |
+| `client/public/sounds/your-turn.mp3` | Subtle notification chime (~30KB) |
+| `client/public/sounds/pass.mp3` | Soft knock or buzz (~30KB) |
+| `client/public/sounds/round-end.mp3` | Completion jingle (~50KB) |
+| `client/public/sounds/game-end.mp3` | Victory/defeat sound (~80KB) |
+| `client/public/sounds/bg-music.mp3` | Lo-fi loop (~500KB-1MB, 30-60s loop) |
 
 ---
 
 ## Patterns to Follow
 
-### Pattern 1: Environment-Driven Configuration
-**What:** Deploy-specific values from env vars with dev defaults.
-**Where:** `server/src/config.ts` -- extend minimally.
-**Why:** Same code runs locally and on Railway.
+### Pattern 1: AudioContext Creation on First User Gesture
 
-### Pattern 2: Fine-Grained Zustand Selectors for Streams
-**What:** Specific selectors per player to avoid cascade re-renders.
+**What:** Create AudioContext inside a click/touch handler, not on page load.
+**Why:** All modern browsers (Chrome, Safari, Firefox) block AudioContext creation or suspend it until a user gesture. Creating on load results in a suspended context that silently fails.
+**How:**
 ```typescript
-// GOOD: re-renders only when THIS player's stream changes
-const stream = useCallStore(s => s.remoteStreams[playerIndex] ?? null)
+class AudioManager {
+  private ctx: AudioContext | null = null
 
-// BAD: re-renders when ANY stream changes
-const allStreams = useCallStore(s => s.remoteStreams)
+  private ensureContext(): AudioContext {
+    if (!this.ctx) {
+      this.ctx = new AudioContext()
+    }
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume()
+    }
+    return this.ctx
+  }
+}
+```
+Call `ensureContext()` inside every `playSound()`. The first call that happens after a user gesture (clicking a tile, pressing start) will create/resume the context.
+
+### Pattern 2: Preload Audio Buffers via fetch + decodeAudioData
+
+**What:** Fetch audio files and decode to AudioBuffer at app startup.
+**Why:** Web Audio API plays from pre-decoded buffers with <1ms latency. HTMLAudioElement has decode latency on first play.
+**How:**
+```typescript
+async preloadSounds(sounds: Record<string, string>) {
+  const ctx = this.ensureContext()
+  for (const [name, url] of Object.entries(sounds)) {
+    const response = await fetch(url)
+    const arrayBuffer = await response.arrayBuffer()
+    const audioBuffer = await ctx.decodeAudioData(arrayBuffer)
+    this.sfxBuffers.set(name, audioBuffer)
+  }
+}
+```
+Call from `useAudio` hook's `useEffect` on mount. Non-blocking -- sounds that aren't loaded yet simply don't play.
+
+### Pattern 3: HTMLAudioElement for Background Music (Not Web Audio API)
+
+**What:** Use `new Audio('/sounds/bg-music.mp3')` for background music.
+**Why:** HTMLAudioElement handles streaming (doesn't need full download before play), has built-in `loop` property, and doesn't require buffer management. Web Audio API would require loading the entire file into memory and manually implementing looping with `AudioBufferSourceNode`.
+**How:**
+```typescript
+private bgMusic = new Audio('/sounds/bg-music.mp3')
+
+constructor() {
+  this.bgMusic.loop = true
+  this.bgMusic.volume = 0.3
+}
 ```
 
-### Pattern 3: Progressive Enhancement for PWA
-**What:** PWA is additive. If SW fails, app works as regular web app.
-**Why:** Must work in all browsers. PWA features are a layer, never a requirement.
+### Pattern 4: Read Store State Imperatively, Not Reactively
 
-### Pattern 4: CSS-Only Circular Video
-**What:** `border-radius: 50%` + `overflow: hidden` + `object-fit: cover`.
-**Why:** Simpler and more performant than canvas or clip-path. Handles resize automatically.
+**What:** AudioManager reads `uiStore.getState().sfxEnabled` at call time.
+**Why:** AudioManager is not a React component. Subscribing to store changes to "pause when disabled" adds complexity. Checking the flag at play time is simpler and correct.
+```typescript
+playSound(name: string) {
+  if (!useUIStore.getState().sfxEnabled) return
+  // ... play
+}
+```
+
+### Pattern 5: Fade Music with requestAnimationFrame
+
+**What:** Smooth volume transitions on route change.
+**Why:** Abrupt stop/start of background music is jarring.
+```typescript
+fadeOut(durationMs = 1000) {
+  const start = this.bgMusic.volume
+  const startTime = performance.now()
+  const step = () => {
+    const elapsed = performance.now() - startTime
+    const progress = Math.min(elapsed / durationMs, 1)
+    this.bgMusic.volume = start * (1 - progress)
+    if (progress < 1) requestAnimationFrame(step)
+    else this.bgMusic.pause()
+  }
+  requestAnimationFrame(step)
+}
+```
 
 ---
 
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern 1: Service Worker Caching Socket.io Traffic
-**What:** SW intercepts `/socket.io/*` URLs.
-**Why bad:** Long-polling fallback gets cached HTML. Connection silently breaks.
-**Instead:** `navigateFallbackDenylist: [/^\/socket\.io/]`
+### Anti-Pattern 1: Creating AudioContext on Page Load
 
-### Anti-Pattern 2: Video Elements in Frequently Re-rendering Parents
-**What:** `<video>` unmounts/remounts on turn changes.
-**Why bad:** Each remount requires `srcObject` reassignment + `play()`, causing black flash.
-**Instead:** `React.memo` on AvatarCamera; `useEffect` depends only on `[stream]`.
+**What:** `const ctx = new AudioContext()` at module level or in component body.
+**Why bad:** Context starts suspended. First `playSound()` call silently fails. Chrome DevTools shows "AudioContext was not allowed to start."
+**Instead:** Lazy-create in `ensureContext()`, resume on each use.
 
-### Anti-Pattern 3: Splitting Client and Server to Different Hosts
-**What:** Client on Vercel, server on Railway.
-**Why bad:** Requires CORS, separate deploys, absolute socket URL. Architecture is single-origin.
-**Instead:** Single Railway deploy. Express serves client build.
+### Anti-Pattern 2: Zustand Store for Audio Playback State
 
-### Anti-Pattern 4: Full Offline Mode for Real-Time Game
-**What:** Cache game state, provide offline gameplay.
-**Why bad:** Core value is real-time multiplayer. Stale cached state shows wrong board.
-**Instead:** Cache only app shell. Show offline message.
+**What:** Store `isPlaying`, `currentTrack`, etc. in Zustand.
+**Why bad:** Audio state lives in browser APIs. Zustand mirror goes stale when browser pauses audio (tab switch, autoplay block). Creates two sources of truth.
+**Instead:** AudioManager singleton owns playback truth. Store owns only user preferences (`musicEnabled`, `sfxEnabled`).
 
-### Anti-Pattern 5: Threading Streams Through Props
-**What:** GameTable passes streams as props through PlayerSeat to AvatarCamera.
-**Why bad:** GameTable re-renders every turn, unnecessarily updating all stream props.
-**Instead:** AvatarCamera reads directly from callStore via Zustand selector.
+### Anti-Pattern 3: Playing Sounds in React Component Render Cycle
 
-### Anti-Pattern 6: Creating New Store for Avatar State
-**What:** New `videoAvatarStore` tracking which players have active video.
-**Why bad:** callStore already tracks all of this. Duplicates state, creates sync issues.
-**Instead:** AvatarCamera reads from callStore directly.
+**What:** `useEffect(() => { playSound() }, [gameState.isMyTurn])`
+**Why bad:** useEffect fires after render. Sound lags behind visual by one frame. Also, strict mode double-fires cause double sounds in development.
+**Instead:** Play sounds in event handlers (useSocket callbacks, useGameActions emit handlers) where the trigger is synchronous and unambiguous.
+
+### Anti-Pattern 4: Creating New Audio() on Every Play
+
+**What:** `new Audio('/sounds/tile.mp3').play()` each time.
+**Why bad:** Each call allocates a new HTMLAudioElement, fetches the file (or hits cache), decodes it. Adds ~50-100ms latency. Memory leak if elements accumulate.
+**Instead:** Preloaded AudioBuffers via Web Audio API. One `createBufferSource()` per play is cheap (<1ms).
+
+### Anti-Pattern 5: One Big Sound Toggle
+
+**What:** Keep existing `soundEnabled` for both music and SFX.
+**Why bad:** Users commonly want SFX (game feedback) but not music, or vice versa. A single toggle forces all-or-nothing.
+**Instead:** Separate `musicEnabled` and `sfxEnabled`. Both default to true.
+
+### Anti-Pattern 6: Importing AudioManager in Every Component
+
+**What:** `import { audioManager } from '../audio/AudioManager'` in 10 files.
+**Why bad:** Scattered audio calls become hard to audit. If a sound name changes, grep 10 files.
+**Instead:** Centralize SFX triggers in useSocket (event-driven) and useGameActions (user actions). Only useAudio and these two hooks import AudioManager.
+
+---
+
+## Critical: Browser Autoplay Policy
+
+Every major browser blocks audio before a user gesture:
+
+| Browser | Policy |
+|---------|--------|
+| Chrome/Edge | AudioContext starts suspended. HTMLAudioElement.play() returns rejected promise. |
+| Safari | Stricter. Even after gesture, audio may require same-origin or user-initiated event chain. |
+| Firefox | AudioContext suspended until user gesture in the page. |
+
+**Solution for this app:**
+
+The user always clicks before any audio plays:
+1. MenuPage: user clicks "Crear Sala" or "Unirse" -- this is the first gesture
+2. Background music starts on LobbyPage (user already interacted on MenuPage)
+3. Sound effects play during game (user clicked to start game)
+
+The `useAudio` hook should attempt `audioCtx.resume()` and `bgMusic.play()` on the first user interaction. Wire a one-time click listener on `document` that calls `audioManager.unlock()`:
+
+```typescript
+useEffect(() => {
+  const unlock = () => {
+    audioManager.unlock()
+    document.removeEventListener('click', unlock)
+    document.removeEventListener('touchstart', unlock)
+  }
+  document.addEventListener('click', unlock)
+  document.addEventListener('touchstart', unlock)
+  return () => {
+    document.removeEventListener('click', unlock)
+    document.removeEventListener('touchstart', unlock)
+  }
+}, [])
+```
+
+---
+
+## AudioManager Class Design
+
+```typescript
+class AudioManager {
+  private ctx: AudioContext | null = null
+  private sfxBuffers = new Map<string, AudioBuffer>()
+  private bgMusic: HTMLAudioElement
+  private unlocked = false
+
+  constructor() {
+    this.bgMusic = new Audio()
+    this.bgMusic.loop = true
+    this.bgMusic.volume = 0.3
+  }
+
+  unlock() {
+    if (this.unlocked) return
+    this.ensureContext()
+    this.ctx?.resume()
+    this.unlocked = true
+  }
+
+  private ensureContext(): AudioContext {
+    if (!this.ctx) this.ctx = new AudioContext()
+    if (this.ctx.state === 'suspended') this.ctx.resume()
+    return this.ctx
+  }
+
+  async preload(sounds: Record<string, string>) {
+    const ctx = this.ensureContext()
+    const entries = Object.entries(sounds)
+    await Promise.all(entries.map(async ([name, url]) => {
+      try {
+        const resp = await fetch(url)
+        const buf = await resp.arrayBuffer()
+        const decoded = await ctx.decodeAudioData(buf)
+        this.sfxBuffers.set(name, decoded)
+      } catch (e) {
+        console.warn(`Failed to preload sound: ${name}`, e)
+      }
+    }))
+  }
+
+  playSound(name: string) {
+    if (!useUIStore.getState().sfxEnabled) return
+    const buffer = this.sfxBuffers.get(name)
+    if (!buffer || !this.ctx) return
+    const source = this.ctx.createBufferSource()
+    source.buffer = buffer
+    source.connect(this.ctx.destination)
+    source.start()
+  }
+
+  startMusic() {
+    if (!useUIStore.getState().musicEnabled) return
+    this.bgMusic.src = '/sounds/bg-music.mp3'
+    this.bgMusic.play().catch(() => {})  // swallow autoplay rejection
+  }
+
+  stopMusic() { /* fade out then pause */ }
+  fadeOut(ms: number) { /* rAF volume ramp */ }
+  fadeIn(ms: number) { /* rAF volume ramp */ }
+
+  setMusicEnabled(enabled: boolean) {
+    if (enabled) this.startMusic()
+    else { this.bgMusic.pause(); this.bgMusic.currentTime = 0 }
+  }
+}
+
+export const audioManager = new AudioManager()
+```
+
+---
+
+## useAudio Hook Design
+
+```typescript
+export function useAudio() {
+  const location = useLocation()
+  const musicEnabled = useUIStore(s => s.musicEnabled)
+
+  // One-time: preload SFX buffers + register autoplay unlock
+  useEffect(() => {
+    audioManager.preload({
+      tilePlace: '/sounds/tile-place.mp3',
+      yourTurn: '/sounds/your-turn.mp3',
+      pass: '/sounds/pass.mp3',
+      roundEnd: '/sounds/round-end.mp3',
+      gameEnd: '/sounds/game-end.mp3',
+      gameStart: '/sounds/game-start.mp3',
+    })
+
+    const unlock = () => {
+      audioManager.unlock()
+      document.removeEventListener('click', unlock)
+      document.removeEventListener('touchstart', unlock)
+    }
+    document.addEventListener('click', unlock)
+    document.addEventListener('touchstart', unlock)
+    return () => {
+      document.removeEventListener('click', unlock)
+      document.removeEventListener('touchstart', unlock)
+    }
+  }, [])
+
+  // Music lifecycle: play on menu/lobby, fade out on game
+  useEffect(() => {
+    const isGamePage = location.pathname === '/game'
+    if (isGamePage) {
+      audioManager.fadeOut(1000)
+    } else if (musicEnabled) {
+      audioManager.fadeIn(1000)
+    }
+  }, [location.pathname, musicEnabled])
+
+  // React to musicEnabled toggle
+  useEffect(() => {
+    audioManager.setMusicEnabled(musicEnabled)
+  }, [musicEnabled])
+}
+```
+
+---
+
+## PWA / Service Worker Considerations
+
+Audio files in `client/public/sounds/` will be precached by the service worker if `globPatterns` includes `mp3`. This is desirable: cached audio loads instantly on repeat visits.
+
+**Total audio budget estimate:** ~800KB-1.2MB (5 short SFX + 1 music loop). Acceptable for precaching. Service worker cache is typically 50MB+.
+
+**Modify vite.config.ts:**
+```typescript
+globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,mp3,ogg}'],
+```
 
 ---
 
 ## Build Order (Dependency-Aware)
 
-### Phase 1: Cloud Deployment (prerequisite for everything)
+### Phase 1: AudioManager + uiStore Changes
 
-1. Create `.env.example` documenting env vars
-2. Set `CLIENT_ORIGIN` on Railway dashboard to deployed URL
-3. Add `"engines": { "node": ">=18" }` to root `package.json`
-4. Create Railway project, connect GitHub repo
-5. Deploy, verify: HTTP serves app, Socket.io WebSocket upgrades, full game flow
-6. Verify WebRTC video between two devices on deployed URL
+1. Split `soundEnabled` into `musicEnabled` + `sfxEnabled` in uiStore with localStorage persistence
+2. Create `AudioManager.ts` singleton with Web Audio API SFX + HTMLAudioElement music
+3. Remove old `soundEnabled` / `toggleSound` from uiStore
+4. Update any existing UI that reads `soundEnabled` (find and replace)
 
-**Why first:** PWA requires HTTPS (Railway provides it). Avatar cameras need real-device testing. Deploy unlocks everything.
+**Why first:** Foundation layer. Everything depends on AudioManager existing and preferences being stored correctly.
 
-### Phase 2: PWA Support (depends on deploy for HTTPS)
+### Phase 2: useAudio Hook + Autoplay Unlock
 
-1. `npm install -D vite-plugin-pwa --workspace=client`
-2. Create `client/public/manifest.json` and icon assets
-3. Add VitePWA plugin to `vite.config.ts` with Socket.io denylist
-4. Add meta tags to `index.html`
-5. Deploy, test install prompt on mobile Chrome and Safari
-6. Verify Socket.io works with SW active
+1. Create `useAudio.ts` hook with preloading, autoplay unlock, and music lifecycle
+2. Mount in `App.tsx` (AppRoutes)
+3. Add placeholder audio files for testing (can use generated tones)
+4. Test: music plays on menu, fades on game start, resumes on lobby return
+5. Test: autoplay works after first click on Chrome, Safari, Firefox
 
-**Why second:** Entirely client-side. Does not interact with avatar cameras. Requires HTTPS.
+**Why second:** Establishes the music lifecycle and preloading. Proves the autoplay strategy works before wiring up game events.
 
-### Phase 3: Circular Avatar Cameras (benefits from deploy)
+### Phase 3: SFX Triggers in useSocket + useGameActions
 
-1. Create `AvatarCamera` component (circular CSS, React.memo, stream selector)
-2. Add `playerIndex` prop to PlayerSeat, embed AvatarCamera
-3. Move RemoteAudio from VideoCallPanel to GamePage
-4. Create FloatingCallControls for mic/cam/join/leave
-5. Update GameTable: remove VideoCallPanel, pass playerIndex to each PlayerSeat
-6. Delete VideoCallPanel.tsx
-7. Test: circular video, turn glow, initials fallback, mirrored local view
-8. Test on mobile: avatar sizes fit, controls tappable, no layout overflow
+1. Add `audioManager.playSound()` calls to useSocket event handlers
+2. Add tile place sound to useGameActions emit path
+3. Handle "your turn" detection (wasMyTurn vs isMyTurn comparison)
+4. Avoid double-play for local player's own tile (emit plays it, skip on snapshot)
+5. Test: play full game, verify each event triggers correct sound
 
-**Why third:** Most complex UI change. Benefits from stable deploy for real-device testing. Independent of PWA.
+**Why third:** Depends on AudioManager (Phase 1) and preloaded buffers (Phase 2).
+
+### Phase 4: Audio Controls UI + Final Audio Files
+
+1. Create AudioControls component (two toggle buttons: music, SFX)
+2. Place in GamePage HUD (near existing controls) and optionally in menu
+3. Source or create final audio files (tile clack, turn chime, pass knock, etc.)
+4. Polish: adjust volumes, timing, fade durations
+5. Test on mobile: iOS Safari autoplay, Android Chrome background tab behavior
+
+**Why last:** UI polish and final assets. Core functionality works without pretty toggle buttons.
 
 ### Dependency Graph
 
 ```
-Phase 1: Deploy ──> Phase 2: PWA (needs HTTPS)
-    |
-    └──────────> Phase 3: Avatar Cameras (needs real-device testing)
-
-Phase 2 and Phase 3 can run in parallel after Phase 1.
+Phase 1: AudioManager + uiStore ──> Phase 2: useAudio hook
+                                        |
+                                        v
+                                    Phase 3: SFX triggers in useSocket
+                                        |
+                                        v
+                                    Phase 4: Audio controls UI + polish
 ```
+
+Strictly sequential. Each phase builds on the previous.
 
 ---
 
@@ -519,50 +649,50 @@ Phase 2 and Phase 3 can run in parallel after Phase 1.
 
 | Change | Touches | Does NOT Touch |
 |--------|---------|----------------|
-| Deploy | `config.ts` (CORS env), Railway env vars, `package.json` (engines) | Any game logic, stores, components |
-| PWA | `vite.config.ts` (plugin), `client/public/` (icons), `index.html` (meta) | Server code, stores, game logic |
-| Avatars | `PlayerSeat.tsx`, `GameTable.tsx`, `GamePage.tsx`, new `AvatarCamera.tsx`, new `FloatingCallControls.tsx` | `GameEngine.ts`, `callStore`, `useWebRTC.ts`, socket events |
+| uiStore split | `uiStore.ts` (modify: replace soundEnabled with 2 booleans + localStorage) | gameStore, roomStore, callStore |
+| AudioManager | New file `audio/AudioManager.ts` | Server code, stores, any existing component |
+| useAudio hook | New file `hooks/useAudio.ts`, modify `App.tsx` (add hook call) | useSocket, useGameActions, useWebRTC |
+| SFX triggers | `useSocket.ts` (add ~6 playSound calls in existing handlers), `useGameActions.ts` (add 1 playSound call) | Server events, GameEngine, any component |
+| Audio controls | New file `components/ui/AudioControls.tsx`, modify `GamePage.tsx` or `GameTable.tsx` (mount component) | Game logic, socket events |
+| Audio files | New files in `client/public/sounds/` | Code (just static assets) |
+| PWA cache | `vite.config.ts` (add mp3 to globPatterns) | Service worker logic, socket denylist |
 
-**GameEngine.ts changes: zero.**
+**Server-side changes: zero.**
 **New socket events: zero.**
 **New Zustand stores: zero.**
-**Server-side changes: config only (deploy). Zero for PWA and avatars.**
+**Existing store modifications: uiStore only (replace 1 boolean with 2).**
 
 ---
 
 ## Scalability Considerations
 
-| Concern | Current (4 players) | At 100 rooms | At 1000 rooms |
-|---------|---------------------|--------------|---------------|
-| Memory | ~50KB/room | ~5MB total | ~50MB -- fine |
-| WebSocket connections | 4/room | 400 | 4000 -- may need scaling |
-| WebRTC (STUN) | Peer-to-peer | Same | Same |
-| SW cache per client | ~2MB shell | Same | Same |
-| Railway free tier | 500 hrs/month | Paid ($5/mo) | Paid |
+| Concern | Current App | With Audio |
+|---------|-------------|------------|
+| Bundle size | ~2MB shell | +800KB-1.2MB audio assets (precached by SW) |
+| Memory | Minimal | +~2MB for decoded AudioBuffers (5 short clips) |
+| CPU | Negligible | Web Audio API SFX is trivial; no concern |
+| Mobile battery | N/A | HTMLAudioElement music loop is hardware-decoded; low impact |
+| Network on first load | ~2MB | +1MB; consider lazy-loading music file after SFX preloaded |
 
-Single Railway instance sufficient for foreseeable future. Do not over-architect.
+**Optimization if needed:** Lazy-load `bg-music.mp3` only when entering lobby (not on preload). SFX files are small enough to preload eagerly.
 
 ---
 
 ## Sources
 
-- Codebase: `server/src/index.ts` -- production static serving (lines 30-34), Socket.io setup
-- Codebase: `server/src/config.ts` -- env var handling
-- Codebase: `client/src/socket.ts` -- relative URL `'/'`, transport config
-- Codebase: `client/src/components/player/PlayerSeat.tsx` -- current 32x32 initials avatar, props
-- Codebase: `client/src/components/game/VideoCallPanel.tsx` -- current video tiles, RemoteAudio, controls
-- Codebase: `client/src/components/game/GameTable.tsx` -- 3x3 grid, PlayerSeat usage, VideoCallPanel placement
-- Codebase: `client/src/pages/GamePage.tsx` -- WebRTC hook mount, component tree
-- Codebase: `client/src/store/callStore.ts` -- stream storage by player index
-- Codebase: `client/src/hooks/useWebRTC.ts` -- STUN config, Perfect Negotiation
-- Codebase: `client/vite.config.ts` -- current plugins, dev proxy
-- Codebase: `client/index.html` -- current HTML structure
-- Codebase: `package.json` files -- dependencies, scripts
-- `.planning/PROJECT.md` -- v1.1 scope, avatar camera decision
-- Training data: Railway deployment for Node.js + WebSocket (MEDIUM confidence)
-- Training data: vite-plugin-pwa / Workbox configuration (MEDIUM confidence)
-- Training data: CSS circular video rendering (HIGH confidence -- basic CSS)
-- Training data: Service worker + Socket.io interaction (MEDIUM confidence)
+- Codebase: `client/src/store/uiStore.ts` -- existing `soundEnabled` boolean (line 23), `toggleSound` (line 39)
+- Codebase: `client/src/hooks/useSocket.ts` -- all event handlers where sounds should trigger
+- Codebase: `client/src/hooks/useGameActions.ts` -- `selectTile` and `playTileOnEnd` emit points
+- Codebase: `client/src/App.tsx` -- `AppRoutes` where useSocket is mounted (line 8)
+- Codebase: `client/src/pages/GamePage.tsx` -- current component tree
+- Codebase: `client/src/pages/MenuPage.tsx` -- first user interaction point
+- Codebase: `client/src/pages/LobbyPage.tsx` -- music should play here
+- Codebase: `client/vite.config.ts` -- PWA globPatterns (line 31)
+- Codebase: `.planning/PROJECT.md` -- v1.2 milestone scope
+- Training data: Web Audio API (AudioContext, AudioBuffer, AudioBufferSourceNode) -- HIGH confidence, stable W3C spec since 2018
+- Training data: HTMLAudioElement loop/volume/play -- HIGH confidence, basic DOM API
+- Training data: Browser autoplay policies (Chrome, Safari, Firefox) -- HIGH confidence, well-documented restrictions
+- Training data: requestAnimationFrame for volume fading -- HIGH confidence, standard technique
 
 ---
-*Architecture analysis completed: 2026-03-13*
+*Architecture analysis completed: 2026-03-14*

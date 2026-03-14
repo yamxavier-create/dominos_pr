@@ -1,158 +1,217 @@
-# Technology Stack
+# Technology Stack: v1.2 Sound & Audio
 
-**Project:** Dominos PR v1.1 -- Deploy, PWA, Circular Avatar Cameras
-**Researched:** 2026-03-13
-**Confidence:** MEDIUM -- versions need npm verification; patterns and recommendations are HIGH confidence from stable, well-documented tools.
+**Project:** Dominos PR
+**Researched:** 2026-03-14
+**Scope:** Audio additions only (SFX + background music for existing React PWA)
 
 ---
 
 ## Executive Verdict
 
-**Three new dev dependencies, zero new runtime dependencies, one deployment platform.**
+**Zero new dependencies. Zero new dev dependencies. One line changed in vite.config.ts.**
 
-1. **Deployment:** Railway -- native WebSocket support, monorepo-friendly, simple `npm run build && npm start` deploy, no Dockerfile needed.
-2. **PWA:** `vite-plugin-pwa` -- the canonical Vite PWA solution. Generates manifest, registers service worker, handles precaching via Workbox under the hood. One plugin addition to `vite.config.ts`.
-3. **Circular avatar cameras:** Pure CSS (`border-radius: 50%` + `object-fit: cover` on `<video>`) -- the existing `VideoTile.tsx` already has `overflow-hidden` and `object-cover`. Changing the container from `rounded-xl` to `rounded-full` and making it square is the entire implementation. **No library needed.**
+Use the native **Web Audio API** with a custom `useAudio` hook. The app needs 5 short sound effects and 1 looping music track -- Howler.js, use-sound, and Tone.js are all unnecessary overhead. The codebase already uses Web Audio API for speaking detection (`useSpeakingDetection.ts`), and the existing Workbox service worker already caches static assets -- just add `mp3` to the glob pattern.
 
 ---
 
-## Recommended Stack Additions
+## Recommended Stack
 
-### 1. Deployment Platform: Railway
-
-| Attribute | Value |
-|-----------|-------|
-| Platform | [Railway](https://railway.app) |
-| Purpose | Cloud hosting with persistent URL |
-| Why Railway | Native WebSocket support (critical for Socket.io), auto-detects Node.js monorepo, `PORT` env var injection matches existing `config.ts`, free trial then $5/mo hobby tier |
-
-**Why Railway over alternatives:**
-
-| Platform | WebSocket Support | Monorepo | Free Tier | Verdict |
-|----------|-------------------|----------|-----------|---------|
-| **Railway** | Native, no config | Yes (Nixpacks auto-detect) | Trial credits, then $5/mo Hobby | **Recommended** |
-| Render | Yes (native) | Yes | 750h free (spins down after 15min inactivity -- bad for WebSocket reconnection) | Good alternative but spin-down kills active games |
-| Fly.io | Yes (via `fly.toml` config) | Requires Dockerfile | 3 shared VMs free | More config overhead, Dockerfile needed |
-| Vercel | Serverless only -- no persistent WebSocket | Optimized for frontend only | Generous | **Not viable** -- Socket.io requires persistent server process |
-| Netlify | No WebSocket server support | Frontend only | Generous | **Not viable** -- same reason as Vercel |
-
-**Critical requirement:** This app uses Socket.io with long-lived WebSocket connections for real-time game state. Any serverless or spin-down platform will kill active game sessions. Railway keeps the process running continuously on the Hobby plan.
-
-**Integration with existing codebase:**
-
-The server already reads `PORT` from environment (see `server/src/config.ts`). Railway injects `PORT` automatically. The production static file serving is already implemented in `server/src/index.ts`. The only changes needed:
-
-1. Set `CLIENT_ORIGIN` env var on Railway (or change CORS to allow the Railway URL)
-2. Possibly adjust `CLIENT_ORIGIN` to accept the Railway-assigned domain
-3. Set `NODE_ENV=production` env var
-
-**No Dockerfile, no Procfile, no buildpack config.** Railway's Nixpacks builder detects the monorepo structure and runs `npm run build` then `npm start`.
-
-#### Confidence: MEDIUM
-Railway's WebSocket support and Node.js deployment are well-established (HIGH confidence from training data). Pricing details may have changed -- verify at railway.app/pricing before committing. The Render spin-down behavior is well-documented and confirmed as problematic for WebSocket apps.
-
----
-
-### 2. PWA Support: vite-plugin-pwa
+### Audio Playback (NEW -- zero dependencies)
 
 | Technology | Version | Purpose | Why |
 |------------|---------|---------|-----|
-| `vite-plugin-pwa` | `^0.20.0` | PWA manifest + service worker generation | Canonical Vite PWA plugin; maintained by the Vite ecosystem team (antfu); handles Workbox config, manifest generation, and SW registration in one plugin |
+| Web Audio API (native) | N/A (browser built-in) | SFX playback and music loop | Zero deps, already used in codebase, supports overlapping playback and per-channel volume |
+| AudioContext | N/A | Single shared context for all audio | One context per app is the standard pattern; resume on user gesture handles autoplay policy |
+| AudioBuffer | N/A | Pre-decoded audio data for instant SFX | Decoded once at load, played many times with zero latency |
+| GainNode | N/A | Volume control per channel | Separate gain nodes for SFX vs music maps to the two independent toggles |
 
-**What it provides:**
+### Audio Format (NEW -- no build tool changes)
 
-- Auto-generates `manifest.webmanifest` from config in `vite.config.ts`
-- Generates a Workbox-powered service worker for asset precaching
-- Provides `registerSW` virtual module for the client to register the service worker
-- Handles update prompts ("New version available, reload?")
+| Format | Extension | Purpose | Why |
+|--------|-----------|---------|-----|
+| MP3 | `.mp3` | All sound effects and music | Universal browser support (100%), good compression, no patent issues since 2017, Vite serves from `public/` with no config |
 
-**What it does NOT do (and we don't need):**
+### Existing Stack (unchanged, leveraged)
 
-- Offline mode -- the app is real-time multiplayer, offline play is meaningless. The service worker caches the app shell so it loads fast, but gameplay requires a socket connection.
-- Push notifications -- no server infrastructure for this, out of scope.
-- Background sync -- no offline queue needed.
+| Technology | Version | Role in Audio Feature |
+|------------|---------|----------------------|
+| Zustand (uiStore) | ^4.4.7 | Already has `soundEnabled` toggle -- extend with separate `sfxEnabled` and `musicEnabled` |
+| vite-plugin-pwa (Workbox) | ^1.2.0 | Already caches `**/*.{js,css,html,ico,png,svg,woff2}` -- add `mp3` to globPatterns |
+| Vite | ^5.0.8 | Serves audio files from `client/public/` as static assets with zero config |
+| Web Audio API (useSpeakingDetection.ts) | N/A | Proves the team has Web Audio API precedent in the codebase already |
 
-#### Configuration approach
+---
 
-Add to `vite.config.ts`:
+## Decision: Web Audio API (native) -- No Library
+
+### Why NOT Howler.js
+
+Howler.js (~v2.2.4, last significant update ~2023) adds ~7KB gzipped for features this project will never use: audio sprites, spatial/3D audio, codec negotiation across legacy browsers, automatic HTML5 Audio fallback. Its main value proposition -- abstracting away cross-browser inconsistencies -- is irrelevant when targeting only modern browsers (which this PWA does).
+
+For 5 sound files, a 30-line custom hook provides everything Howler.js would, without the dependency.
+
+### Why NOT use-sound
+
+`use-sound` (~v4.0.3) is a React hook wrapper around Howler.js. It adds a second dependency (Howler) as a transitive dep, has stale maintenance, and its hook API actually provides less control than a custom hook for music looping and cross-component volume management.
+
+### Why NOT HTMLAudioElement (`<audio>` / `new Audio()`)
+
+- Cannot play overlapping instances of the same sound (e.g., rapid tile clacks in spectated games)
+- No fine-grained volume control independent of system volume
+- Higher latency for short SFX -- HTMLAudioElement loads and decodes each play
+- No gain node graph for per-channel (SFX vs music) volume control
+
+### Why Web Audio API
+
+- **Already in the codebase:** `useSpeakingDetection.ts` creates an `AnalyserNode` on a WebRTC `MediaStream` -- the team has Web Audio API precedent
+- **Zero dependencies:** Browser built-in, no bundle size impact
+- **Sub-millisecond latency:** Pre-decoded `AudioBuffer` plays instantly via `AudioBufferSourceNode`
+- **Overlapping playback:** Create a new `AudioBufferSourceNode` each time -- no "channel" limits for the same sound
+- **Per-channel volume:** Separate `GainNode` for SFX and music maps exactly to the two UI toggles
+- **Full PWA support:** Audio files cached as static assets by existing service worker
+
+---
+
+## Audio Format Decision: MP3 Only
+
+**Use MP3 for everything. Do not provide OGG/WebM fallbacks.**
+
+| Format | Compression | Browser Support (2025+) | File Size (3s SFX) | Decision |
+|--------|-------------|------------------------|---------------------|----------|
+| **MP3** | Lossy, ~10:1 | 100% modern browsers | ~10KB | **USE THIS** |
+| OGG Vorbis | Lossy, ~12:1 | ~96% (older Safari gap) | ~8KB | Skip -- marginal savings, adds dual-format complexity |
+| WAV | Uncompressed | 100% | ~130KB | Skip -- 10x larger, no audible benefit for short SFX |
+| WebM/Opus | Lossy, best ratio | ~96% (Safari 16.1+) | ~6KB | Skip -- Safari gap on older iOS devices |
+| AAC/M4A | Lossy, good | ~98% | ~9KB | Skip -- MP3 equally universal and simpler tooling |
+
+MP3 patents expired in 2017. There are zero licensing, compatibility, or quality concerns for short SFX and compressed music loops.
+
+---
+
+## Integration Points
+
+### 1. AudioContext Initialization (autoplay policy)
 
 ```typescript
-import { VitePWA } from 'vite-plugin-pwa'
+// Single shared AudioContext, created and resumed on first user gesture
+// Chrome and iOS Safari require user interaction before AudioContext can produce sound
+let audioCtx: AudioContext | null = null;
 
-export default defineConfig({
-  plugins: [
-    react(),
-    VitePWA({
-      registerType: 'autoUpdate',  // SW updates silently, no prompt needed for a game app
-      manifest: {
-        name: 'Dominos PR',
-        short_name: 'Dominos',
-        description: 'Puerto Rican dominoes -- online multiplayer',
-        theme_color: '#0f172a',
-        background_color: '#0f172a',
-        display: 'standalone',
-        orientation: 'portrait',
-        icons: [
-          { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
-        ],
-      },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        // Do NOT cache socket.io polling/websocket -- only static assets
-        navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/socket\.io/],
-      },
-    }),
-  ],
-  // ... existing config
-})
+function getAudioContext(): AudioContext {
+  if (!audioCtx) {
+    audioCtx = new AudioContext();
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+  return audioCtx;
+}
 ```
 
-**Key decisions in this config:**
+The first click/tap on any screen (joining a room, pressing "Start Game") resumes the context. No explicit "enable audio" prompt needed.
 
-- `registerType: 'autoUpdate'` -- for a game app, prompting users to reload is disruptive. Auto-update the service worker silently; the next page load gets the new version.
-- `navigateFallbackDenylist: [/^\/socket\.io/]` -- **critical**: without this, the service worker would intercept Socket.io HTTP polling requests and serve `index.html` instead. This would silently break the socket connection.
-- `globPatterns` caches only static assets -- no API routes to worry about since there are none.
+### 2. Pre-decoded Buffer Cache
 
-#### Assets needed
+```typescript
+const bufferCache = new Map<string, AudioBuffer>();
 
-Two PNG icons (192x192 and 512x512) placed in `client/public/`. Can be generated from any domino tile graphic. These are the only new non-code files needed.
-
-#### Confidence: MEDIUM
-`vite-plugin-pwa` is the standard solution (HIGH confidence on that). Version `^0.20.0` is approximate from training data -- verify with `npm view vite-plugin-pwa version` before installing. The Workbox configuration patterns are stable and well-documented.
-
----
-
-### 3. Circular Avatar Cameras: No New Dependencies
-
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| CSS `border-radius: 50%` | N/A (browser native) | Circular video crop | Standard CSS; works on `<video>` elements in all modern browsers; already proven in existing `overflow-hidden rounded-xl` pattern |
-| Existing WebRTC streams | N/A (already implemented) | Video source | `callStore.localStream` and `callStore.remoteStreams` already provide `MediaStream` objects per player |
-
-**The existing `PlayerSeat.tsx` already has a circular avatar** (line 27-39: `w-8 h-8 rounded-full` div showing initials). The circular video camera replaces the initials `<div>` with a `<video>` element inside the same circular container. The `object-cover` CSS property (already used in `VideoTile.tsx`) handles the aspect ratio crop.
-
-**No canvas manipulation needed.** A common mistake is to think circular video requires drawing to a `<canvas>` with clipping. It does not -- CSS `border-radius: 50%` with `overflow: hidden` on the parent crops the `<video>` element visually. This is hardware-accelerated and zero-cost.
-
-**No new component library needed.** The pattern is:
-
-```tsx
-<div className="w-10 h-10 rounded-full overflow-hidden">
-  <video
-    ref={videoRef}
-    autoPlay
-    playsInline
-    muted={isMe}
-    className="w-full h-full object-cover"
-  />
-</div>
+async function loadSound(url: string): Promise<AudioBuffer> {
+  if (bufferCache.has(url)) return bufferCache.get(url)!;
+  const response = await fetch(url);
+  const arrayBuffer = await response.arrayBuffer();
+  const audioBuffer = await getAudioContext().decodeAudioData(arrayBuffer);
+  bufferCache.set(url, audioBuffer);
+  return audioBuffer;
+}
 ```
 
-This is a refactor of `PlayerSeat.tsx` to conditionally render video when a stream is available, falling back to the existing initials avatar when not. The `VideoTile.tsx` component already demonstrates this pattern (lines 84-98) -- the change is shape (circle vs rectangle) and integration point (inline in player seat vs separate panel).
+Preload all SFX on game start. Music can lazy-load when entering lobby/menu.
 
-#### Confidence: HIGH
-Pure CSS circular video is a universally supported, well-proven pattern. No version concerns. The existing codebase already has all the WebRTC plumbing.
+### 3. Playback with Gain Nodes
+
+```typescript
+// SFX: fire-and-forget one-shot
+function playSFX(buffer: AudioBuffer, gainNode: GainNode) {
+  const ctx = getAudioContext();
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  source.connect(gainNode).connect(ctx.destination);
+  source.start(0);
+}
+
+// Music: looping with returned handle for stop/volume
+function startMusic(buffer: AudioBuffer, gainNode: GainNode) {
+  const ctx = getAudioContext();
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  source.loop = true;
+  source.connect(gainNode).connect(ctx.destination);
+  source.start(0);
+  return source; // Store ref to call source.stop() later
+}
+```
+
+Two persistent `GainNode` instances -- one for SFX, one for music -- controlled by Zustand state.
+
+### 4. uiStore Extension
+
+Current state has `soundEnabled: boolean`. Extend to:
+
+```typescript
+// Replace single toggle with two:
+sfxEnabled: boolean       // default: true
+musicEnabled: boolean     // default: true
+// Optional future enhancement:
+sfxVolume: number         // 0.0-1.0, default: 1.0
+musicVolume: number       // 0.0-1.0, default: 0.3
+```
+
+The existing `toggleSound` action becomes `toggleSFX` and `toggleMusic`. The UI needs two toggle buttons instead of one.
+
+### 5. PWA Offline Caching (one-line change)
+
+In `vite.config.ts`, add `mp3` to the existing Workbox glob:
+
+```typescript
+// Current:
+globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+// Updated:
+globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,mp3}'],
+```
+
+Audio files in `client/public/sounds/` are precached on first visit. No runtime caching rules needed -- they are local static assets.
+
+### 6. Sound File Placement and Budget
+
+```
+client/public/sounds/
+  tile-clack.mp3      (~10KB)  -- played on tile placement
+  turn-ding.mp3       (~8KB)   -- played when it becomes your turn
+  pass-swoosh.mp3     (~6KB)   -- played on auto-pass
+  round-end.mp3       (~12KB)  -- played on round completion
+  game-end.mp3        (~15KB)  -- played on game over
+  lofi-music.mp3      (~400KB) -- background loop, 30-60 seconds
+```
+
+**Total audio budget: ~450KB** precached by service worker. This is well within acceptable PWA precache limits (Workbox warns at 2MB+).
+
+### 7. Visibility API Integration
+
+Pause music when the browser tab is hidden to avoid battery drain and unexpected audio:
+
+```typescript
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    musicSource?.stop();  // or suspend AudioContext
+  } else {
+    // Restart music if musicEnabled
+  }
+});
+```
+
+### 8. No Conflict with Existing WebRTC Audio
+
+The existing WebRTC code uses `MediaStream` audio tracks through peer connections -- this is a separate audio pipeline from Web Audio API's `AudioContext`. They coexist without interference. The `useSpeakingDetection.ts` hook already proves this coexistence works (it creates an `AnalyserNode` from a MediaStream while WebRTC audio plays).
 
 ---
 
@@ -160,79 +219,85 @@ Pure CSS circular video is a universally supported, well-proven pattern. No vers
 
 | Category | Recommended | Alternative | Why Not |
 |----------|-------------|-------------|---------|
-| Deployment | Railway | Render Free Tier | 15-minute spin-down kills active WebSocket games; players would lose sessions |
-| Deployment | Railway | Fly.io | Requires Dockerfile and `fly.toml` configuration; more DevOps overhead for a simple Node.js app |
-| Deployment | Railway | Vercel/Netlify | Serverless -- cannot run persistent Socket.io server process |
-| Deployment | Railway | DigitalOcean App Platform | More expensive ($12/mo minimum), more config; overkill for a single-process Node.js app |
-| PWA plugin | vite-plugin-pwa | Manual service worker | Reinventing Workbox integration, manifest generation, and SW registration that vite-plugin-pwa handles in 20 lines of config |
-| PWA plugin | vite-plugin-pwa | @vite-pwa/assets-generator | Only needed if generating icons from SVG source; simpler to create 2 PNG icons manually |
-| Circular video | CSS border-radius | Canvas clipping | Unnecessary complexity; CSS does the job with zero JavaScript overhead |
-| Circular video | Inline in PlayerSeat | Separate floating bubbles | Floating bubbles require drag/position management and overlay z-index conflicts with the game board; inline replacement is simpler and matches the existing layout |
+| Audio library | Web Audio API (native) | Howler.js v2.2.x | Unnecessary for 5 sounds; adds 7KB gzipped; cross-browser fallback not needed |
+| Audio library | Web Audio API (native) | use-sound v4.0.x | React wrapper over Howler; stale maintenance; less control for music looping |
+| Audio library | Web Audio API (native) | HTMLAudioElement | Cannot overlap same sound; higher latency; no per-channel gain |
+| Audio library | Web Audio API (native) | Tone.js | Music synthesis/sequencing library; massive overkill for MP3 playback |
+| Audio library | Web Audio API (native) | Pizzicato.js | Abandoned; Web Audio API wrapper that adds effects we don't need |
+| Format | MP3 only | MP3 + OGG fallback | Dual formats double asset management; MP3 support is universal |
+| Format | MP3 only | WAV | 10x file size for no audible quality benefit on 1-3 second SFX |
+| Format | MP3 only | WebM/Opus | Better compression but Safari gap on older iOS; not worth the complexity |
+| Caching | Workbox precache | Runtime caching | Audio files are static and small; precache ensures offline availability from first load |
+
+---
+
+## What NOT to Add
+
+| Do Not Add | Reason |
+|------------|--------|
+| `howler` npm package | Unnecessary abstraction; 7KB for features we won't use |
+| `use-sound` npm package | Stale, Howler dependency, less control than custom hook |
+| `tone.js` npm package | Music synthesis library -- we play back files, not generate audio |
+| `pizzicato` npm package | Abandoned audio effects library |
+| OGG/WebM fallback files | MP3 is universally supported; dual formats add build/asset complexity |
+| Audio sprite sheets | Useful for 50+ sounds; overkill for 5-6 files |
+| Server-side audio logic | Audio is purely client-side presentation; server should not know about sounds |
+| `<audio>` HTML elements in DOM | Web Audio API is superior for game SFX; reserve `<audio>` for accessibility-only use |
+| Web Audio API polyfills | Not needed -- AudioContext is supported in all browsers this PWA targets |
 
 ---
 
 ## Installation
 
 ```bash
-# PWA support (client workspace only)
-npm install -D vite-plugin-pwa --workspace=client
+# No new packages needed!
 
-# Deployment -- no npm packages, just Railway CLI (optional, can deploy via GitHub integration)
-# npm install -g @railway/cli  # only if deploying from CLI
+# Audio files go in client/public/sounds/
+# (Source free-use SFX from freesound.org, pixabay.com/sound-effects, or create custom)
 
-# Circular avatars -- no installation needed
+# Only code change to existing config:
+# In vite.config.ts, add 'mp3' to globPatterns string
 ```
 
-**Total new packages: 1 dev dependency (`vite-plugin-pwa`)**
+**Total new dependencies: 0 runtime, 0 dev**
 
 ---
 
-## Environment Variables for Deployment
+## Browser Considerations
 
-These must be set on Railway (or equivalent platform):
-
-| Variable | Value | Notes |
-|----------|-------|-------|
-| `NODE_ENV` | `production` | Enables static file serving from `client/dist/` |
-| `PORT` | (auto-injected by Railway) | Already read by `config.ts` |
-| `CLIENT_ORIGIN` | `https://your-app.up.railway.app` | For CORS -- or change to `*` in production if the server serves the client (same-origin) |
-
-**Important CORS note:** In production, the Express server serves the client build AND the Socket.io server from the same origin. CORS is only needed for cross-origin requests. Since both run on the same `PORT` from the same process, `CLIENT_ORIGIN` can be set to the Railway URL or CORS can be relaxed. The cleanest approach: detect `NODE_ENV === 'production'` and set CORS origin to `*` or the known Railway domain.
-
----
-
-## Integration Points Summary
-
-| Feature | Files Modified | Files Created | New Dependencies |
-|---------|---------------|---------------|-----------------|
-| Deployment | `server/src/config.ts` (CORS adjustment) | None (Railway config via dashboard) | None |
-| PWA | `client/vite.config.ts` (add plugin) | `client/public/icon-192.png`, `client/public/icon-512.png` | `vite-plugin-pwa` (dev) |
-| Circular avatars | `client/src/components/player/PlayerSeat.tsx` (replace initials with conditional video) | None | None |
+| Concern | Solution | Confidence |
+|---------|----------|------------|
+| Chrome autoplay policy | Create/resume AudioContext on first user gesture (click/tap) | HIGH |
+| iOS Safari AudioContext limit | Reuse single AudioContext instance for entire app lifetime | HIGH |
+| Mobile low-power / background | Pause music on `visibilitychange` event when `document.hidden` | HIGH |
+| Multiple AudioContext warning | One AudioContext shared across all audio playback | HIGH |
+| WebRTC audio coexistence | Separate pipelines; proven by existing `useSpeakingDetection.ts` | HIGH |
+| Old browsers without AudioContext | PWA requires modern browser anyway; not a concern | HIGH |
 
 ---
 
-## What NOT to Add
+## Confidence Assessment
 
-| Temptation | Why Not |
-|------------|---------|
-| Docker/Dockerfile | Railway's Nixpacks handles Node.js monorepos natively; a Dockerfile adds maintenance burden with no benefit |
-| Nginx reverse proxy | The Express server already serves static files and Socket.io from one process; adding a reverse proxy layer is unnecessary for a single-origin deployment |
-| `workbox-*` packages directly | `vite-plugin-pwa` bundles Workbox internally; installing Workbox packages separately leads to version conflicts |
-| Service worker for offline play | The app is real-time multiplayer -- offline mode is meaningless. The SW should only cache the app shell for fast loading |
-| `next-pwa` or `@remix-pwa/*` | These are framework-specific; the app uses vanilla Vite + React, not Next.js or Remix |
-| WebRTC media processing libraries (e.g., `mediapipe`, `@tensorflow/tfjs`) | Circular crop is CSS-only; no need for face detection, background blur, or video processing |
-| Third-party avatar/video component libraries | The existing `<video>` element with CSS is all that's needed |
+| Claim | Confidence | Basis |
+|-------|------------|-------|
+| Web Audio API sufficient for this use case | HIGH | Stable W3C spec since 2020; already used in this codebase |
+| No audio library needed | HIGH | Only 5-6 sounds; well-understood 30-line pattern |
+| MP3 universal browser support | HIGH | Patent-free since 2017; 100% modern browser support |
+| Workbox globPatterns caches MP3s | HIGH | Workbox precache handles any static asset matched by glob |
+| AudioContext autoplay policy behavior | HIGH | Well-documented Chrome/Safari policy since 2018 |
+| Howler.js latest is ~v2.2.4 | MEDIUM | Training data -- verify with `npm view howler version` if needed |
+| use-sound latest is ~v4.0.3 | LOW | Training data -- irrelevant since we are not using it |
+| Total audio budget ~450KB | MEDIUM | Depends on actual SFX sourced; estimate based on typical game SFX |
 
 ---
 
 ## Sources
 
-- Codebase analysis: `server/src/config.ts` -- confirms `PORT` env var reading, `CLIENT_ORIGIN` for CORS
-- Codebase analysis: `server/src/index.ts` -- confirms production static file serving already implemented
-- Codebase analysis: `client/vite.config.ts` -- confirms current Vite 5 plugin structure
-- Codebase analysis: `client/src/components/player/PlayerSeat.tsx` -- confirms existing circular avatar (initials) at line 27-39
-- Codebase analysis: `client/src/components/player/VideoTile.tsx` -- confirms existing video + initials fallback pattern
-- Codebase analysis: `client/src/components/game/VideoCallPanel.tsx` -- confirms existing WebRTC stream management
-- Training data: Railway deployment for Node.js + Socket.io apps (MEDIUM confidence -- verify pricing)
-- Training data: `vite-plugin-pwa` configuration patterns (MEDIUM confidence -- verify current version)
-- Training data: CSS `border-radius: 50%` on video elements (HIGH confidence -- browser standard)
+- **Codebase:** `client/src/hooks/useSpeakingDetection.ts` -- existing Web Audio API usage (AnalyserNode, AudioContext)
+- **Codebase:** `client/src/store/uiStore.ts` -- existing `soundEnabled: boolean` toggle
+- **Codebase:** `client/vite.config.ts` -- existing Workbox config with globPatterns and navigateFallbackDenylist
+- **Codebase:** `client/package.json` -- confirms no existing audio dependencies
+- **W3C:** Web Audio API specification (stable recommendation)
+- **MDN:** AudioContext, AudioBuffer, AudioBufferSourceNode, GainNode documentation
+- **Google Developers:** Autoplay policy for AudioContext (documented since 2018)
+- **Training data:** Howler.js and use-sound comparison (MEDIUM confidence on version numbers)

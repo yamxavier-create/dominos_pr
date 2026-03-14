@@ -1,225 +1,153 @@
 # Project Research Summary
 
-**Project:** Dominos PR v1.1 — Deploy, PWA, Circular Avatar Cameras
-**Domain:** Cloud deployment + progressive web app + WebRTC UI polish for an existing real-time multiplayer game
-**Researched:** 2026-03-13
-**Confidence:** HIGH (codebase-grounded findings) / MEDIUM (platform and PWA patterns from training data)
+**Project:** Dominos PR -- v1.2 Sound & Audio
+**Domain:** Game audio (SFX + background music) for existing real-time multiplayer PWA
+**Researched:** 2026-03-14
+**Confidence:** HIGH
 
 ## Executive Summary
 
-This milestone delivers three additive layers on top of an already production-ready codebase: cloud deployment, PWA installability, and circular avatar cameras. The existing architecture requires almost no structural change — the server already reads `PORT` and `NODE_ENV` from environment variables, Express already serves the Vite build in production mode, and the WebRTC call infrastructure already stores streams in `callStore` by player index. The entire feature set is achievable with one new dev dependency (`vite-plugin-pwa`), minimal config changes, and targeted UI component work in `PlayerSeat`. No new socket events, no new Zustand stores, zero changes to `GameEngine.ts`.
+Adding sound to Dominos PR is a zero-dependency, client-only effort. The app needs roughly 5-6 short sound effects and one looping background music track. The Web Audio API (already used in the codebase for WebRTC speaking detection) handles SFX with sub-millisecond latency and overlapping playback. HTMLAudioElement handles background music with built-in loop and streaming support. No audio library (Howler.js, use-sound, Tone.js) is justified -- a custom AudioManager singleton plus a React hook covers everything. MP3 is the only format needed (100% browser support, patent-free since 2017). Total audio payload is under 1MB, well within PWA precache budget.
 
-The recommended approach is to sequence phases strictly by dependency: deploy first (HTTPS is required for both WebRTC camera access and service worker registration), then PWA (additive client-only change), then circular avatar cameras (most complex UI change, benefits from real-device testing on the deployed URL). Railway is the clear platform choice — native WebSocket support, auto-detects the Node.js monorepo, provides free HTTPS, and keeps the process running continuously on the Hobby plan. Serverless platforms (Vercel, Netlify) are entirely non-viable due to Socket.io's persistent connection requirement. Render free tier is disqualified by its 15-minute idle spin-down.
+The recommended approach is a singleton AudioManager class that owns one shared AudioContext (for SFX via pre-decoded AudioBuffers) and one HTMLAudioElement (for background music). Sound triggers hook into existing Socket.io event handlers in useSocket.ts -- no new server events, no new socket messages, zero server-side changes. The existing `soundEnabled` boolean in uiStore gets split into `sfxEnabled` + `musicEnabled` with localStorage persistence. A new `useAudio` hook mounted at the app root handles AudioContext unlock (browser autoplay policy), buffer preloading, and music lifecycle tied to route changes.
 
-The two highest risks are: (1) STUN-only WebRTC failing silently for users behind symmetric NAT (common on mobile carriers and corporate networks) — must verify post-deploy and add a TURN server if connections fail; and (2) the PWA service worker accidentally caching Socket.io polling requests, which silently breaks socket reconnection — prevented by a single `navigateFallbackDenylist: [/^\/socket\.io/]` rule in the Workbox config. Both risks are well-understood and have clear prevention strategies documented in PITFALLS.md.
-
----
+The highest-risk area is the interaction between the new AudioContext and the existing WebRTC speaking detection code, which currently creates and destroys its own AudioContext per stream change. iOS Safari enforces a hard limit of one active AudioContext -- creating a second suspends the first. This means the very first task must be refactoring `useSpeakingDetection.ts` to share a single global AudioContext. Browser autoplay policy is the second risk, but the app's natural user flow (clicking to join/create rooms) provides the required user gesture before any audio plays. iOS silent mode (ringer switch) will block all web audio with no programmatic workaround -- this must be documented, not "fixed."
 
 ## Key Findings
 
 ### Recommended Stack
 
-The milestone requires minimal new dependencies. Railway provides cloud hosting with no Dockerfile required — Nixpacks auto-detects the Node.js monorepo and runs `npm run build && npm start`. `vite-plugin-pwa` (one dev dependency) handles PWA manifest generation and Workbox-powered service worker from a ~20-line config addition to `vite.config.ts`. Circular avatar cameras require zero new dependencies — pure CSS (`border-radius: 50%` + `overflow: hidden` + `object-fit: cover` + `object-position: center top`) on the existing `<video>` element pattern, already demonstrated in `VideoTile.tsx`.
+Zero new dependencies. The entire feature uses native browser APIs already present in the codebase.
 
 **Core technologies:**
-- **Railway** (deployment): persistent Node.js process, native WebSocket, auto-HTTPS, Nixpacks monorepo detection — no Dockerfile needed
-- **vite-plugin-pwa ^0.20.0** (PWA): canonical Vite PWA plugin; generates manifest and Workbox service worker from `vite.config.ts` config; one install, ~20 lines of config
-- **CSS `border-radius: 50%`** (circular video): browser native, zero cost; already proven by existing `rounded-full overflow-hidden` pattern in `PlayerSeat.tsx`
-
-**Explicitly not adding:** Docker, nginx, Workbox packages directly, canvas/media processing libraries, third-party video components, offline gameplay, push notifications, CI/CD pipeline.
-
-See STACK.md for full alternatives comparison and installation details.
+- **Web Audio API (AudioContext + AudioBuffer):** SFX playback -- zero latency, overlapping playback, per-channel gain control. Already used in `useSpeakingDetection.ts`.
+- **HTMLAudioElement:** Background music -- built-in loop, streaming (no full download needed), simple volume/pause API.
+- **MP3 format only:** Universal browser support, good compression (~10KB per short SFX, ~400-500KB for music loop). No OGG/WebM fallbacks needed.
+- **Workbox precache (existing):** Add `mp3` to globPatterns in vite.config.ts -- one line change for offline audio support.
 
 ### Expected Features
 
 **Must have (table stakes):**
-- Persistent public URL via cloud deployment — the entire point of v1.1
-- WebSocket support on hosting platform — Socket.io is the sole transport; serverless is non-viable
-- HTTPS in production — required for `getUserMedia` (WebRTC) and service worker registration (PWA)
-- CORS configured for production origin — `CLIENT_ORIGIN` env var must match deployment URL
-- PWA manifest + service worker (minimal) — meets browser installability criteria
-- PWA icons (192px + 512px, regular + maskable) — required for "Add to Home Screen" prompt
-- Circular video in player seat positions — headline UX feature; CSS-only, no new WebRTC code
-- Audio element relocation — `RemoteAudio` components live inside `VideoCallPanel`; must move to an always-rendered parent before panel is deleted
+- Browser autoplay compliance (AudioContext unlock on first user gesture)
+- Tile placement sound (domino clack) -- the single most impactful audio addition
+- Turn notification sound -- prevents game stalling when players tab away
+- Auto-pass sound effect -- makes silent pass cascades audible
+- SFX mute toggle in game UI
 
 **Should have (differentiators):**
-- iOS standalone meta tags (`apple-touch-icon`, `apple-mobile-web-app-capable`) — professional PWA feel on iOS
-- Mic/camera/join controls replacement (`FloatingCallControls`) — side panel deletion requires new control home
-- Health check endpoint (`/api/health`) — monitoring, also prevents some platform idle detection
-- TURN server for reliable cross-network WebRTC — monitor after deploy, add only if users report failures
-- Custom install prompt banner for Android/Chrome
+- Lo-fi background music in menu/lobby with fade-out on game start
+- Separate music vs SFX toggles (critical for players on voice chat)
+- Round-end and game-end fanfare sounds
+- Audio preference persistence via localStorage
+- Capicu/Chuchazo special celebration sound (culturally relevant)
 
-**Defer to v2+:**
-- Offline gameplay (structurally impossible — real-time multiplayer only)
-- Push notifications (no accounts, no server-side user registry)
-- Speaking indicator (AudioContext analyser pulsing ring)
-- Custom domain (after deployment stable)
-- Persistent room state / Redis adapter
-
-See FEATURES.md for full complexity and effort estimates.
+**Defer (v2+):**
+- Per-player sound customization
+- Dynamic/adaptive music
+- Spatial/3D audio
+- Volume sliders (simple toggles sufficient for v1.2)
+- Background music during gameplay (competes with WebRTC voice chat)
 
 ### Architecture Approach
 
-All three v1.1 features layer on top of the existing architecture without modifying core game logic, socket events, or store architecture. Deploy changes only `config.ts` CORS handling. PWA changes only `vite.config.ts` and adds static assets. Avatar cameras modify `PlayerSeat.tsx` and `GameTable.tsx`, create `AvatarCamera.tsx` and `FloatingCallControls.tsx`, move `RemoteAudio` to `GamePage.tsx`, and delete `VideoCallPanel.tsx`. The `callStore` already stores everything needed for avatar cameras — `localStream`, `remoteStreams[playerIndex]`, `cameraOffPeers[playerIndex]` — so `AvatarCamera` can read via fine-grained Zustand selectors without prop drilling through `GameTable`.
+The architecture adds three new files and modifies four existing ones, with zero server-side changes. An AudioManager singleton (not a Zustand store) owns all audio playback -- audio is imperative (play/stop/fade), not declarative React state. A `useAudio` hook bridges the AudioManager to React, handling preloading, autoplay unlock, and route-dependent music lifecycle. SFX triggers go directly into existing useSocket event handlers, not into React components or useEffect hooks.
 
-**Major components (new/modified):**
-1. **Railway config** — env vars (`NODE_ENV=production`, `CLIENT_ORIGIN`, `PORT` auto-injected); `engines` field in `package.json`; `.env.example`
-2. **VitePWA plugin config** — in `vite.config.ts`; Socket.io denylist is the critical single line
-3. **`AvatarCamera`** (new) — circular `<video>` in `React.memo`; reads from `callStore` selector per player; initials fallback when no stream or camera off; mirrors local player
-4. **`FloatingCallControls`** (new) — mic/camera/join/leave bar above `PlayerHand`; relocates logic from `VideoCallPanel`
-5. **`PlayerSeat`** (modified) — gains `playerIndex` prop; embeds `AvatarCamera`; avatar size increases 32px → 48-56px; all existing overlays preserved
-6. **`GamePage`** (modified) — hosts relocated `RemoteAudio` elements; always rendered during gameplay
-
-See ARCHITECTURE.md for full component diagram and data flow.
+**Major components:**
+1. **AudioManager** (new singleton) -- manages shared AudioContext, pre-decoded AudioBuffers, SFX playback via GainNode, and HTMLAudioElement music with fade transitions
+2. **useAudio** (new hook) -- mounted in AppRoutes alongside useSocket; handles buffer preloading, autoplay unlock via document click listener, and music start/stop on route changes
+3. **AudioControls** (new UI component) -- two toggle buttons (music, SFX) reading from uiStore
+4. **uiStore** (modified) -- replaces `soundEnabled` with `sfxEnabled` + `musicEnabled`, both persisted to localStorage
 
 ### Critical Pitfalls
 
-1. **STUN-only WebRTC fails silently for ~15% of users (symmetric NAT)** — test with phone on mobile data immediately after deploy; add TURN server (Metered.ca free tier or self-hosted coturn) if connections fail; load credentials from env vars
-2. **PWA service worker caches Socket.io polling** — `navigateFallbackDenylist: [/^\/socket\.io/]` in Workbox config; this single line prevents silent socket breakage on second visit/reconnect
-3. **CORS mismatch blocks socket connection in production** — set `CLIENT_ORIGIN` Railway env var to deployed URL, OR disable CORS entirely in production since same-origin deployment makes it unnecessary
-4. **Video element remount causes black flash** — use `React.memo` on `AvatarCamera` and `useEffect` depending only on `[stream]` to prevent re-renders when turn changes
-5. **Flutter-era `web/manifest.json` is not a valid PWA manifest** — create new `client/public/manifest.json`; install prompt silently never fires without valid icons and correct `start_url`
-
-See PITFALLS.md for 17 total pitfalls with detection and prevention strategies.
-
----
+1. **Browser autoplay policy blocks all audio** -- AudioContext created at module level or in socket handlers starts suspended. Prevention: lazy-create on first user gesture, call `resume()` before every play. Test on real iOS Safari, not Chrome emulation.
+2. **Multiple AudioContexts kill WebRTC speaking detection** -- iOS enforces one active AudioContext. The existing `useSpeakingDetection.ts` creates its own. Prevention: refactor to share a single global AudioContext singleton. Never call `audioCtx.close()` on cleanup.
+3. **iOS silent mode (ringer switch) blocks all web audio** -- no programmatic workaround exists. Prevention: show user-facing hint about ringer switch on iOS. Document as known platform limitation.
+4. **PWA service worker does not cache audio files** -- current globPatterns exclude `.mp3`. Prevention: add `mp3` to globPatterns for SFX; consider runtimeCaching for large music files.
+5. **Sound timing desync with animations** -- SFX triggered from raw socket events fires before tile animation completes. Prevention: trigger tile clack on emit (instant feedback) or from animation lifecycle, debounce rapid cascades.
 
 ## Implications for Roadmap
 
-Based on research, the dependency graph is clear and dictates a 3-phase structure. Phases 2 and 3 can run in parallel after Phase 1, but Phase 1 is a hard prerequisite for both.
+Based on research, suggested phase structure:
 
-```
-Phase 1: Deploy ──> Phase 2: PWA (needs HTTPS)
-    |
-    └──────────> Phase 3: Avatar Cameras (needs real-device testing)
-```
+### Phase 1: Audio Foundation
+**Rationale:** Everything depends on having a working AudioContext and correct uiStore preferences. The AudioContext singleton must exist before any sound can play. The useSpeakingDetection refactor must happen first to prevent iOS AudioContext conflicts.
+**Delivers:** AudioManager singleton, shared AudioContext, uiStore split (sfxEnabled + musicEnabled with localStorage), refactored useSpeakingDetection to use shared context, updated Workbox globPatterns.
+**Addresses:** Autoplay compliance (table stakes), preference persistence (differentiator)
+**Avoids:** Pitfall 1 (autoplay), Pitfall 2 (multiple AudioContexts), Pitfall 4 (PWA cache), Pitfall 7 (no persistence), Pitfall 12 (coarse toggle)
 
-### Phase 1: Cloud Deployment
+### Phase 2: Core SFX
+**Rationale:** Depends on Phase 1 (AudioManager must exist). These three sounds deliver the "game feels alive" goal. Tile clack is the highest-impact single addition. Turn notification solves a real UX problem (tabbed-away players). Pass sound completes the gameplay audio loop.
+**Delivers:** Tile clack, turn notification, pass sound wired to existing socket handlers. useAudio hook mounted in AppRoutes for preloading and autoplay unlock. SFX toggle button in game UI.
+**Addresses:** Tile placement sound, turn notification, pass SFX, SFX toggle (all table stakes)
+**Avoids:** Pitfall 5 (memory leaks -- AudioBuffer pool pattern), Pitfall 6 (timing desync -- debounce), Pitfall 9 (background tab -- check document.hidden)
 
-**Rationale:** HTTPS is required for `getUserMedia` (avatar cameras) and service worker registration (PWA). Deploy must come first so all subsequent testing happens in the real environment. Both PWA install prompts and WebRTC permissions behave differently on localhost vs production HTTPS — do not defer.
+### Phase 3: Background Music + Extended SFX
+**Rationale:** Music adds polish but is lower priority than core gameplay SFX. Requires fade logic and route-aware lifecycle, which is slightly more complex. Round/game fanfares are low-effort additions using the same pattern as Phase 2.
+**Delivers:** Lo-fi background music in menu/lobby with fade transitions, round-end fanfare, game-end fanfare, game-start sound, separate music toggle in UI.
+**Addresses:** Background music, round/game fanfare, separate toggles (all differentiators)
+**Avoids:** Pitfall 8 (music state complexity -- keep it simple: pause not stop, single audio element), Pitfall 9 (background tab -- pause music on visibilitychange)
 
-**Delivers:** Persistent public URL, WebSocket connectivity over internet, HTTPS, verified socket connection, preliminary WebRTC test across real networks.
-
-**Addresses:** Persistent URL, WebSocket platform requirement, HTTPS, CORS config for production.
-
-**Avoids:** PORT binding mismatch (P8 — never hardcode PORT in start command), CORS mismatch (P3 — set CLIENT_ORIGIN or disable in production), missing HTTPS (P12 — choose PaaS with auto-HTTPS), idle timeout killing active games (P17 — Railway Hobby plan, not Render free tier).
-
-**Key tasks:**
-- Add `"engines": { "node": ">=18" }` to root `package.json`
-- Create `.env.example` documenting `NODE_ENV`, `CLIENT_ORIGIN`, `PORT`
-- Adjust CORS: disable in production (same-origin) or set `CLIENT_ORIGIN` env var on Railway
-- Create Railway project, connect GitHub repo, set env vars, deploy
-- Verify Socket.io WebSocket upgrade (`socket.io.engine.transport.name === 'websocket'` in console)
-- Test WebRTC video between two real devices on different networks — decision point for TURN server
-
-### Phase 2: PWA Support
-
-**Rationale:** Entirely client-side, no interaction with avatar camera changes. Can be parallelized with Phase 3 once Phase 1 is complete. Fastest of the three phases (2-3 hours).
-
-**Delivers:** Browser "Add to Home Screen" prompt on Android/Chrome, standalone launch mode (no browser chrome), home screen icon, fast repeat-visit loading via precached app shell.
-
-**Uses:** `vite-plugin-pwa` (single new dev dependency; `npm install -D vite-plugin-pwa --workspace=client`).
-
-**Avoids:** SW caching socket polling (P4 — denylist rule), install prompt never firing (P9 — valid manifest + real icons, not Flutter boilerplate), stale cached bundles after deploy (P13 — `skipWaiting`), iOS meta tag gaps (P16 — `apple-touch-icon`, `apple-mobile-web-app-capable`), `getUserMedia` permissions lost on iOS PWA (P5 — graceful fallback to initials).
-
-**Key tasks:**
-- Install `vite-plugin-pwa --workspace=client` (verify current version first)
-- Create `client/public/manifest.json` (new, replaces Flutter-era `web/manifest.json`)
-- Create icon assets: 192px regular, 512px regular, 512px maskable, 180px apple-touch-icon
-- Configure VitePWA plugin with `navigateFallbackDenylist: [/^\/socket\.io/]`, `registerType: 'autoUpdate'`, Google Fonts `StaleWhileRevalidate`
-- Add iOS meta tags + manifest link to `client/index.html`
-- Run Lighthouse PWA audit after deploy; fix any installability warnings
-
-### Phase 3: Circular Avatar Cameras
-
-**Rationale:** Highest UX impact but most complex UI change. Benefits from stable deployment for real-device testing — avatar sizing at 48-56px and mobile tappability need physical device validation.
-
-**Delivers:** Live circular video feeds embedded in all four player seats, removal of `VideoCallPanel` side panel (cleaner game layout), compact call controls bar, audio playback preserved.
-
-**Implements:** `AvatarCamera` component, `FloatingCallControls` component, `PlayerSeat` modification, `GameTable` cleanup, `GamePage` audio relocation.
-
-**Avoids:** Layout breakage for non-video players (P10 — unified component, optional video overlay, always preserve tile count badge and turn indicator), aspect ratio distortion (P6 — square container + `object-position: center top`), toggle buttons clipped by circular overflow (P14 — move controls outside circle to `FloatingCallControls`), autoplay blocked on mobile (P11 — explicit `play()` after user gesture in "Join Call" handler), prop drilling causing cascade re-renders (AP5 — `AvatarCamera` reads directly from `callStore` via fine-grained selector).
-
-**Key tasks:**
-- Create `AvatarCamera.tsx`: circular CSS, `React.memo`, `callStore` selector per `playerIndex`, initials fallback, mirror local player with `scaleX(-1)`
-- Add `playerIndex` prop to `PlayerSeat`; embed `AvatarCamera`; increase size to 48-56px
-- Move `RemoteAudio` elements from `VideoCallPanel` to `GamePage.tsx`
-- Create `FloatingCallControls`: mic/camera/join/leave buttons, fixed bar above `PlayerHand`
-- Update `GameTable`: remove `VideoCallPanel` import/render, add `playerIndex` to each `PlayerSeat`, add `FloatingCallControls`
-- Delete `VideoCallPanel.tsx`
-- Test on mobile: circular video renders, initials fallback works, controls tappable, no layout overflow at left/right seat columns
+### Phase 4: Polish + Cultural Sounds
+**Rationale:** Optional polish. Only pursue if Phases 1-3 ship cleanly. Chat ping and Capicu/Chuchazo sounds add cultural flavor but are not essential.
+**Delivers:** Chat notification ping (when panel closed), Capicu/Chuchazo celebration accent, boneyard draw sound (2-player mode), iOS silent mode user hint.
+**Addresses:** Chat ping, Capicu/Chuchazo accent, boneyard draw (all P2 features)
+**Avoids:** Pitfall 3 (iOS silent mode -- user-facing hint, not code fix)
 
 ### Phase Ordering Rationale
 
-- Deploy before everything else because HTTPS is required for both `getUserMedia` (camera access) and service worker registration. Testing PWA install or video calling in a non-HTTPS environment gives false results.
-- PWA and avatar cameras are independent after deploy; parallelization is possible. If sequential, PWA is faster and provides a clean checkpoint before the more complex component refactor.
-- TURN server decision is a branch point at the end of Phase 1: test WebRTC between two real devices on different networks. If connections succeed with STUN-only, TURN can be deferred. If they fail, add TURN before Phase 3 ships (avatar cameras depend on reliable video streams).
+- **Strictly sequential:** Each phase builds on the previous. Phase 2 cannot exist without Phase 1's AudioManager. Phase 3's music needs Phase 1's uiStore split.
+- **Risk-first ordering:** The highest-risk work (AudioContext sharing with WebRTC, autoplay unlock) happens in Phase 1 where it can be validated early.
+- **Impact-ordered features:** Phase 2 delivers the three sounds with the highest user impact before investing in lower-priority music and fanfares.
+- **Architecture groups naturally:** AudioManager + uiStore (infrastructure), then SFX triggers (event wiring), then music lifecycle (route awareness), then polish (optional).
 
 ### Research Flags
 
-Phases needing deeper research during planning:
-- **Phase 1 (Deploy) — TURN server:** Whether Metered.ca free tier suffices or self-hosted coturn is needed depends on actual test results post-deploy. Flag for research only if Phase 1 WebRTC testing reveals connection failures across different networks.
-- **Phase 3 (Avatar Cameras) — iOS PWA camera lifecycle:** Re-acquisition after app backgrounding via `document.visibilitychange` + `RTCRtpSender.replaceTrack()` is an edge case that may need targeted research if iOS testing reveals track-ended issues.
+Phases likely needing deeper research during planning:
+- **Phase 1:** The useSpeakingDetection refactor to share AudioContext needs careful review of existing WebRTC audio flow. Verify that disconnecting AnalyserNode on cleanup (without closing AudioContext) does not leak resources.
+- **Phase 3:** Music file sourcing -- finding a royalty-free lo-fi track with a clean loop point is non-trivial. Licensing terms must be verified.
 
 Phases with standard patterns (skip research-phase):
-- **Phase 2 (PWA):** `vite-plugin-pwa` is well-documented with stable Workbox patterns. All configuration decisions are fully covered in ARCHITECTURE.md and PITFALLS.md.
-- **Phase 1 (Railway deployment):** Single-process Node.js + Socket.io on Railway is a well-established pattern with clear steps. No novel integration challenges.
-
----
+- **Phase 2:** SFX triggers are straightforward -- add playSound calls to existing socket handlers. Well-documented Web Audio API pattern.
+- **Phase 4:** Simple additions using the same AudioManager.playSound pattern established in Phase 2.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | MEDIUM | Railway and `vite-plugin-pwa` well-established; verify exact pricing and version at implementation time |
-| Features | HIGH | Grounded in direct codebase analysis; what exists and what needs to change is confirmed by reading actual source files |
-| Architecture | HIGH | Change map grounded in actual component code; data flow verified against `callStore`, `PlayerSeat`, `VideoCallPanel` source |
-| Pitfalls | HIGH (codebase) / MEDIUM (platform) | CORS, audio relocation, and layout risks verified against real code; WebRTC TURN and platform behaviors are training data |
+| Stack | HIGH | Zero dependencies; Web Audio API is a stable W3C spec already used in the codebase. No version concerns. |
+| Features | HIGH | Feature list derived directly from codebase analysis of existing socket events and UI state. Priority ordering based on user impact. |
+| Architecture | HIGH | AudioManager singleton + useAudio hook is the established pattern for browser game audio. Integration points identified with exact file/line references. |
+| Pitfalls | MEDIUM-HIGH | Browser autoplay and iOS AudioContext limits are well-documented. The useSpeakingDetection interaction is codebase-specific and needs hands-on validation. |
 
-**Overall confidence:** MEDIUM-HIGH
+**Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **TURN server necessity:** Cannot determine until WebRTC is tested across different real networks post-deploy. Recommended fallback: Metered.ca free tier (500MB/month). Add only if Phase 1 test reveals connection failures.
-- **`vite-plugin-pwa` exact version:** Training data suggests `^0.20.0`; verify with `npm view vite-plugin-pwa version` before installing.
-- **Railway pricing:** Training data on $5/month Hobby plan; verify at railway.app/pricing before committing.
-- **iOS PWA camera permissions:** Behavior in standalone mode varies by iOS version (pre-16.4 had severe restrictions). Design `AvatarCamera` with graceful fallback to initials as the safe default; test on physical iOS device.
-- **Avatar size impact on game table layout:** Increasing `PlayerSeat` avatar from 32px to 48-56px needs visual testing on mobile screen sizes. Left/right seat columns are the tightest constraint — may need responsive sizing (`w-10 sm:w-12 md:w-14`).
-
----
+- **Audio file sourcing:** No specific royalty-free sound files identified. Need to source from freesound.org, Pixabay, or create custom. Quality of chosen sounds significantly impacts perceived polish. Budget 1-2 hours for sourcing and testing.
+- **useSpeakingDetection refactor scope:** The current code creates/destroys AudioContext per stream lifecycle. Exact refactor approach (pass shared context as parameter vs module import) needs validation during Phase 1 implementation.
+- **iOS silent mode UX:** The exact wording and placement of the "check your ringer switch" hint needs UX consideration. When to show it (first SFX attempt? settings screen?) is undecided.
+- **Music licensing:** Specific royalty-free music recommendations were not verified. License terms for chosen tracks must be confirmed before shipping.
 
 ## Sources
 
-### Primary (HIGH confidence — direct codebase analysis)
-- `server/src/index.ts` — production static serving confirmed at lines 30-34
-- `server/src/config.ts` — env var reading for `PORT`, `CLIENT_ORIGIN`, `NODE_ENV` confirmed
-- `client/src/socket.ts` — relative URL `'/'` confirmed (correct for same-origin production)
-- `client/src/components/player/PlayerSeat.tsx` — 32x32 initials circle, `rounded-full overflow-hidden`, existing props confirmed
-- `client/src/components/game/VideoCallPanel.tsx` — `RemoteAudio` at lines 135-144, call controls confirmed
-- `client/src/components/game/GameTable.tsx` — 3x3 grid, `VideoCallPanel` placement confirmed
-- `client/src/store/callStore.ts` — `localStream`, `remoteStreams[playerIndex]`, `cameraOffPeers` confirmed
-- `client/src/hooks/useWebRTC.ts` — STUN-only ICE config confirmed
-- `client/src/components/player/VideoTile.tsx` — `object-fit: cover`, `videoRef` srcObject pattern confirmed
-- `web/manifest.json` — Flutter boilerplate confirmed (description: "A new Flutter project." — unusable)
-- `client/index.html` — no PWA meta tags, no manifest link confirmed
-- Socket.io config — `pingTimeout: 60000`, `pingInterval: 25000` confirmed
-- `.planning/PROJECT.md` — v1.1 scope, no-database constraint, avatar camera intent confirmed
+### Primary (HIGH confidence)
+- Codebase: `useSpeakingDetection.ts` -- existing AudioContext usage pattern (lines 48-63)
+- Codebase: `uiStore.ts` -- existing `soundEnabled` boolean (line 23), toggle (line 39)
+- Codebase: `useSocket.ts` -- all event handlers with exact trigger points for SFX
+- Codebase: `vite.config.ts` -- Workbox globPatterns (line 31), missing audio extensions
+- W3C: Web Audio API specification (stable recommendation since 2018)
+- MDN: AudioContext, AudioBuffer, AudioBufferSourceNode, GainNode documentation
 
-### Secondary (MEDIUM confidence — training data)
-- Railway deployment for Node.js + Socket.io WebSocket apps
-- `vite-plugin-pwa` / Workbox configuration patterns
-- WebRTC TURN/STUN behavior and symmetric NAT failure modes (~15% failure rate)
-- PaaS platform behavior: idle timeouts, WebSocket proxy support, Nixpacks build detection
-- Service worker + Socket.io interaction patterns (polling fallback interception risk)
-- iOS PWA standalone mode limitations for `getUserMedia`
-- PWA installability criteria — W3C Web App Manifest standard
-- WebRTC secure context requirement — W3C/IETF spec (`getUserMedia` requires HTTPS)
+### Secondary (MEDIUM confidence)
+- Browser autoplay policies: Chrome (since v66, 2018), Safari (since v11, 2017), Firefox (2019)
+- iOS AudioContext limitations: single active context enforcement
+- Howler.js/use-sound evaluation: version numbers from training data, but irrelevant since neither is recommended
 
-### Tertiary (verify at implementation)
-- Railway current pricing (was $5/month Hobby plan — confirm at railway.app/pricing)
-- `vite-plugin-pwa` current stable version (was `^0.20.0` — verify with `npm view vite-plugin-pwa version`)
-- Metered.ca TURN free tier limits (was 500MB/month relay — verify at metered.ca)
+### Tertiary (LOW confidence)
+- Audio file size estimates (~450KB-1MB total): based on typical game SFX at MP3 128kbps, actual sizes depend on sourced files
+- Music licensing: royalty-free sources (freesound.org, Pixabay) existence confirmed but specific track recommendations not verified
 
 ---
-*Research completed: 2026-03-13*
+*Research completed: 2026-03-14*
 *Ready for roadmap: yes*

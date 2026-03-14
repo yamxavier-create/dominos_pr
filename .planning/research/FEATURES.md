@@ -1,227 +1,234 @@
-# Feature Landscape
+# Feature Landscape: Game Audio (v1.2)
 
-**Domain:** Cloud deployment, PWA installation, and circular video avatar overlays for an existing real-time multiplayer domino web app
-**Researched:** 2026-03-13
-**Milestone scope:** v1.1 Deploy & Polish -- deploy to cloud, PWA support, circular avatar cameras
+**Domain:** Sound effects and background music for a multiplayer domino web app
+**Researched:** 2026-03-14
 
 ---
 
-## Existing Feature Baseline (What Is Already Built)
+## Existing Infrastructure to Leverage
 
-| Feature | Status | Relevance to v1.1 |
-|---------|--------|-------------------|
-| Express serves `client/dist/` in production mode | Built | Deployment-ready. `server/src/index.ts` lines 30-34 |
-| `config.ts` reads `PORT`, `CLIENT_ORIGIN`, `NODE_ENV` from env | Built | Cloud platforms set these via env vars |
-| WebRTC video/audio with lobby opt-in | Built | Streams exist in `callStore` -- reuse for avatar cameras |
-| `VideoCallPanel` side panel with 160x120 tiles | Built | To be replaced by circular avatar cameras |
-| `PlayerSeat` with 32x32 initials circle | Built | To be modified to show live video |
-| `VideoTile` component (56x42 mini video) | Built | Reference pattern; logic reusable |
-| `callStore` with `localStream`, `remoteStreams`, `mutedPeers`, `cameraOffPeers` | Built | Avatar cameras consume these directly |
-| Remote audio via separate `<audio>` elements in `VideoCallPanel` | Built | Must be relocated when side panel is removed |
-| Stale `web/manifest.json` (Flutter boilerplate) | Exists but unused | Must be replaced with proper PWA manifest in `client/public/` |
-| In-game chat, rematch voting, score history | Built | No changes needed for v1.1 |
+The codebase already has pieces that make audio integration straightforward:
+
+| Existing Asset | Location | Relevance |
+|----------------|----------|-----------|
+| `soundEnabled` boolean in uiStore | `client/src/store/uiStore.ts` line 23, 55, 78 | Toggle exists but is not wired to any UI component or audio playback. Must be split into `musicEnabled` + `sfxEnabled`. |
+| `AudioContext` usage pattern | `client/src/hooks/useSpeakingDetection.ts` | App already creates and manages AudioContext for WebRTC speaking detection. Pattern for creating/resuming AudioContext is established. |
+| All game events already fire | `client/src/hooks/useSocket.ts` | `game:state_snapshot` (with `lastAction`), `game:player_passed`, `game:round_ended`, `game:game_ended`, `game:boneyard_draw`, `chat:message` are all wired. Sound triggers are just new subscribers to existing events. |
+| Legacy `click.mp3` | `assets/sounds/click.mp3` | From a Flutter build. May or may not be suitable; needs evaluation. |
+| PWA service worker | `vite-plugin-pwa` config | Audio files placed in `client/public/` will be precached by the SW for instant playback. |
 
 ---
 
 ## Table Stakes
 
-Features that must ship for v1.1 to meet its stated goals. Missing = milestone incomplete.
+Features users expect when a game advertises audio. Missing = product feels broken or incomplete.
 
-### 1. Persistent URL via Cloud Deployment
+### 1. Browser Autoplay Compliance (AudioContext Unlock)
 
-**Why expected:** The entire point of "deploy" is a URL that works 24/7 without ngrok. Friends share a link, it just works.
+**Why expected:** Chrome, Safari, and Firefox all block audio playback until user gesture. This is a hard browser requirement since 2018. Failing to handle it means zero sound, ever.
 
-**Concrete expected behavior:**
-- App accessible at `https://[app-name].[platform].app` (or custom domain)
-- Socket.io WebSocket connections persist (not serverless, not edge functions)
-- WebRTC `getUserMedia()` works (requires HTTPS -- secure context)
-- Server auto-restarts on crash (platform-managed)
+**Concrete behavior:**
+- On first user interaction (click/tap anywhere), resume or create the shared `AudioContext`
+- All subsequent sound playback goes through this unlocked context
+- No visible UI for this -- it's invisible plumbing
 
-**Complexity:** Low -- architecture is already production-ready. Express serves static files, Socket.io shares the HTTP server, config is env-based.
+**Complexity:** Low
+**Dependencies:** None. This MUST be solved before any other audio feature works.
 
-**Dependencies:** None on existing features. Unblocks PWA and production WebRTC.
+### 2. Tile Placement Sound (Domino Clack)
 
-### 2. WebSocket Support on Hosting Platform
+**Why expected:** Core tactile feedback. Every board game app plays a sound when a piece is placed on the board. This single sound does more for "game feels alive" than all other sounds combined.
 
-**Why expected:** Socket.io is the ENTIRE transport layer. Zero REST endpoints. A platform that doesn't support persistent WebSocket connections is unusable.
+**Concrete behavior:**
+- Plays on every `game:state_snapshot` where `lastAction.type === 'play_tile'`
+- Plays for ALL players' moves, not just local player
+- Must not conflict with tile animation timing (animation already uses 500ms timeout at useSocket line 96)
+- Crisp, short domino-on-table clack
 
-**Concrete requirements:**
-- Persistent process (not serverless/lambda)
-- WebSocket upgrade support (not just HTTP long-polling)
-- No aggressive idle timeout (Socket.io `pingInterval` is 25s, `pingTimeout` is 60s -- platform must not kill idle connections faster than this)
+**Complexity:** Low
+**Dependencies:** AudioContext unlock, SFX toggle
+**Trigger point:** `useSocket.ts` line 93-97 (same event that drives `setLastTileSequence`)
 
-**Complexity:** Low -- platform selection constraint, not a code change.
+### 3. Turn Notification Sound
 
-**Eliminates:** Vercel (serverless), Netlify Functions (serverless), AWS Lambda (without complex API Gateway WebSocket config).
+**Why expected:** Players tab away, check phones, or get distracted. An audio cue that it's your turn prevents game stalling. This is the #2 most impactful sound.
 
-### 3. HTTPS in Production
+**Concrete behavior:**
+- Plays when `gameState.isMyTurn` transitions from `false` to `true`
+- Must NOT play on initial game load (when `isMyTurn` is first set)
+- Must NOT play when the local player just placed a tile (it's already their context)
+- Distinct from tile clack -- gentle chime, not percussive
 
-**Why expected:** WebRTC `getUserMedia()` is blocked on insecure origins in all modern browsers. Camera/mic features break without HTTPS. PWA installability also requires secure context.
+**Complexity:** Low
+**Dependencies:** AudioContext unlock, SFX toggle
+**Trigger point:** `useSocket.ts` `game:state_snapshot` handler -- compare previous `isMyTurn` with new value
 
-**Complexity:** Low -- Railway, Render, and Fly.io all provide free auto-managed TLS certificates.
+### 4. Pass Sound Effect
 
-### 4. CORS Configured for Production Origin
+**Why expected:** Auto-pass is silent and fast. Without audio cue, players often don't realize passes happened, especially in rapid cascade scenarios where 2-3 players pass sequentially.
 
-**Why expected:** Server currently has `cors({ origin: config.CLIENT_ORIGIN })`. In production with same-origin serving (Express serves client), CORS headers are technically unnecessary for same-origin requests. However, Socket.io's CORS config also needs to allow the production origin.
+**Concrete behavior:**
+- Plays on each `game:player_passed` event
+- Must handle rapid-fire cascade (multiple passes in <1 second) without clipping or overlapping badly
+- Short, subtle sound (whoosh or soft knock)
 
-**Concrete fix:** In production, set `CLIENT_ORIGIN` to the Railway domain (e.g., `https://dominos-pr.up.railway.app`), or configure Socket.io CORS to allow same-origin by detecting production mode.
+**Complexity:** Low
+**Dependencies:** AudioContext unlock, SFX toggle
+**Trigger point:** `useSocket.ts` line 100 (`game:player_passed` handler)
 
-**Complexity:** Low -- environment variable configuration.
+### 5. SFX Mute Toggle (Game UI)
 
-### 5. PWA Manifest + Service Worker (Minimal)
+**Why expected:** Players in meetings, late at night, or on a video call need to silence game sounds instantly. A mute button is mandatory.
 
-**Why expected:** "Installable from browser" is a stated v1.1 goal. Browser installability criteria: (1) valid `manifest.json` with `name`, `icons`, `start_url`, `display`; (2) registered service worker; (3) HTTPS.
+**Concrete behavior:**
+- Toggle button visible on game screen (small speaker icon, likely near existing UI controls)
+- Reads/writes `soundEnabled` (or `sfxEnabled` if split) from uiStore
+- When muted, no SFX play. When unmuted, SFX resume immediately.
+- Persist preference to `localStorage` so it survives page reload
 
-**Concrete expected behavior:**
-- Chrome/Safari show "Add to Home Screen" option
-- App launches in standalone mode (no browser chrome)
-- Home screen icon shows a domino-themed image
-- Status bar matches app theme color
-
-**Complexity:** Low -- `vite-plugin-pwa` generates manifest and service worker from config.
-
-**Critical note on service worker scope:** The SW should cache static assets (JS, CSS, fonts, images) for faster subsequent loads. It must NOT intercept Socket.io WebSocket traffic or attempt offline game state caching. This is a real-time-only app.
-
-### 6. PWA Icons (192px + 512px, Regular + Maskable)
-
-**Why expected:** Install prompt and home screen require icons. Without them, the browser uses a generic icon or screenshot.
-
-**Requirements:** 192x192 regular, 512x512 regular, 192x192 maskable, 512x512 maskable. Domino-themed design matching the dark aesthetic.
-
-**Complexity:** Low -- design/asset creation task.
-
-### 7. Circular Video in Player Seat Positions
-
-**Why expected:** Headline feature of v1.1. Replace the 32x32 initials circle in `PlayerSeat` with a live video feed.
-
-**Concrete expected behavior:**
-- Each player seat shows a circular video when camera is active
-- CSS approach: `border-radius: 50%` + `object-fit: cover` + `overflow: hidden` on the container
-- Falls back to initials when: player not in call, camera off, no stream
-- Turn indicator glow (existing `neon-glow` + team color border) applies to video circle
-- Tile count badge stays visible (absolute-positioned overlay)
-- Disconnect indicator preserved
-
-**Complexity:** Medium
-- Size consideration: current avatar is `w-8 h-8` (32px). Video needs at least 48-64px diameter to show a recognizable face. This means adjusting `PlayerSeat` sizing and potentially affecting game table layout
-- 4 simultaneous `<video>` elements on mobile needs performance testing
-- Muted attribute: video elements MUST be muted (audio plays through separate `<audio>` elements, already established pattern)
-- Layout positions: `PlayerSeat` is used at top/bottom/left/right with different flex directions. The larger avatar must work in all orientations
-
-**Dependencies:** Existing `callStore.remoteStreams` and `callStore.localStream`. No new WebRTC code.
-
-### 8. Audio Element Relocation
-
-**Why expected:** Currently `<audio>` elements for remote streams live inside `VideoCallPanel` (the side panel). If the side panel is removed/replaced, audio playback breaks.
-
-**Concrete fix:** Move `RemoteAudio` components to a parent component that's always rendered (e.g., `GameTable` or `AppRoutes`), independent of any video UI panel.
-
-**Complexity:** Low -- extract and relocate existing `RemoteAudio` pattern from `VideoCallPanel.tsx` lines 135-144.
+**Complexity:** Low
+**Dependencies:** Existing `soundEnabled` in uiStore (already defined, just needs UI binding)
 
 ---
 
 ## Differentiators
 
-Features that elevate beyond minimum expectations but are not required.
+Features that elevate the experience. Not required for "game feels alive" but add significant polish.
 
-| Feature | Value Proposition | Complexity | Notes |
-|---------|-------------------|------------|-------|
-| **Custom install prompt banner** | `beforeinstallprompt` event + custom UI increases install rate vs relying on browser's native prompt | Low | NOT available on iOS Safari. Banner only for Chrome/Android. Dismiss with localStorage for 7 days |
-| **iOS standalone meta tags** | `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style`, `apple-touch-icon` for polished iOS PWA feel | Low | Add to `client/index.html` head |
-| **Mic/camera toggle on avatar tap** | Quick control access after side panel removal | Medium | Tap own avatar shows floating control bar; auto-dismiss after 3s. Must not interfere with tile selection |
-| **Speaking indicator (pulsing ring)** | Visual feedback that a player is talking | Medium | `AudioContext.createAnalyser()` on remote `MediaStream`; animate border pulse when volume above threshold |
-| **Responsive avatar size** | Larger circles on tablet, smaller on phone | Low | Tailwind responsive classes `w-10 sm:w-12 md:w-14` |
-| **PWA splash screen** | Branded loading screen when app launches from home screen | Low | Manifest `theme_color` + `background_color` configuration only |
-| **Health check endpoint** | Monitoring for deployed server uptime | Very Low | Single `app.get('/health', ...)` returning 200 |
-| **Custom domain** | `dominos.pr` or similar is vastly more shareable than `*.up.railway.app` | Low | DNS CNAME + platform config. ~$12/year |
-| **TURN server configuration** | Reliable WebRTC across carrier NATs post-deployment | Medium | Metered.ca or Twilio TURN free tier. Env var for ICE server config. No code architecture changes |
+| Feature | Value Proposition | Complexity | Dependencies | Notes |
+|---------|-------------------|------------|--------------|-------|
+| **Lo-fi background music (menu/lobby)** | Sets mood; makes waiting for players feel less dead. Puerto Rican casual vibe. | Medium | Royalty-free music file, separate music toggle, fade-in/out logic | Must fade out when game starts. Must not conflict with WebRTC voice chat. Needs loopable track (60-120s). |
+| **Separate music vs SFX toggles** | Players on video call want SFX but music interferes with conversation | Medium | Split `soundEnabled` into `musicEnabled` + `sfxEnabled` | Two controls instead of one. Both persisted to localStorage. Only needed if music feature ships. |
+| **Round end fanfare** | Punctuates victories; short celebratory sound when a round ends | Low | `game:round_ended` event | 1-2 second jingle. Different weight than game-end. |
+| **Game end fanfare** | Bigger celebration for winning the whole game | Low | `game:game_ended` event | 2-3 second celebration. More impactful than round fanfare. |
+| **Chat message notification ping** | Subtle ping when new chat arrives while panel is closed | Low | `chat:message` event + `chatOpen` state (unreadCount logic already exists) | Very short, subtle. Only when chat is closed. |
+| **Boneyard draw sound** | Distinct sound for drawing from boneyard in 2-player mode | Low | `game:boneyard_draw` event | Shuffling/drawing sound distinct from tile clack. |
+| **Audio state persistence (localStorage)** | Preferences survive page reload and reconnection | Low | localStorage read on store init | Use Zustand `persist` middleware or manual read/write. Quick win. |
+| **Capicu / Chuchazo special sound** | Celebratory accent for bonus scoring plays unique to Puerto Rican dominoes | Low | Detectable from round-end data (capicu/chuchazo flags) | Culturally relevant. Short celebratory SFX before round fanfare. |
+| **SFX volume slider** | Fine-grained control over effect loudness | Low | Global GainNode in audio manager | Single slider, not per-sound. Separate from music volume. |
+| **Game start sound** | Brief flourish when game begins; signals transition from lobby to gameplay | Low | `game:started` event | Very short (< 1s). Plays once. |
 
 ---
 
 ## Anti-Features
 
-Features to explicitly NOT build in v1.1.
+Features to explicitly NOT build. These add complexity without proportional value.
 
 | Anti-Feature | Why Avoid | What to Do Instead |
 |--------------|-----------|-------------------|
-| **Offline gameplay mode** | Entire app is real-time Socket.io. No local game engine exists. Offline play is impossible | SW caches static assets only; show "Sin conexion" when socket disconnects |
-| **Push notifications** | No accounts, no server-side user registry, no push subscription storage | Skip. Players coordinate via external messaging |
-| **Background sync** | No pending actions queue. Game state is ephemeral and server-authoritative | Skip |
-| **New getUserMedia calls in PlayerSeat** | Streams already managed in `callStore`/`useWebRTC`. Duplicate acquisition creates permission prompts and stream conflicts | Pass `MediaStream \| null` as prop. PlayerSeat renders, does not acquire |
-| **Side panel AND avatar cameras simultaneously** | Redundant video display. Two places showing same streams wastes space and confuses UX | Replace side panel with avatar cameras. Relocate audio elements |
-| **Full offline-first PWA with Workbox strategies** | Over-engineered for a real-time game with zero local state persistence | `vite-plugin-pwa` with `registerType: 'autoUpdate'` and default precaching |
-| **Canvas-based video processing** | Face detection, background blur, circular crop via canvas are all unnecessary | Pure CSS `border-radius: 50%` + `overflow: hidden` + `object-fit: cover` |
-| **Database** | No persistent data exists. Rooms are in-memory. Explicitly out of scope per PROJECT.md | Keep zero-database architecture |
-| **CI/CD pipeline** | Over-engineering for this project stage | Railway auto-deploys from GitHub push |
-| **Dockerfile** | Railway Nixpacks handles Node.js monorepos natively | Let platform auto-detect |
-| **Adaptive bitrate / simulcast** | Avatars are small (48-64px). Even low bitrate WebRTC video looks fine at that size | Use default WebRTC quality negotiation |
+| **Background music during gameplay** | Competes with WebRTC voice chat and tile/turn sounds. Most players will mute it immediately. Creates audio fatigue in long games. | Music in menu/lobby only. Silence (with SFX) during gameplay. |
+| **Per-player sound customization** | Multiplies audio assets, adds settings UI complexity for marginal value in a casual game | Single curated sound set. Well-chosen defaults. |
+| **Spatial/3D audio positioning** | This is a board game, not an FPS. Positional audio adds nothing to dominos. | Standard stereo playback. |
+| **Dynamic/adaptive music** | Enormous complexity (layered music systems reacting to game state). Completely overkill for a casual domino game. | Static lo-fi loop with simple fade transitions. |
+| **Server-side audio synchronization** | Sounds are client-side UI feedback, not game state. Syncing adds latency, server load, and complexity for zero benefit. | Each client plays sounds locally based on received socket events. |
+| **Custom sound upload** | Security risk (audio files can be malicious), storage costs, moderation burden | Fixed curated sound set. |
+| **Voice chat join/leave chimes** | WebRTC already has visual connection indicators. Adding audio chimes creates confusion between "game event" and "call event" sounds. | Keep WebRTC audio system completely separate from game audio. |
+| **Howler.js or heavy audio library** | The Web Audio API handles everything needed here (short SFX, gain control, single music loop). Adding a dependency for features we won't use (sprites, spatial audio, format fallback) is unnecessary. | Lightweight custom audio manager using Web Audio API directly. The codebase already uses AudioContext for speaking detection. |
+
+---
+
+## Sound Event Mapping
+
+Complete mapping from game events to audio triggers.
+
+| Game Event | Socket Event / Trigger | Sound Type | Priority | Notes |
+|------------|----------------------|------------|----------|-------|
+| Tile placed (any player) | `game:state_snapshot` + `lastAction.type === 'play_tile'` | Domino clack | P0 | Core feedback |
+| My turn starts | `game:state_snapshot` where `isMyTurn` flips to `true` | Gentle notification chime | P0 | Skip if local player just played |
+| Player passed | `game:player_passed` | Quick subtle whoosh/knock | P0 | May fire rapidly in cascade |
+| Enter menu/lobby | Route change to `/` or `/lobby` | Start background music loop | P1 | Fade in over ~1s |
+| Leave lobby (game starts) | `game:started` event | Fade out music, optional start flourish | P1 | Crossfade or quick fade |
+| Round ended | `game:round_ended` | Short fanfare (1-2s) | P1 | |
+| Game ended | `game:game_ended` | Celebration fanfare (2-3s) | P1 | More impactful than round |
+| Chat message (panel closed) | `chat:message` + `!chatOpen` | Soft ping | P2 | Only when chat panel is closed |
+| Boneyard draw | `game:boneyard_draw` | Card/tile shuffle | P2 | 2-player mode only |
+| Capicu / Chuchazo | Detectable from `game:round_ended` payload | Special celebratory accent | P2 | Before round fanfare |
+
+---
+
+## Audio File Requirements
+
+| Sound | Format | Duration | Size Target | Character |
+|-------|--------|----------|-------------|-----------|
+| Tile clack | MP3 | 200-400ms | < 20KB | Crisp, satisfying; domino-on-table impact |
+| Turn notification | MP3 | 300-500ms | < 15KB | Gentle chime; noticeable but not jarring |
+| Pass sound | MP3 | 150-300ms | < 10KB | Subtle; must not be annoying when rapid-fired |
+| Round fanfare | MP3 | 1-2s | < 50KB | Upbeat, short celebration |
+| Game fanfare | MP3 | 2-3s | < 80KB | Bigger celebration than round |
+| Chat ping | MP3 | 100-200ms | < 8KB | Subtle, non-intrusive |
+| Boneyard draw | MP3 | 200-400ms | < 15KB | Shuffling/drawing character |
+| Capicu/Chuchazo accent | MP3 | 500ms-1s | < 30KB | Celebratory sting |
+| Lo-fi background music | MP3 | 60-120s (seamless loop) | < 500KB | Chill, ambient; clean loop point |
+
+**Total estimated audio payload:** ~730KB max. Well within PWA cache budget. All files served from `client/public/sounds/` and precached by service worker.
+
+**Format rationale:** MP3 has universal browser support (including Safari/iOS). OGG is unnecessary as a fallback since MP3 coverage is 100% in modern browsers. Single format simplifies the build.
 
 ---
 
 ## Feature Dependencies
 
 ```
-Cloud Deployment (persistent process + HTTPS)
-  |--> PWA installability (HTTPS required for service worker registration)
-  |--> WebRTC works in production (getUserMedia requires secure context)
-  |--> Permanent shareable URL
-  |--> Can test PWA install flow (only fires on served HTTPS origins)
+Browser Autoplay Compliance (AudioContext unlock on first gesture)
+  |
+  +--> Audio Manager (singleton managing AudioContext, GainNodes, playback)
+  |      |
+  |      +--> SFX Channel (GainNode for all sound effects)
+  |      |     |
+  |      |     +--> Tile clack
+  |      |     +--> Turn notification
+  |      |     +--> Pass sound
+  |      |     +--> Round/game fanfare
+  |      |     +--> Chat ping
+  |      |     +--> Boneyard draw
+  |      |     +--> Capicu/Chuchazo accent
+  |      |
+  |      +--> Music Channel (GainNode for background music)
+  |            |
+  |            +--> Lo-fi lobby/menu music
+  |
+  +--> SFX Toggle (uiStore) --> Controls SFX GainNode (mute/unmute)
+  +--> Music Toggle (uiStore) --> Controls Music GainNode (mute/unmute)
+  +--> localStorage persistence --> Feeds both toggles on page reload
 
-CORS config for production origin
-  |--> Socket.io connects successfully in production
-
-PWA manifest + icons + service worker
-  |--> Browser "Add to Home Screen" prompt
-  |--> beforeinstallprompt event for custom banner (Chrome/Android only)
-
-Existing callStore streams (localStream, remoteStreams)
-  |--> Circular avatar cameras (consume existing streams, no new WebRTC code)
-
-PlayerSeat component modification
-  |--> Circular video avatars (modify existing, don't create separate component)
-  |--> Must preserve: initials fallback, tile count badge, turn glow, disconnect indicator
-
-Audio element relocation (from VideoCallPanel to always-rendered parent)
-  |--> Safe to remove VideoCallPanel
-  |--> Audio continues playing when panel is gone
-
-Call join controls relocation
-  |--> Currently "join call" buttons are in VideoCallPanel
-  |--> Need new UX for late-joining a call (button near avatars? lobby reminder?)
+Split soundEnabled into sfxEnabled + musicEnabled
+  --> Replaces existing single boolean in uiStore
 ```
-
-**Key insight:** Deploy must come first. Both PWA and avatar cameras can be developed locally, but PWA install prompts only fire on HTTPS origins and WebRTC camera permissions behave differently on localhost vs production. Deploy early, iterate in production.
 
 ---
 
 ## MVP Recommendation
 
-**Phase 1: Deploy** (unblocks everything, no UI changes)
-1. Deploy to Railway -- persistent process, free HTTPS, WebSocket support
-2. Set `CLIENT_ORIGIN`, `PORT`, `NODE_ENV=production` environment variables
-3. Verify Socket.io connects over public internet
-4. Verify WebRTC video/audio works (may reveal TURN server need)
+**Ship in this order for maximum impact with minimum risk:**
 
-**Phase 2: Circular Avatar Cameras** (highest UX impact)
-1. Modify `PlayerSeat` to accept `stream: MediaStream | null` + `cameraOff: boolean` props
-2. Render `<video>` inside rounded-full container with `object-fit: cover`
-3. Increase avatar diameter from 32px to ~48-56px for video visibility
-4. Preserve all existing overlays (tile count, turn glow, disconnect indicator)
-5. Extract `<audio>` elements from `VideoCallPanel` to always-rendered parent
-6. Add compact mic/camera controls (tap own avatar or dedicated small buttons)
-7. Remove `VideoCallPanel` side panel (or convert to controls-only)
+### Phase 1: Audio Foundation + Core SFX (P0)
 
-**Phase 3: PWA** (polish layer, minimal code)
-1. Install `vite-plugin-pwa`, configure manifest with icons
-2. Add minimal service worker (static asset precaching, autoUpdate)
-3. Add iOS meta tags to `client/index.html`
-4. Add `viewport-fit=cover` for fullscreen feel
-5. Optional: custom install prompt banner for Android/Chrome
+1. **Audio manager singleton** with autoplay unlock -- foundation; nothing works without this
+2. **Tile clack on play** -- most impactful single sound; makes the game feel physical
+3. **Turn notification** -- solves "whose turn is it?" when players tab away
+4. **Pass sound** -- completes the core gameplay audio loop
+5. **SFX toggle in game UI** -- mute button wired to existing `soundEnabled`
 
-**Defer:**
-- **TURN server:** Monitor post-deploy. Add only if users report connection failures
-- **Custom domain:** After deployment verified stable
-- **Speaking indicator:** Future polish pass
+This delivers the "game feels alive" goal with 4 sounds and a mute button.
+
+### Phase 2: Music + Extended SFX (P1)
+
+1. **Lo-fi background music** in menu/lobby with fade-out on game start
+2. **Split toggles** (music vs SFX) in both lobby and game screens
+3. **Round/game end fanfare** sounds
+4. **localStorage persistence** for audio preferences
+5. **Game start sound**
+
+### Phase 3: Polish SFX (P2) -- Optional
+
+1. Chat notification ping
+2. Boneyard draw sound
+3. Capicu/Chuchazo special sound
+4. Volume slider
+
+**Defer entirely:**
+- **Dynamic/adaptive music:** Massive complexity, zero ROI for casual game
+- **Per-player customization:** Not needed
 
 ---
 
@@ -229,44 +236,41 @@ Call join controls relocation
 
 | Feature Area | Estimated Effort | Risk | Notes |
 |--------------|-----------------|------|-------|
-| Cloud deployment | 2-4 hours | Low | Architecture is production-ready. Config + deploy + verify |
-| Circular avatar cameras | 4-8 hours | Medium | CSS is simple but: avatar sizing affects layout, controls need new UX, audio relocation, removing side panel without regressions |
-| PWA support | 2-3 hours | Low | `vite-plugin-pwa` handles 90%. Icon creation is main manual work |
-| TURN server (if needed) | 2-4 hours | Medium | Provider signup + env config. No architecture changes |
-| Custom install banner | 1-2 hours | Low | `beforeinstallprompt` + simple component |
+| Audio manager + autoplay unlock | 1-2 hours | Low | Well-understood pattern. AudioContext already used in codebase for speaking detection. |
+| Core SFX (clack, turn, pass) | 2-3 hours | Low | Event hooks already exist in useSocket. Just add play calls. |
+| SFX toggle UI | 30 min | Low | Store field exists. Wire a button. |
+| Background music + fade logic | 2-3 hours | Medium | Looping, fade transitions, route-aware playback. Music file sourcing adds time. |
+| Separate music/SFX toggles | 1 hour | Low | Split one boolean into two. Two UI controls. |
+| Round/game fanfare | 30 min | Low | Same pattern as tile clack, different trigger event. |
+| localStorage persistence | 30 min | Low | Zustand persist middleware or manual. |
+| Sound file sourcing | 1-2 hours | Medium | Finding good royalty-free SFX and music. Quality matters for feel. |
+
+**Total estimated effort:** 8-12 hours for full feature set (Phases 1-3).
 
 ---
 
 ## Sources
 
 - **Direct codebase analysis (HIGH confidence):**
-  - `server/src/index.ts` lines 30-34: production static serving implemented
-  - `server/src/config.ts`: env-based config for `PORT`, `CLIENT_ORIGIN`, `NODE_ENV`
-  - `client/vite.config.ts`: dev proxy config (irrelevant in production same-origin setup)
-  - `PlayerSeat.tsx`: 32x32 (`w-8 h-8`) initials circle, team color border, tile count badge, turn glow
-  - `VideoTile.tsx`: 56x42 video with `showVideo` conditional, mic/camera toggle buttons, `videoRef` pattern
-  - `VideoCallPanel.tsx`: side panel with `RemoteAudio` audio elements (lines 135-144), call join buttons, ordered player indices
-  - `web/manifest.json`: stale Flutter boilerplate with `"description": "A new Flutter project."` -- clearly not for this app
-  - `client/index.html`: no PWA meta tags, no manifest link, no service worker
-  - `client/package.json`: Vite 5, React 18, no PWA plugin yet
-  - Socket.io config: `pingTimeout: 60000`, `pingInterval: 25000` -- platform must support these keepalive intervals
+  - `client/src/store/uiStore.ts`: `soundEnabled` boolean (line 23), toggle function (line 78), default `true` (line 55). Not referenced in any component.
+  - `client/src/hooks/useSocket.ts`: All game event handlers with exact line numbers for trigger points.
+  - `client/src/hooks/useSpeakingDetection.ts`: Existing AudioContext creation/resume pattern (lines 62-67).
+  - `client/public/`: Only PWA icons, no audio files yet.
+  - `assets/sounds/click.mp3`: Legacy Flutter asset, exists but not integrated.
 
-- **PWA installability criteria (HIGH confidence):** W3C Web App Manifest standard. Secure context + manifest + service worker. Stable since 2019.
+- **Browser autoplay policy (HIGH confidence):** Chrome (2018+), Safari (2017+), Firefox (2019+) all require user gesture before AudioContext or HTMLAudioElement can play. This is a stable, well-documented browser behavior.
 
-- **WebRTC secure context requirement (HIGH confidence):** `getUserMedia()` restricted to HTTPS in all modern browsers. Established W3C/IETF spec.
+- **Web Audio API suitability (HIGH confidence):** Native browser API, no dependencies needed. Supports AudioBufferSourceNode for low-latency SFX, GainNode for volume control, and HTMLMediaElement for music streaming. Already in use in this codebase.
 
-- **Deployment platform capabilities (MEDIUM confidence):** Training data on Railway, Render, Fly.io. WebSocket support and free HTTPS are documented features. Verify current pricing/free tier limits at deployment time.
-
-- **`vite-plugin-pwa` (MEDIUM confidence):** Widely used Vite plugin for PWA. Verify specific API and latest version during implementation.
+- **MP3 browser support (HIGH confidence):** Universal in modern browsers including Safari/iOS since 2012+. No need for OGG fallback.
 
 **Confidence assessment:**
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Deployment readiness | HIGH | Verified by reading actual production mode code in `server/src/index.ts` |
-| PWA requirements | HIGH | Browser installability criteria are a stable W3C standard |
-| Avatar camera feasibility | HIGH | Existing `VideoTile` proves the pattern; `PlayerSeat` modification is mechanical |
-| Audio relocation necessity | HIGH | Verified `RemoteAudio` lives inside `VideoCallPanel` -- must be relocated |
-| Platform recommendations | MEDIUM | Training data only; verify current pricing before committing |
-| `vite-plugin-pwa` API | MEDIUM | Verify during implementation |
-| TURN server necessity | LOW | Depends on actual user network conditions post-deploy |
+| Event-to-sound mapping | HIGH | Derived directly from reading useSocket.ts event handlers |
+| Audio manager architecture | HIGH | Web Audio API is mature and already used in this codebase |
+| Feature prioritization | HIGH | Based on user-facing impact analysis of each sound |
+| Audio file specifications | MEDIUM | Based on general web game audio practices, not domino-specific research |
+| Effort estimates | MEDIUM | Based on codebase familiarity; actual sourcing of sound files may vary |
+| Music licensing requirements | LOW | Royalty-free sources exist but specific recommendations need verification |
