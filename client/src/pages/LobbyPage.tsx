@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useRoomStore } from '../store/roomStore'
 import { RoomLobby } from '../components/lobby/RoomLobby'
+import { AudioControls } from '../components/game/AudioControls'
 
 export function LobbyPage() {
   const room = useRoomStore(s => s.room)
@@ -16,6 +17,7 @@ export function LobbyPage() {
   return (
     <div className="min-h-screen felt-table flex items-center justify-center p-4">
       <RoomLobby />
+      <AudioControls />
     </div>
   )
 }
