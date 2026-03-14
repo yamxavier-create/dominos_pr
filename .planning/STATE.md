@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Sound & Audio
 status: executing
-stopped_at: Completed 13-02-PLAN.md
-last_updated: "2026-03-14T19:57:22Z"
-last_activity: 2026-03-14 -- Completed 13-02 PWA Audio Precache plan
+stopped_at: Completed 13-01-PLAN.md
+last_updated: "2026-03-14T19:58:19Z"
+last_activity: 2026-03-14 -- Completed 13-01 Audio Foundation plan
 progress:
   total_phases: 3
   completed_phases: 0
@@ -53,6 +53,8 @@ See PROJECT.md Key Decisions table for full log.
 
 - [13-02] Used ffmpeg silent MP3 placeholder (748 bytes) for PWA cache testing
 - [13-02] Added mp3 to workbox globPatterns precache (not runtimeCaching) for immediate offline availability
+- [13-01] AudioContext singleton never closed -- persists for app lifetime to avoid iOS single-context limitation
+- [13-01] Split soundEnabled into sfxEnabled + musicEnabled for independent control in future phases
 
 ### Pending Todos
 
@@ -60,12 +62,12 @@ None.
 
 ### Blockers/Concerns
 
-- useSpeakingDetection.ts creates/destroys its own AudioContext per stream -- must refactor to shared singleton in Phase 13 (iOS enforces single active AudioContext)
+- ~~useSpeakingDetection.ts creates/destroys its own AudioContext per stream~~ RESOLVED: refactored to shared singleton in 13-01
 - Audio file sourcing needed: 3 SFX clips + 1 lo-fi music loop (royalty-free, MP3 format)
 - iOS silent mode (ringer switch) blocks all web audio -- platform limitation, not fixable
 
 ## Session Continuity
 
-Last session: 2026-03-14T19:57:22Z
-Stopped at: Completed 13-02-PLAN.md
-Resume file: .planning/phases/13-audio-foundation/13-02-SUMMARY.md
+Last session: 2026-03-14T19:58:19Z
+Stopped at: Completed 13-01-PLAN.md
+Resume file: .planning/phases/13-audio-foundation/13-01-SUMMARY.md

@@ -20,8 +20,8 @@ Requirements for Sound & Audio milestone. Each maps to roadmap phases.
 
 ### Audio Infrastructure
 
-- [ ] **AUD-01**: Audio uses a shared AudioContext singleton (compatible with existing WebRTC speaking detection)
-- [ ] **AUD-02**: Audio handles browser autoplay policy (unlocks on first user interaction)
+- [x] **AUD-01**: Audio uses a shared AudioContext singleton (compatible with existing WebRTC speaking detection)
+- [x] **AUD-02**: Audio handles browser autoplay policy (unlocks on first user interaction)
 - [x] **AUD-03**: Audio files are cached by PWA service worker for offline playback
 
 ### Audio Controls
@@ -65,8 +65,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUD-01 | Phase 13 | Pending |
-| AUD-02 | Phase 13 | Pending |
+| AUD-01 | Phase 13 | Complete |
+| AUD-02 | Phase 13 | Complete |
 | AUD-03 | Phase 13 | Complete |
 | SFX-01 | Phase 14 | Pending |
 | SFX-02 | Phase 14 | Pending |

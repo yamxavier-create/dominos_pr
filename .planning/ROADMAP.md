@@ -67,8 +67,8 @@ Full details: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md)
   4. Existing WebRTC speaking detection with green glow ring still works identically after the AudioContext refactor
 **Plans:** 2/2 plans complete
 Plans:
-- [ ] 13-01-PLAN.md -- AudioContext singleton, autoplay unlock, audio loader, useSpeakingDetection refactor, uiStore split toggles
-- [ ] 13-02-PLAN.md -- PWA workbox globPatterns update for MP3 caching
+- [x] 13-01-PLAN.md -- AudioContext singleton, autoplay unlock, audio loader, useSpeakingDetection refactor, uiStore split toggles
+- [x] 13-02-PLAN.md -- PWA workbox globPatterns update for MP3 caching
 
 ### Phase 14: Game Sound Effects
 **Goal**: Players hear audio feedback for the three core gameplay events -- tile placement, turn start, and pass -- making the game feel alive without visual attention
