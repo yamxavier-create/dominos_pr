@@ -1,5 +1,6 @@
 {
   "name": "dominos-pr",
+  "version": "1.2.1",
   "private": true,
   "workspaces": ["client", "server"],
   "scripts": {
