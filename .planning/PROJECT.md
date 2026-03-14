@@ -36,9 +36,22 @@ Friends can start and finish a complete game of Puerto Rican dominoes online, in
 - ✓ Camera and mic toggle controls during gameplay — v1.1
 - ✓ Speaking detection with visual glow indicator — v1.1
 
+## Current Milestone: v1.2 Sound & Audio
+
+**Goal:** Add audio feedback to make the game feel alive — tile sounds, turn/pass notifications, and ambient lobby music.
+
+**Target features:**
+- Tile clack sound effect on play
+- Turn notification sound
+- Pass sound effect
+- Lo-fi background music in menu/lobby
+- Separate toggles for music and SFX
+
 ### Active
 
-(No active requirements — next milestone not yet defined)
+- [ ] Sound effects for tile placement, turn notification, and pass events
+- [ ] Lo-fi background music in menu and lobby screens
+- [ ] Separate audio controls for music and SFX
 
 ### Out of Scope
 
@@ -87,4 +100,4 @@ PWA installable with service worker (socket.io and /health excluded from caching
 | Speaking threshold 25 on first 8 FFT bins | Reliable speech frequency detection without over-sensitivity | ✓ Good |
 
 ---
-*Last updated: 2026-03-13 after v1.1 milestone completion*
+*Last updated: 2026-03-14 after v1.2 milestone start*

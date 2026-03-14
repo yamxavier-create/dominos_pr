@@ -1,33 +1,34 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: Deploy & Polish
-status: archived
-stopped_at: Milestone v1.1 archived
-last_updated: "2026-03-13"
-last_activity: 2026-03-13 -- Milestone v1.1 archived (3 phases, 5 plans shipped)
+milestone: v1.2
+milestone_name: Sound & Audio
+status: active
+stopped_at: null
+last_updated: "2026-03-14"
+last_activity: 2026-03-14 -- Milestone v1.2 started
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 5
-  completed_plans: 5
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-13)
+See: .planning/PROJECT.md (updated 2026-03-14)
 
 **Core value:** Friends can start and finish a complete game of Puerto Rican dominoes online, in real time, from any device -- without friction.
-**Current focus:** Planning next milestone
+**Current focus:** Defining requirements for v1.2 Sound & Audio
 
 ## Current Position
 
-Milestone v1.1 complete and archived. No active milestone.
-
-Progress: [██████████] 100%
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-14 — Milestone v1.2 started
 
 ## Accumulated Context
 
@@ -47,6 +48,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-13
-Stopped at: Milestone v1.1 archived
+Last session: 2026-03-14
+Stopped at: Milestone v1.2 started — defining requirements
 Resume file: None
