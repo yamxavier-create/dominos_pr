@@ -1,11 +1,13 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useSocket } from './hooks/useSocket'
+import { useBackgroundMusic } from './hooks/useBackgroundMusic'
 import { MenuPage } from './pages/MenuPage'
 import { LobbyPage } from './pages/LobbyPage'
 import { GamePage } from './pages/GamePage'
 
 function AppRoutes() {
   useSocket()
+  useBackgroundMusic()
 
   return (
     <Routes>
