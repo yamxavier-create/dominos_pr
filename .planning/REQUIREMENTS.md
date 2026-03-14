@@ -9,9 +9,9 @@ Requirements for Sound & Audio milestone. Each maps to roadmap phases.
 
 ### Sound Effects
 
-- [ ] **SFX-01**: User hears a clack sound when any player plays a tile on the board
-- [ ] **SFX-02**: User hears a notification sound when it becomes their turn to play
-- [ ] **SFX-03**: User hears a distinct sound when a player passes
+- [x] **SFX-01**: User hears a clack sound when any player plays a tile on the board
+- [x] **SFX-02**: User hears a notification sound when it becomes their turn to play
+- [x] **SFX-03**: User hears a distinct sound when a player passes
 
 ### Background Music
 
@@ -68,9 +68,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUD-01 | Phase 13 | Complete |
 | AUD-02 | Phase 13 | Complete |
 | AUD-03 | Phase 13 | Complete |
-| SFX-01 | Phase 14 | Pending |
-| SFX-02 | Phase 14 | Pending |
-| SFX-03 | Phase 14 | Pending |
+| SFX-01 | Phase 14 | Complete |
+| SFX-02 | Phase 14 | Complete |
+| SFX-03 | Phase 14 | Complete |
 | MUS-01 | Phase 15 | Pending |
 | MUS-02 | Phase 15 | Pending |
 | CTL-01 | Phase 15 | Pending |

@@ -51,7 +51,7 @@ Full details: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md)
 **Milestone Goal:** Add audio feedback to make the game feel alive -- tile sounds, turn/pass notifications, and ambient lobby music.
 
 - [x] **Phase 13: Audio Foundation** - Shared AudioContext singleton, autoplay unlock, uiStore audio preferences, PWA caching (completed 2026-03-14)
-- [ ] **Phase 14: Game Sound Effects** - Tile clack, turn notification, and pass sounds wired to socket events
+- [x] **Phase 14: Game Sound Effects** - Tile clack, turn notification, and pass sounds wired to socket events (completed 2026-03-14)
 - [ ] **Phase 15: Background Music & Controls** - Lo-fi lobby music lifecycle and separate SFX/music toggle UI
 
 ## Phase Details
@@ -79,7 +79,7 @@ Plans:
   2. User hears a notification sound when it becomes their turn (useful when tabbed away or distracted)
   3. User hears a distinct sound when any player passes, including during auto-pass cascades (rapid consecutive passes are debounced, not stacked)
   4. All three sounds play without delay or audio glitches on mobile Safari and Chrome
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
 - [ ] 14-01-PLAN.md -- Generate 3 SFX audio files, create sfx.ts module, wire triggers into useSocket.ts
 
@@ -115,5 +115,5 @@ Phases execute in numeric order: 13 -> 14 -> 15
 | 11. PWA Support | v1.1 | 1/1 | Complete | 2026-03-13 |
 | 12. Avatar Cameras | v1.1 | 2/2 | Complete | 2026-03-13 |
 | 13. Audio Foundation | v1.2 | 2/2 | Complete | 2026-03-14 |
-| 14. Game Sound Effects | v1.2 | 0/1 | Not started | - |
+| 14. Game Sound Effects | 1/1 | Complete   | 2026-03-14 | - |
 | 15. Background Music & Controls | v1.2 | 0/? | Not started | - |
