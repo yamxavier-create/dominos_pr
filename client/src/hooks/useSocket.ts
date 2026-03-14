@@ -6,6 +6,7 @@ import { useRoomStore } from '../store/roomStore'
 import { useUIStore, ChatMessage } from '../store/uiStore'
 import { useCallStore } from '../store/callStore'
 import { signalHandlerRef, peerJoinedCallRef } from './useWebRTC'
+import { playSfx, preloadSfx, playPassSfx } from '../audio/sfx'
 import { ClientGameState, RoundEndPayload, GameEndPayload, PassPayload, RematchVoteUpdate, RematchCancelled, BoneyardDrawPayload } from '../types/game'
 
 export function useSocket() {
@@ -69,12 +70,14 @@ export function useSocket() {
       clearRematchState()
       useUIStore.getState().clearChatState()
       navigate('/game')
+      preloadSfx()
     })
 
     socket.on('game:state_snapshot', ({
       gameState,
       lastAction,
     }: { gameState: ClientGameState; lastAction: any }) => {
+      const prevIsMyTurn = useGameStore.getState().gameState?.isMyTurn ?? false
       setGameState(gameState)
       // Dismiss round-end modal when new hand starts (non-host players)
       if (gameState.phase === 'playing') {
@@ -91,14 +94,19 @@ export function useSocket() {
       if (!gameState.isMyTurn) setSelectedTile(null)
       // BUG-01: use sequence to find newest tile, not array position (left-end plays land at index 0)
       if (lastAction?.type === 'play_tile' && gameState.board.tiles.length > 0) {
+        playSfx('tileClack')
         const last = gameState.board.tiles.reduce((a, b) => a.sequence > b.sequence ? a : b)
         setLastTileSequence(last.sequence)
         setTimeout(() => setLastTileSequence(null), 500)
+      }
+      if (gameState.isMyTurn && !prevIsMyTurn) {
+        playSfx('turnNotify')
       }
     })
 
     socket.on('game:player_passed', (payload: PassPayload) => {
       addPasoNotification(payload)
+      playPassSfx()
       setTimeout(() => {
         useUIStore.getState().removePasoNotification(payload.playerIndex)
       }, 2500)
