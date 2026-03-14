@@ -65,7 +65,10 @@ Full details: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md)
   2. Audio plays correctly even when the first sound trigger happens before any user gesture (autoplay unlock handles it transparently)
   3. Audio files load and play when the app is launched from the home screen in offline/airplane mode (PWA cache)
   4. Existing WebRTC speaking detection with green glow ring still works identically after the AudioContext refactor
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 13-01-PLAN.md -- AudioContext singleton, autoplay unlock, audio loader, useSpeakingDetection refactor, uiStore split toggles
+- [ ] 13-02-PLAN.md -- PWA workbox globPatterns update for MP3 caching
 
 ### Phase 14: Game Sound Effects
 **Goal**: Players hear audio feedback for the three core gameplay events -- tile placement, turn start, and pass -- making the game feel alive without visual attention
@@ -109,6 +112,6 @@ Phases execute in numeric order: 13 -> 14 -> 15
 | 10. Cloud Deployment | v1.1 | 2/2 | Complete | 2026-03-13 |
 | 11. PWA Support | v1.1 | 1/1 | Complete | 2026-03-13 |
 | 12. Avatar Cameras | v1.1 | 2/2 | Complete | 2026-03-13 |
-| 13. Audio Foundation | v1.2 | 0/? | Not started | - |
+| 13. Audio Foundation | v1.2 | 0/2 | Not started | - |
 | 14. Game Sound Effects | v1.2 | 0/? | Not started | - |
 | 15. Background Music & Controls | v1.2 | 0/? | Not started | - |
