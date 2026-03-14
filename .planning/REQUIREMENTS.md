@@ -65,22 +65,22 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SFX-01 | — | Pending |
-| SFX-02 | — | Pending |
-| SFX-03 | — | Pending |
-| MUS-01 | — | Pending |
-| MUS-02 | — | Pending |
-| AUD-01 | — | Pending |
-| AUD-02 | — | Pending |
-| AUD-03 | — | Pending |
-| CTL-01 | — | Pending |
-| CTL-02 | — | Pending |
+| AUD-01 | Phase 13 | Pending |
+| AUD-02 | Phase 13 | Pending |
+| AUD-03 | Phase 13 | Pending |
+| SFX-01 | Phase 14 | Pending |
+| SFX-02 | Phase 14 | Pending |
+| SFX-03 | Phase 14 | Pending |
+| MUS-01 | Phase 15 | Pending |
+| MUS-02 | Phase 15 | Pending |
+| CTL-01 | Phase 15 | Pending |
+| CTL-02 | Phase 15 | Pending |
 
 **Coverage:**
 - v1.2 requirements: 10 total
-- Mapped to phases: 0
-- Unmapped: 10 ⚠️
+- Mapped to phases: 10
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-14*
-*Last updated: 2026-03-14 after initial definition*
+*Last updated: 2026-03-14 after roadmap creation*

@@ -5,9 +5,9 @@ milestone_name: Sound & Audio
 status: active
 stopped_at: null
 last_updated: "2026-03-14"
-last_activity: 2026-03-14 -- Milestone v1.2 started
+last_activity: 2026-03-14 -- Roadmap created for v1.2
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,14 +21,29 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-14)
 
 **Core value:** Friends can start and finish a complete game of Puerto Rican dominoes online, in real time, from any device -- without friction.
-**Current focus:** Defining requirements for v1.2 Sound & Audio
+**Current focus:** Phase 13 - Audio Foundation
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-03-14 — Milestone v1.2 started
+Phase: 13 of 15 (Audio Foundation) -- 1 of 3 in v1.2
+Plan: --
+Status: Ready to plan
+Last activity: 2026-03-14 -- Roadmap created for v1.2 Sound & Audio (3 phases, 10 requirements)
+
+Progress: [░░░░░░░░░░] 0%
+
+## Performance Metrics
+
+**Velocity:**
+- Total plans completed: 0 (v1.2)
+- Average duration: --
+- Total execution time: --
+
+**By Phase:**
+
+| Phase | Plans | Total | Avg/Plan |
+|-------|-------|-------|----------|
+| - | - | - | - |
 
 ## Accumulated Context
 
@@ -42,12 +57,12 @@ None.
 
 ### Blockers/Concerns
 
-- TURN server may be needed post-deploy if WebRTC fails across networks (~15% symmetric NAT failure rate)
-- iOS PWA camera permissions vary by iOS version; AvatarCamera must have graceful initials fallback
-- VideoCallPanel.tsx is dead code (not imported anywhere) — should be deleted
+- useSpeakingDetection.ts creates/destroys its own AudioContext per stream -- must refactor to shared singleton in Phase 13 (iOS enforces single active AudioContext)
+- Audio file sourcing needed: 3 SFX clips + 1 lo-fi music loop (royalty-free, MP3 format)
+- iOS silent mode (ringer switch) blocks all web audio -- platform limitation, not fixable
 
 ## Session Continuity
 
 Last session: 2026-03-14
-Stopped at: Milestone v1.2 started — defining requirements
+Stopped at: Roadmap created -- ready to plan Phase 13
 Resume file: None
