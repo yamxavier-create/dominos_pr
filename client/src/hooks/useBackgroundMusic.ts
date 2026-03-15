@@ -13,7 +13,25 @@ export function useBackgroundMusic(): void {
     const shouldPlay = MUSIC_ROUTES.includes(pathname) && musicEnabled
 
     if (shouldPlay) {
-      playMusic()
+      playMusic().then(started => {
+        if (!started) {
+          // Autoplay blocked — unlock on first user interaction
+          const unlock = () => {
+            playMusic()
+            document.removeEventListener('click', unlock)
+            document.removeEventListener('keydown', unlock)
+            document.removeEventListener('touchstart', unlock)
+          }
+          document.addEventListener('click', unlock)
+          document.addEventListener('keydown', unlock)
+          document.addEventListener('touchstart', unlock)
+          return () => {
+            document.removeEventListener('click', unlock)
+            document.removeEventListener('keydown', unlock)
+            document.removeEventListener('touchstart', unlock)
+          }
+        }
+      })
     } else if (!musicEnabled) {
       pauseMusic()
     } else {
