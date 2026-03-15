@@ -4,8 +4,26 @@ import { useCallStore } from '../store/callStore'
 import { useRoomStore } from '../store/roomStore'
 import { useGameStore } from '../store/gameStore'
 
-const STUN_CONFIG: RTCConfiguration = {
-  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+const ICE_CONFIG: RTCConfiguration = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    {
+      urls: 'turn:openrelay.metered.ca:80',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
+  ],
 }
 
 export function useWebRTC() {
@@ -45,7 +63,7 @@ export function useWebRTC() {
 
   // Create a peer connection for one remote player
   const createPC = useCallback((remoteIndex: number): RTCPeerConnection => {
-    const pc = new RTCPeerConnection(STUN_CONFIG)
+    const pc = new RTCPeerConnection(ICE_CONFIG)
 
     // Add local tracks to this connection
     if (localStreamRef.current) {
