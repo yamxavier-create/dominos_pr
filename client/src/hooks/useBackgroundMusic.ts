@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useUIStore } from '../store/uiStore'
 import { playMusic, stopMusic, pauseMusic } from '../audio/music'
@@ -8,8 +8,15 @@ const MUSIC_ROUTES = ['/', '/lobby']
 export function useBackgroundMusic(): void {
   const { pathname } = useLocation()
   const musicEnabled = useUIStore(s => s.musicEnabled)
+  const unlockRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
+    // Clean up any previous unlock listener
+    if (unlockRef.current) {
+      unlockRef.current()
+      unlockRef.current = null
+    }
+
     const shouldPlay = MUSIC_ROUTES.includes(pathname) && musicEnabled
 
     if (shouldPlay) {
@@ -18,24 +25,31 @@ export function useBackgroundMusic(): void {
           // Autoplay blocked — unlock on first user interaction
           const unlock = () => {
             playMusic()
+            cleanup()
+          }
+          const cleanup = () => {
             document.removeEventListener('click', unlock)
             document.removeEventListener('keydown', unlock)
             document.removeEventListener('touchstart', unlock)
+            unlockRef.current = null
           }
           document.addEventListener('click', unlock)
           document.addEventListener('keydown', unlock)
           document.addEventListener('touchstart', unlock)
-          return () => {
-            document.removeEventListener('click', unlock)
-            document.removeEventListener('keydown', unlock)
-            document.removeEventListener('touchstart', unlock)
-          }
+          unlockRef.current = cleanup
         }
       })
     } else if (!musicEnabled) {
       pauseMusic()
     } else {
       stopMusic()
+    }
+
+    return () => {
+      if (unlockRef.current) {
+        unlockRef.current()
+        unlockRef.current = null
+      }
     }
   }, [pathname, musicEnabled])
 }
