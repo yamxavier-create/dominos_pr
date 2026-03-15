@@ -1,8 +1,12 @@
 import { useEffect, useRef } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useUIStore } from '../store/uiStore'
 import { playMusic, pauseMusic } from '../audio/music'
 
+const MUSIC_ROUTES = ['/', '/lobby']
+
 export function useBackgroundMusic(): void {
+  const { pathname } = useLocation()
   const musicEnabled = useUIStore(s => s.musicEnabled)
   const unlockRef = useRef<(() => void) | null>(null)
 
@@ -13,7 +17,9 @@ export function useBackgroundMusic(): void {
       unlockRef.current = null
     }
 
-    if (musicEnabled) {
+    const shouldPlay = MUSIC_ROUTES.includes(pathname) && musicEnabled
+
+    if (shouldPlay) {
       playMusic().then(started => {
         if (!started) {
           // Autoplay blocked — unlock on first user interaction
@@ -43,5 +49,5 @@ export function useBackgroundMusic(): void {
         unlockRef.current = null
       }
     }
-  }, [musicEnabled])
+  }, [pathname, musicEnabled])
 }
