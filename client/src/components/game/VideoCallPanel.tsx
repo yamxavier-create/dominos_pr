@@ -32,14 +32,14 @@ function SingleTile({ player, playerIndex, isMe, isCurrentTurn, stream, micMuted
   const roomCode = useRoomStore(s => s.roomCode)
   const color = teamColor(playerIndex)
 
-  // Video element — always muted; audio plays through separate <audio> element in parent
+  // Video element — muted only for local (prevent feedback); remote plays audio through <video>
   useEffect(() => {
     if (!videoRef.current) return
-    videoRef.current.muted = true
+    videoRef.current.muted = isMe
     videoRef.current.srcObject = stream ?? null
     if (stream) videoRef.current.play().catch(() => {})
     return () => { if (videoRef.current) videoRef.current.srcObject = null }
-  }, [stream])
+  }, [stream, isMe])
 
   const handleToggleMic = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -78,7 +78,7 @@ function SingleTile({ player, playerIndex, isMe, isCurrentTurn, stream, micMuted
             ref={videoRef}
             autoPlay
             playsInline
-            muted
+            muted={isMe}
             className="w-full h-full object-cover"
           />
         ) : (

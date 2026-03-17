@@ -4,33 +4,41 @@ import { useCallStore } from '../store/callStore'
 import { useRoomStore } from '../store/roomStore'
 import { useGameStore } from '../store/gameStore'
 
-const ICE_CONFIG: RTCConfiguration = {
+const METERED_API_KEY = 'a4eeccf14936fa399579d35818687b4c0448'
+
+const FALLBACK_ICE: RTCConfiguration = {
   iceServers: [
+    { urls: 'stun:stun.relay.metered.ca:80' },
     { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    {
-      urls: 'turn:openrelay.metered.ca:80',
-      username: 'openrelayproject',
-      credential: 'openrelayproject',
-    },
-    {
-      urls: 'turn:openrelay.metered.ca:443',
-      username: 'openrelayproject',
-      credential: 'openrelayproject',
-    },
-    {
-      urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-      username: 'openrelayproject',
-      credential: 'openrelayproject',
-    },
   ],
 }
+
+// Module-level ICE config — fetched once, used everywhere synchronously
+let iceConfig: RTCConfiguration = FALLBACK_ICE
+
+// Pre-fetch TURN credentials (call once at startup)
+async function fetchTurnCredentials(): Promise<void> {
+  try {
+    const res = await fetch(
+      `https://dominos_pr.metered.live/api/v1/turn/credentials?apiKey=${METERED_API_KEY}`
+    )
+    const servers = await res.json()
+    if (Array.isArray(servers) && servers.length > 0) {
+      iceConfig = { iceServers: servers }
+      console.log('[WebRTC] TURN credentials loaded:', servers.length, 'servers')
+    }
+  } catch (e) {
+    console.warn('[WebRTC] Failed to fetch TURN credentials, using STUN fallback', e)
+  }
+}
+
+// Fetch immediately on module load
+fetchTurnCredentials()
 
 export function useWebRTC() {
   const myPlayerIndex = useRoomStore.getState().myPlayerIndex ?? 0
   const roomCode = useRoomStore.getState().roomCode
 
-  // Store PCs in ref — never in state (prevents re-render on change)
   const pcsRef = useRef<Record<number, RTCPeerConnection>>({})
   const makingOfferRef = useRef<Record<number, boolean>>({})
   const ignoreOfferRef = useRef<Record<number, boolean>>({})
@@ -38,78 +46,78 @@ export function useWebRTC() {
 
   const getCallStore = () => useCallStore.getState()
 
-  // Acquire local media stream
   const acquireLocalStream = useCallback(async (): Promise<MediaStream | null> => {
     const { myAudioEnabled, myVideoEnabled } = getCallStore()
     if (!myAudioEnabled && !myVideoEnabled) return null
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
+      return await navigator.mediaDevices.getUserMedia({
         video: myVideoEnabled,
         audio: myAudioEnabled,
       })
-      return stream
     } catch {
-      // Fallback: audio only
       if (myVideoEnabled && myAudioEnabled) {
-        try {
-          return await navigator.mediaDevices.getUserMedia({ audio: true })
-        } catch {
-          return null
-        }
+        try { return await navigator.mediaDevices.getUserMedia({ audio: true }) } catch { return null }
       }
       return null
     }
   }, [])
 
-  // Create a peer connection for one remote player
+  // Synchronous — uses module-level iceConfig (already fetched)
   const createPC = useCallback((remoteIndex: number): RTCPeerConnection => {
-    const pc = new RTCPeerConnection(ICE_CONFIG)
+    const pc = new RTCPeerConnection(iceConfig)
+    console.log(`[WebRTC] createPC(${remoteIndex}) with ${iceConfig.iceServers?.length ?? 0} ICE servers`)
 
-    // Add local tracks to this connection
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => {
         pc.addTrack(track, localStreamRef.current!)
       })
+      console.log(`[WebRTC] Added ${localStreamRef.current.getTracks().length} local tracks to PC(${remoteIndex})`)
+    } else {
+      console.warn(`[WebRTC] No local stream when creating PC(${remoteIndex})`)
     }
 
-    // ICE connection fallback timeout: if still 'connecting' after 15s, mark as failed
-    const timeoutId = setTimeout(() => {
-      if (pc.connectionState === 'connecting' || pc.iceConnectionState === 'checking') {
-        getCallStore().setPeerState(remoteIndex, 'failed')
+    let iceRestarted = false
+
+    pc.oniceconnectionstatechange = () => {
+      const state = pc.iceConnectionState
+      console.log(`[WebRTC] ICE(${remoteIndex}): ${state}`)
+      if ((state === 'failed' || state === 'disconnected') && !iceRestarted) {
+        iceRestarted = true
+        console.log(`[WebRTC] ICE restart for peer ${remoteIndex}`)
+        pc.restartIce()
       }
-    }, 15000)
+    }
 
     pc.onconnectionstatechange = () => {
       const state = pc.connectionState
-      if (state !== 'connecting' && state !== 'new') clearTimeout(timeoutId)
+      console.log(`[WebRTC] Connection(${remoteIndex}): ${state}`)
       if (state === 'connected' || state === 'failed' || state === 'closed') {
         getCallStore().setPeerState(remoteIndex, state as 'connected' | 'failed' | 'closed')
       }
     }
 
-    // Perfect Negotiation: onnegotiationneeded
     pc.onnegotiationneeded = async () => {
       try {
         makingOfferRef.current[remoteIndex] = true
         await pc.setLocalDescription()
         socket.emit('webrtc:signal', { roomCode, to: remoteIndex, desc: pc.localDescription })
+        console.log(`[WebRTC] Sent offer to peer ${remoteIndex}`)
       } catch (err) {
-        console.error('negotiationneeded error', err)
+        console.error('[WebRTC] negotiationneeded error', err)
       } finally {
         makingOfferRef.current[remoteIndex] = false
       }
     }
 
-    // Send ICE candidates
     pc.onicecandidate = ({ candidate }) => {
       if (candidate) {
         socket.emit('webrtc:signal', { roomCode, to: remoteIndex, candidate })
       }
     }
 
-    // Receive remote stream
     pc.ontrack = ({ streams }) => {
       if (streams[0]) {
+        console.log(`[WebRTC] Got remote track from peer ${remoteIndex}`)
         getCallStore().setRemoteStream(remoteIndex, streams[0])
       }
     }
@@ -119,7 +127,6 @@ export function useWebRTC() {
     return pc
   }, [myPlayerIndex, roomCode])
 
-  // Handle incoming signal from server (Perfect Negotiation pattern)
   const handleSignal = useCallback(async ({
     from,
     desc,
@@ -127,6 +134,7 @@ export function useWebRTC() {
   }: { from: number; desc?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit }) => {
     let pc = pcsRef.current[from]
     if (!pc) {
+      console.log(`[WebRTC] Creating PC for incoming signal from peer ${from}`)
       pc = createPC(from)
     }
     const polite = myPlayerIndex > from
@@ -138,12 +146,16 @@ export function useWebRTC() {
           (makingOfferRef.current[from] || pc.signalingState !== 'stable')
 
         ignoreOfferRef.current[from] = !polite && offerCollision
-        if (ignoreOfferRef.current[from]) return
+        if (ignoreOfferRef.current[from]) {
+          console.log(`[WebRTC] Ignoring colliding offer from peer ${from} (impolite)`)
+          return
+        }
 
         await pc.setRemoteDescription(desc)
         if (desc.type === 'offer') {
           await pc.setLocalDescription()
           socket.emit('webrtc:signal', { roomCode, to: from, desc: pc.localDescription })
+          console.log(`[WebRTC] Sent answer to peer ${from}`)
         }
       } else if (candidate) {
         try {
@@ -153,11 +165,10 @@ export function useWebRTC() {
         }
       }
     } catch (err) {
-      console.error('webrtc:signal handling error', err)
+      console.error('[WebRTC] signal handling error', err)
     }
   }, [myPlayerIndex, roomCode, createPC])
 
-  // Cleanup function
   const cleanup = useCallback(() => {
     localStreamRef.current?.getTracks().forEach(track => track.stop())
     localStreamRef.current = null
@@ -168,11 +179,10 @@ export function useWebRTC() {
     getCallStore().resetCallState()
   }, [])
 
-  // Called when a remote peer announces they joined the call — refresh the PC so they can connect
   const handlePeerJoined = useCallback((peerIndex: number) => {
     const { myAudioEnabled, myVideoEnabled } = getCallStore()
-    if (!myAudioEnabled && !myVideoEnabled) return  // we're not in the call, nothing to do
-    // Close stale PC if any, then create a fresh one so negotiation starts clean
+    if (!myAudioEnabled && !myVideoEnabled) return
+    console.log(`[WebRTC] Peer ${peerIndex} joined call, refreshing PC`)
     const old = pcsRef.current[peerIndex]
     if (old) {
       old.close()
@@ -182,22 +192,28 @@ export function useWebRTC() {
     createPC(peerIndex)
   }, [createPC])
 
-  // Join call mid-game: acquire media, create PCs for all other players
   const joinCall = useCallback(async (audio: boolean, video: boolean) => {
+    console.log(`[WebRTC] joinCall(audio=${audio}, video=${video})`)
     getCallStore().setMyLobbyOpt(audio, video)
 
     const stream = await navigator.mediaDevices.getUserMedia({ video, audio }).catch(async () => {
-      // fallback: audio only
       if (video && audio) return navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => null)
       return null
     })
 
-    if (!stream) return
+    if (!stream) {
+      console.error('[WebRTC] Failed to get media stream')
+      return
+    }
+    console.log(`[WebRTC] Got local stream: ${stream.getTracks().map(t => t.kind).join(', ')}`)
     localStreamRef.current = stream
     getCallStore().setLocalStream(stream)
 
-    // Close any PCs that were auto-created by incoming signals before we had media —
-    // they have no local tracks and can't renegotiate reliably. Recreate them fresh.
+    // Ensure TURN credentials are loaded
+    if (!iceConfig.iceServers || iceConfig.iceServers.length <= 2) {
+      await fetchTurnCredentials()
+    }
+
     const playerCount = useGameStore.getState().gameState?.playerCount ?? 4
     for (let i = 0; i < playerCount; i++) {
       if (i === myPlayerIndex) continue
@@ -210,16 +226,19 @@ export function useWebRTC() {
       createPC(i)
     }
 
-    // Notify peers AFTER media is acquired and PCs are ready —
-    // prevents race where remote peer sends offer before we have a stream
     socket.emit('webrtc:lobby_opt', { roomCode, audio, video })
+    console.log(`[WebRTC] Emitted webrtc:lobby_opt, created PCs for ${playerCount - 1} peers`)
   }, [myPlayerIndex, roomCode, createPC])
 
-  // Initialize: get media, create PCs for all opted-in peers, register socket handler
   useEffect(() => {
     let mounted = true
 
     async function init() {
+      // Ensure TURN credentials are ready
+      if (!iceConfig.iceServers || iceConfig.iceServers.length <= 2) {
+        await fetchTurnCredentials()
+      }
+
       const stream = await acquireLocalStream()
       if (!mounted) {
         stream?.getTracks().forEach(t => t.stop())
@@ -228,7 +247,6 @@ export function useWebRTC() {
       localStreamRef.current = stream
       getCallStore().setLocalStream(stream)
 
-      // Create peer connections to all other opted-in players
       const { lobbyOpts, myAudioEnabled, myVideoEnabled } = getCallStore()
       const iParticipate = myAudioEnabled || myVideoEnabled
 
@@ -246,7 +264,6 @@ export function useWebRTC() {
 
     init()
 
-    // Register signal handler and joinCall — expose via refs so other components can call them
     signalHandlerRef.current = handleSignal
     joinCallRef.current = joinCall
     peerJoinedCallRef.current = handlePeerJoined
@@ -263,17 +280,14 @@ export function useWebRTC() {
   return { handleSignal, cleanup, joinCall }
 }
 
-// Shared ref so useSocket.ts can route 'webrtc:signal' events to the hook instance
 export const signalHandlerRef = {
   current: null as ((data: { from: number; desc?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit }) => void) | null
 }
 
-// Shared ref so VideoCallPanel can trigger mid-game join
 export const joinCallRef = {
   current: null as ((audio: boolean, video: boolean) => Promise<void>) | null
 }
 
-// Shared ref so useSocket can notify when a peer joins/re-announces in the call
 export const peerJoinedCallRef = {
   current: null as ((peerIndex: number) => void) | null
 }

@@ -2,23 +2,30 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.registerWebRTCHandlers = registerWebRTCHandlers;
 function registerWebRTCHandlers(socket, io, rooms) {
-    // Pure signaling relay: forward SDP offers/answers and ICE candidates to the target peer
     socket.on('webrtc:signal', ({ roomCode, to, desc, candidate }) => {
         const room = rooms.getRoom(roomCode);
-        if (!room)
+        if (!room) {
+            console.log('[WebRTC-Server] signal: room not found', roomCode);
             return;
-        if (!room.game)
+        }
+        if (!room.game) {
+            console.log('[WebRTC-Server] signal: no game in room');
             return;
+        }
         const fromPlayer = room.game.players.find(p => p.socketId === socket.id);
-        if (fromPlayer === undefined)
+        if (fromPlayer === undefined) {
+            console.log('[WebRTC-Server] signal: sender not found, socketId=', socket.id);
             return;
+        }
         const fromIndex = fromPlayer.index;
         const targetPlayer = room.game.players.find(p => p.index === to);
-        if (!targetPlayer?.socketId)
+        if (!targetPlayer?.socketId) {
+            console.log('[WebRTC-Server] signal: target not found, to=', to);
             return;
+        }
+        console.log(`[WebRTC-Server] signal: ${fromIndex} → ${to} (${desc ? 'SDP' : 'ICE'})`);
         io.to(targetPlayer.socketId).emit('webrtc:signal', { from: fromIndex, desc, candidate });
     });
-    // Broadcast mute/camera state changes to all other players in room
     socket.on('webrtc:toggle', ({ roomCode, micMuted, cameraOff }) => {
         const room = rooms.getRoom(roomCode);
         if (!room)
@@ -34,15 +41,18 @@ function registerWebRTCHandlers(socket, io, rooms) {
             cameraOff,
         });
     });
-    // Broadcast lobby opt-in state to all players in room (visible to everyone in lobby)
     socket.on('webrtc:lobby_opt', ({ roomCode, audio, video }) => {
         const room = rooms.getRoom(roomCode);
-        if (!room)
+        if (!room) {
+            console.log('[WebRTC-Server] lobby_opt: room not found');
             return;
+        }
         const fromPlayer = room.players.find(p => p.socketId === socket.id);
-        if (fromPlayer === undefined)
+        if (fromPlayer === undefined) {
+            console.log('[WebRTC-Server] lobby_opt: player not found, socketId=', socket.id);
             return;
-        // Broadcast to everyone else in room (sender updates own local state)
+        }
+        console.log(`[WebRTC-Server] lobby_opt: player ${fromPlayer.seatIndex} (${fromPlayer.name}) → audio=${audio} video=${video}`);
         socket.to(roomCode).emit('webrtc:lobby_updated', {
             from: fromPlayer.seatIndex,
             audio,
