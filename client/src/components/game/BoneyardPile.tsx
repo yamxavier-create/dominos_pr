@@ -23,19 +23,18 @@ export function BoneyardPile({ count, awaitingDraw, isMyTurn, onDraw, currentPla
 
   // Spread mode — current player needs to draw
   if (awaitingDraw) {
-    // Clamp tile width so all tiles fit on ~320px without scroll
-    const tileW = Math.max(16, Math.min(28, Math.floor(320 / count) - 3))
-    const tileH = tileW * 2
+    const tileW = 36
+    const tileH = 72
 
     return (
       <div
-        className="absolute inset-x-0 bottom-0 z-20 flex flex-col items-center pb-2"
-        style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.80) 85%, transparent)' }}
+        className="absolute inset-x-0 bottom-0 z-20 flex flex-col items-center pb-2 pt-3"
+        style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85) 90%, transparent)' }}
       >
         <p className="text-white/70 text-xs font-body mb-2">
           {isMyTurn ? 'Toca una ficha para jalar' : `${currentPlayerName} está jalando...`}
         </p>
-        <div className="flex items-center justify-center gap-1 px-3">
+        <div className="flex flex-wrap items-center justify-center gap-1.5 px-3">
           {Array.from({ length: count }, (_, i) => (
             <button
               key={i}

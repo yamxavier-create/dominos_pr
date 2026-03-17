@@ -58,31 +58,16 @@ function processAutoPassCascade(io, game, startPlayerIndex, tilePlayerIndex) {
     // In 2-player mode there are no partners, so partnerOfTilePlayer = -1 (no partner).
     const partnerOfTilePlayer = is2Player ? -1 : (tilePlayerIndex + 2) % 4;
     for (let i = 0; i < playerCount; i++) {
-        // BONEYARD DRAW PHASE: draw tiles one by one until player can play or boneyard is empty
-        while (game.boneyard.length > 0) {
-            const checkPlays = (0, GameEngine_1.getValidPlays)(game.players[idx].tiles, game.board, game.firstPlayMade, game.forcedFirstTileId);
-            if (checkPlays.length > 0)
-                break; // player can play with current hand
-            // Draw one tile from boneyard
-            const drawnTile = game.boneyard.pop();
-            game.players[idx].tiles.push(drawnTile);
-            // Emit draw event to drawing player (with tile data)
-            const drawingSocket = game.players[idx].socketId;
-            io.to(drawingSocket).emit('game:boneyard_draw', {
-                tile: drawnTile,
-                boneyardRemaining: game.boneyard.length,
-                playerIndex: idx,
-            });
-            // Emit draw event to all others (without tile data)
-            io.to(game.roomCode).except(drawingSocket).emit('game:boneyard_draw', {
-                tile: null,
-                boneyardRemaining: game.boneyard.length,
-                playerIndex: idx,
-            });
-        }
         const validPlays = (0, GameEngine_1.getValidPlays)(game.players[idx].tiles, game.board, game.firstPlayMade, game.forcedFirstTileId);
         if (validPlays.length > 0) {
             // This player can play — it's their turn
+            game.currentPlayerIndex = idx;
+            return false;
+        }
+        // Can't play — check boneyard before auto-passing
+        if (game.boneyard.length > 0) {
+            // Pause cascade: player must manually draw from boneyard
+            game.awaitingBoneyardDraw = true;
             game.currentPlayerIndex = idx;
             return false;
         }
@@ -269,6 +254,7 @@ function registerGameHandlers(socket, io, rooms) {
             forcedFirstTileId: forcedTile.id,
             gameWinnerIndex: starterIdx,
             boneyard,
+            awaitingBoneyardDraw: false,
         };
         room.game = game;
         room.status = 'in_game';
@@ -287,6 +273,8 @@ function registerGameHandlers(socket, io, rooms) {
         const game = room.game;
         if (game.phase !== 'playing')
             return;
+        if (game.awaitingBoneyardDraw)
+            return; // must draw before playing
         // Identify which player this socket is
         const player = game.players.find(p => p.socketId === socket.id);
         if (!player)
@@ -400,6 +388,7 @@ function registerGameHandlers(socket, io, rooms) {
         game.consecutivePasses = 0;
         game.handPassCount = 0;
         game.boneyard = boneyard;
+        game.awaitingBoneyardDraw = false;
         // gamePassCount intentionally NOT reset — it tracks total passes for the entire game (Modo 200 bonus)
         game.firstPlayMade = false;
         // In subsequent hands, the previous hand winner starts
@@ -458,6 +447,7 @@ function registerGameHandlers(socket, io, rooms) {
         game.gamePassCount = 0;
         game.boneyard = boneyard;
         game.firstPlayMade = false;
+        game.awaitingBoneyardDraw = false;
         game.currentPlayerIndex = nextStarter;
         game.handStarterIndex = nextStarter;
         game.gameWinnerIndex = nextStarter;
@@ -510,6 +500,7 @@ function registerGameHandlers(socket, io, rooms) {
                 game.gamePassCount = 0;
                 game.boneyard = boneyard;
                 game.firstPlayMade = false;
+                game.awaitingBoneyardDraw = false;
                 game.currentPlayerIndex = nextStarter;
                 game.handStarterIndex = nextStarter;
                 game.gameWinnerIndex = nextStarter;
@@ -525,6 +516,58 @@ function registerGameHandlers(socket, io, rooms) {
                     io.to(p.socketId).emit('game:started', { gameState: clientState });
                 }
             }, 2000);
+        }
+    });
+    socket.on('game:draw_from_boneyard', ({ roomCode }) => {
+        const room = rooms.getRoom(roomCode);
+        if (!room?.game)
+            return;
+        const game = room.game;
+        if (game.phase !== 'playing')
+            return;
+        if (!game.awaitingBoneyardDraw)
+            return;
+        const player = game.players.find(p => p.socketId === socket.id);
+        if (!player)
+            return;
+        if (player.index !== game.currentPlayerIndex)
+            return;
+        if (game.boneyard.length === 0)
+            return;
+        // Draw one tile from boneyard
+        const drawnTile = game.boneyard.pop();
+        player.tiles.push(drawnTile);
+        game.awaitingBoneyardDraw = false;
+        room.lastActivity = Date.now();
+        // Notify drawing player of their new tile
+        const drawingSocket = player.socketId;
+        io.to(drawingSocket).emit('game:boneyard_draw', {
+            tile: drawnTile,
+            boneyardRemaining: game.boneyard.length,
+            playerIndex: player.index,
+        });
+        io.to(game.roomCode).except(drawingSocket).emit('game:boneyard_draw', {
+            tile: null,
+            boneyardRemaining: game.boneyard.length,
+            playerIndex: player.index,
+        });
+        // Check if player can now play
+        const validPlays = (0, GameEngine_1.getValidPlays)(player.tiles, game.board, game.firstPlayMade, game.forcedFirstTileId);
+        if (validPlays.length > 0) {
+            broadcastState(io, game);
+            return;
+        }
+        if (game.boneyard.length > 0) {
+            // Still can't play — keep waiting for another draw
+            game.awaitingBoneyardDraw = true;
+            broadcastState(io, game);
+            return;
+        }
+        // Boneyard exhausted, can't play → auto-pass and continue cascade
+        // In 2-player mode there are no partners, so tilePlayerIndex doesn't affect logic
+        const ended = processAutoPassCascade(io, game, player.index, player.index);
+        if (!ended) {
+            broadcastState(io, game);
         }
     });
 }

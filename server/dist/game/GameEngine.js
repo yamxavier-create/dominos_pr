@@ -341,5 +341,6 @@ function buildClientGameState(game, forPlayerIndex) {
         forcedFirstTileId: !game.firstPlayMade ? game.forcedFirstTileId : null,
         boneyardCount: game.boneyard.length,
         playerCount: game.players.length,
+        awaitingBoneyardDraw: game.awaitingBoneyardDraw,
     };
 }

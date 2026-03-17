@@ -352,10 +352,25 @@ export function GameBoard({ board, validPlays }: GameBoardProps) {
     maxX = Math.max(maxX, pos.x + w / 2)
     maxY = Math.max(maxY, pos.y + h / 2)
   })
-  const BADGE_MARGIN = 48 // space for end badges
-  const contentW = maxX - minX + BADGE_MARGIN * 2
-  const contentH = maxY - minY + BADGE_MARGIN * 2
-  const scale = Math.min(1, dims.w / contentW, dims.h / contentH)
+  // Scale so content fits within the container, accounting for transform-origin: center.
+  // With scale() at the center, each side must fit independently:
+  //   rendered position = center + (original - center) * scale
+  // So: rightExtent * scale <= dims.w / 2  (right side)
+  //     leftExtent  * scale <= dims.w / 2  (left side)
+  const BADGE_MARGIN = 48
+  const cx = dims.w / 2
+  const cy = dims.h / 2
+  const rightExtent = maxX - cx + BADGE_MARGIN
+  const leftExtent  = cx - minX + BADGE_MARGIN
+  const bottomExtent = maxY - cy + BADGE_MARGIN
+  const topExtent    = cy - minY + BADGE_MARGIN
+  const scale = Math.min(
+    1,
+    rightExtent  > 0 ? (dims.w / 2) / rightExtent  : 1,
+    leftExtent   > 0 ? (dims.w / 2) / leftExtent   : 1,
+    bottomExtent > 0 ? (dims.h / 2) / bottomExtent : 1,
+    topExtent    > 0 ? (dims.h / 2) / topExtent    : 1,
+  )
 
   const leftEnd = board.tiles[0]
   const rightEnd = board.tiles[board.tiles.length - 1]
