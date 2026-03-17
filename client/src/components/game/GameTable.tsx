@@ -115,7 +115,7 @@ export function GameTable() {
   }
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden select-none felt-table">
+    <div className="flex flex-col h-dvh overflow-hidden select-none felt-table">
       {/* Score bar */}
       <ScorePanel
         scores={scores}
@@ -229,7 +229,7 @@ export function GameTable() {
         <div />
 
         {/* My hand (bottom) */}
-        <div className="flex flex-col items-center justify-end pb-2 gap-1 relative">
+        <div className="flex flex-col items-center justify-end gap-1 relative" style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}>
           {myPlayer && (
             <PlayerSeat
               player={myPlayer}

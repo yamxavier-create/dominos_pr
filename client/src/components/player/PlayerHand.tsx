@@ -19,8 +19,8 @@ export function PlayerHand({ tiles, validPlayIds, isMyTurn, forcedFirstTileId }:
   const { selectTile } = useGameActions()
 
   return (
-    <div className="flex items-center justify-center gap-1.5 px-3 py-2 overflow-x-auto"
-      style={{ scrollbarWidth: 'none' }}>
+    <div className="w-full flex items-center justify-center gap-1.5 px-3 py-2 overflow-x-auto"
+      style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
       {tiles.map(tile => {
         const isPlayable = isMyTurn && validPlayIds.has(tile.id)
         const isSelected = selectedTileId === tile.id
