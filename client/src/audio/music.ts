@@ -9,12 +9,16 @@ function getAudio(): HTMLAudioElement {
   return audio
 }
 
-export function playMusic(): void {
+/** Attempts to play. Resolves true if playing, false if autoplay blocked. */
+export async function playMusic(volume = 0.3): Promise<boolean> {
   const el = getAudio()
-  if (el.paused) {
-    el.play().catch(() => {
-      // Autoplay blocked -- will retry on next user interaction
-    })
+  el.volume = volume
+  if (!el.paused) return true
+  try {
+    await el.play()
+    return true
+  } catch {
+    return false
   }
 }
 
