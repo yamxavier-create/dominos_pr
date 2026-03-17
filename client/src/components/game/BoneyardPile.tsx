@@ -1,52 +1,71 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { DominoTile } from '../domino/DominoTile'
 
 interface BoneyardPileProps {
   count: number
-  className?: string
+  awaitingDraw: boolean
+  isMyTurn: boolean
+  onDraw: () => void
+  currentPlayerName: string
 }
 
-export function BoneyardPile({ count, className }: BoneyardPileProps) {
-  const [visible, setVisible] = useState(count > 0)
-  const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+export function BoneyardPile({ count, awaitingDraw, isMyTurn, onDraw, currentPlayerName }: BoneyardPileProps) {
+  const [tappedIndex, setTappedIndex] = useState<number | null>(null)
 
-  useEffect(() => {
-    if (count > 0) {
-      // Cancel any pending fade-out
-      if (fadeTimerRef.current) {
-        clearTimeout(fadeTimerRef.current)
-        fadeTimerRef.current = null
-      }
-      setVisible(true)
-    } else {
-      // Start fade-out, then unmount after transition
-      fadeTimerRef.current = setTimeout(() => {
-        setVisible(false)
-        fadeTimerRef.current = null
-      }, 300)
-    }
+  if (count === 0) return null
 
-    return () => {
-      if (fadeTimerRef.current) {
-        clearTimeout(fadeTimerRef.current)
-      }
-    }
-  }, [count])
+  const handleTap = (index: number) => {
+    if (!isMyTurn || !awaitingDraw || tappedIndex !== null) return
+    setTappedIndex(index)
+    onDraw()
+    setTimeout(() => setTappedIndex(null), 400)
+  }
 
-  if (!visible && count === 0) return null
+  // Spread mode — current player needs to draw
+  if (awaitingDraw) {
+    // Clamp tile width so all tiles fit on ~320px without scroll
+    const tileW = Math.max(16, Math.min(28, Math.floor(320 / count) - 3))
+    const tileH = tileW * 2
 
+    return (
+      <div
+        className="absolute inset-x-0 bottom-0 z-20 flex flex-col items-center pb-2"
+        style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.80) 85%, transparent)' }}
+      >
+        <p className="text-white/70 text-xs font-body mb-2">
+          {isMyTurn ? 'Toca una ficha para jalar' : `${currentPlayerName} está jalando...`}
+        </p>
+        <div className="flex items-center justify-center gap-1 px-3">
+          {Array.from({ length: count }, (_, i) => (
+            <button
+              key={i}
+              onClick={() => handleTap(i)}
+              disabled={!isMyTurn || tappedIndex !== null}
+              className={`
+                relative transition-transform duration-150 rounded shrink-0
+                ${isMyTurn && tappedIndex === null ? 'cursor-pointer hover:-translate-y-2 active:scale-95' : 'cursor-default'}
+                ${tappedIndex === i ? '-translate-y-3 opacity-40' : ''}
+              `}
+              style={{ width: tileW, height: tileH }}
+            >
+              <DominoTile
+                pip1={0}
+                pip2={0}
+                orientation="vertical"
+                faceDown
+                style={{ width: tileW, height: tileH }}
+              />
+            </button>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // Compact mode — small stacked pile in corner
   const layerCount = Math.min(count, 4)
-
   return (
-    <div
-      className={className}
-      style={{
-        opacity: count > 0 ? 1 : 0,
-        pointerEvents: count > 0 ? 'auto' : 'none',
-        transition: 'opacity 300ms ease-out',
-      }}
-    >
-      {/* Pile container */}
+    <div className="absolute bottom-2 right-2 z-10">
       <div className="relative" style={{ width: 36, height: 68 }}>
         {Array.from({ length: layerCount }, (_, i) => (
           <div
@@ -68,16 +87,9 @@ export function BoneyardPile({ count, className }: BoneyardPileProps) {
             />
           </div>
         ))}
-
-        {/* Count badge */}
         <div
           className="absolute bg-black/60 text-white/80 text-xs font-bold px-1.5 py-0.5 rounded-full"
-          style={{
-            bottom: -6,
-            right: -8,
-            minWidth: 20,
-            textAlign: 'center',
-          }}
+          style={{ bottom: -6, right: -8, minWidth: 20, textAlign: 'center' }}
         >
           {count}
         </div>

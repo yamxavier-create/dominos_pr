@@ -64,6 +64,7 @@ export interface ServerGameState {
   forcedFirstTileId: string // the 6-6 (or fallback) that MUST be played first
   gameWinnerIndex: number   // player who won the last game (starts the next one)
   boneyard: Tile[]          // tiles remaining in draw pile. Empty [] in 4-player; 14 tiles in 2-player
+  awaitingBoneyardDraw: boolean  // true when current player must draw before playing (2-player only)
 }
 
 // ─── Room ─────────────────────────────────────────────────────────────────────
@@ -126,6 +127,7 @@ export interface ClientGameState {
   forcedFirstTileId: string | null  // non-null only before first play
   boneyardCount: number             // tiles remaining in boneyard. Always 0 in 4-player
   playerCount: number               // 2 or 4. Client uses this for layout mode and label changes
+  awaitingBoneyardDraw: boolean     // current player must draw before playing (2-player only)
 }
 
 export type GameAction =

@@ -53,6 +53,10 @@ export function useGameActions() {
     socket.emit('game:next_hand', { roomCode })
   }, [roomCode])
 
+  const drawFromBoneyard = useCallback(() => {
+    socket.emit('game:draw_from_boneyard', { roomCode })
+  }, [roomCode])
+
   const startGame = useCallback(() => {
     socket.emit('game:start', { roomCode })
   }, [roomCode])
@@ -65,5 +69,5 @@ export function useGameActions() {
     socket.emit('room:join', { roomCode: roomCodeArg, playerName })
   }, [])
 
-  return { selectTile, playTileOnEnd, startNextHand, startGame, createRoom, joinRoom }
+  return { selectTile, playTileOnEnd, startNextHand, startGame, createRoom, joinRoom, drawFromBoneyard }
 }

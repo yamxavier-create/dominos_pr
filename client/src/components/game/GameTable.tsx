@@ -4,6 +4,7 @@ import { useRoomStore } from '../../store/roomStore'
 import { useUIStore } from '../../store/uiStore'
 import { useCallStore } from '../../store/callStore'
 import { useSpeakingDetection } from '../../hooks/useSpeakingDetection'
+import { useGameActions } from '../../hooks/useGameActions'
 import { getPosition } from '../../hooks/usePlayerPositions'
 import { GameBoard } from '../board/GameBoard'
 import { PlayerHand } from '../player/PlayerHand'
@@ -80,7 +81,8 @@ export function GameTable() {
     )
   }
 
-  const { players, board, currentPlayerIndex, scores, gameMode, targetScore, handNumber, validPlays, isMyTurn, forcedFirstTileId } = gameState
+  const { players, board, currentPlayerIndex, scores, gameMode, targetScore, handNumber, validPlays, isMyTurn, forcedFirstTileId, awaitingBoneyardDraw } = gameState
+  const { drawFromBoneyard } = useGameActions()
 
   const playerCount = gameState.playerCount ?? 4
   const boneyardCount = gameState.boneyardCount ?? 0
@@ -197,7 +199,15 @@ export function GameTable() {
             playerName={currentPlayerName}
             isMyTurn={isMyTurn}
           />
-          {is2Player && <BoneyardPile count={boneyardCount} className="absolute bottom-2 right-2 z-10" />}
+          {is2Player && (
+            <BoneyardPile
+              count={boneyardCount}
+              awaitingDraw={awaitingBoneyardDraw}
+              isMyTurn={isMyTurn}
+              onDraw={drawFromBoneyard}
+              currentPlayerName={players[currentPlayerIndex]?.name ?? ''}
+            />
+          )}
           {is2Player && (
             <BoneyardDrawAnimation
               myPlayerIndex={myPlayerIndex}
