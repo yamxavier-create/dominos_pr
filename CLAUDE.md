@@ -139,6 +139,40 @@ ngrok config add-authtoken <TOKEN>
 ngrok http 5173
 ```
 
+## Árbol del Proyecto
+
+```
+dominos_pr/
+├── client/                  ← React + Vite (frontend)
+│   └── src/
+│       ├── audio/           ← Sistema de audio y música
+│       ├── components/
+│       │   ├── board/       ← GameBoard, snake layout, tile rendering
+│       │   ├── chat/        ← Chat en juego
+│       │   ├── domino/      ← DominoTile, SVG tiles
+│       │   ├── game/        ← Game UI, controles, modales
+│       │   ├── lobby/       ← Lobby UI, sala de espera
+│       │   ├── player/      ← PlayerHand, PlayerInfo
+│       │   └── ui/          ← Componentes genéricos reutilizables
+│       ├── hooks/           ← useSocket, useGameActions, custom hooks
+│       ├── pages/           ← Home, Lobby, Game (rutas)
+│       ├── store/           ← Zustand: gameStore, roomStore, uiStore
+│       └── types/           ← TypeScript interfaces compartidas
+├── server/                  ← Express + Socket.io (backend)
+│   └── src/
+│       ├── game/            ← GameEngine (puro), RoomManager, lógica
+│       └── socket/          ← Handlers de Socket.io, broadcastState
+├── assets/sounds/           ← Archivos de audio (.mp3)
+└── .planning/               ← GSD roadmap, phases, state
+```
+
+## Self-Improving Loop
+
+Después de cada tarea significativa en este proyecto, registrar lecciones aprendidas en `/Users/yamirx/Claude_Code/The Vault/Claude-Brain/Proyectos/dominos_pr.md`:
+- Una línea por lección, fechada (ej: `- 2026-03-17: Socket events deben emitir state_snapshot después de cada mutación`)
+- Solo registrar patrones, correcciones o preferencias que apliquen a futuras sesiones
+- Si se acumulan 3+ lecciones del mismo tema, agruparlas bajo un heading dedicado
+
 ## Instrucciones Permanentes de Flujo de Trabajo
 
 ### 1. Commits antes de cambios grandes
