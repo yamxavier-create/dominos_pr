@@ -13,23 +13,41 @@ const FALLBACK_ICE: RTCConfiguration = {
   ],
 }
 
+// Debug: set to true to force TURN-only (no direct/STUN connections)
+// Useful for testing if TURN servers actually work
+const FORCE_RELAY_ONLY = false
+
 // Module-level ICE config — fetched once, used everywhere synchronously
 let iceConfig: RTCConfiguration = FALLBACK_ICE
+let turnFetchPromise: Promise<void> | null = null
 
-// Pre-fetch TURN credentials (call once at startup)
-async function fetchTurnCredentials(): Promise<void> {
-  try {
-    const res = await fetch(
-      `https://dominos_pr.metered.live/api/v1/turn/credentials?apiKey=${METERED_API_KEY}`
-    )
-    const servers = await res.json()
-    if (Array.isArray(servers) && servers.length > 0) {
-      iceConfig = { iceServers: servers }
-      console.log('[WebRTC] TURN credentials loaded:', servers.length, 'servers')
+// Pre-fetch TURN credentials — returns stored promise to avoid duplicate fetches
+function fetchTurnCredentials(): Promise<void> {
+  if (turnFetchPromise) return turnFetchPromise
+  turnFetchPromise = (async () => {
+    try {
+      const res = await fetch(
+        `https://dominos_pr.metered.live/api/v1/turn/credentials?apiKey=${METERED_API_KEY}`
+      )
+      const servers = await res.json()
+      if (Array.isArray(servers) && servers.length > 0) {
+        iceConfig = { iceServers: servers }
+        if (FORCE_RELAY_ONLY) {
+          iceConfig.iceTransportPolicy = 'relay'
+        }
+        console.log('[WebRTC] TURN credentials loaded:', servers.length, 'servers')
+        servers.forEach((s: RTCIceServer, i: number) => {
+          console.log(`[WebRTC]   server[${i}]: ${JSON.stringify(s.urls)}`)
+        })
+      } else {
+        console.warn('[WebRTC] TURN API returned empty/invalid response, using STUN fallback')
+      }
+    } catch (e) {
+      console.warn('[WebRTC] Failed to fetch TURN credentials, using STUN fallback', e)
+      turnFetchPromise = null // Allow retry on failure
     }
-  } catch (e) {
-    console.warn('[WebRTC] Failed to fetch TURN credentials, using STUN fallback', e)
-  }
+  })()
+  return turnFetchPromise
 }
 
 // Fetch immediately on module load
@@ -76,23 +94,45 @@ export function useWebRTC() {
       console.warn(`[WebRTC] No local stream when creating PC(${remoteIndex})`)
     }
 
-    let iceRestarted = false
+    // ICE restart with throttle — max once per 5 seconds, resets on success
+    let lastIceRestart = 0
+    const ICE_RESTART_THROTTLE_MS = 5000
 
     pc.oniceconnectionstatechange = () => {
       const state = pc.iceConnectionState
       console.log(`[WebRTC] ICE(${remoteIndex}): ${state}`)
-      if ((state === 'failed' || state === 'disconnected') && !iceRestarted) {
-        iceRestarted = true
-        console.log(`[WebRTC] ICE restart for peer ${remoteIndex}`)
-        pc.restartIce()
+      if (state === 'connected' || state === 'completed') {
+        lastIceRestart = 0 // Reset throttle on success — allow future restarts
+        console.log(`[WebRTC] ICE(${remoteIndex}): connection established successfully`)
+      }
+      if (state === 'failed' || state === 'disconnected') {
+        const now = Date.now()
+        if (now - lastIceRestart > ICE_RESTART_THROTTLE_MS) {
+          lastIceRestart = now
+          console.log(`[WebRTC] ICE restart for peer ${remoteIndex} (state=${state})`)
+          pc.restartIce()
+        } else {
+          console.log(`[WebRTC] ICE restart throttled for peer ${remoteIndex} (${ICE_RESTART_THROTTLE_MS}ms cooldown)`)
+        }
       }
     }
 
     pc.onconnectionstatechange = () => {
       const state = pc.connectionState
       console.log(`[WebRTC] Connection(${remoteIndex}): ${state}`)
-      if (state === 'connected' || state === 'failed' || state === 'closed') {
+      if (state === 'connected' || state === 'failed' || state === 'closed' || state === 'disconnected') {
         getCallStore().setPeerState(remoteIndex, state as 'connected' | 'failed' | 'closed')
+      }
+    }
+
+    // Log ICE candidate types to verify TURN relay is being used
+    pc.onicecandidate = ({ candidate }) => {
+      if (candidate) {
+        const type = candidate.type ?? 'unknown' // host, srflx, prflx, relay
+        console.log(`[WebRTC] ICE candidate(${remoteIndex}): type=${type} protocol=${candidate.protocol} address=${candidate.address}`)
+        socket.emit('webrtc:signal', { roomCode, to: remoteIndex, candidate })
+      } else {
+        console.log(`[WebRTC] ICE gathering complete for peer ${remoteIndex}`)
       }
     }
 
@@ -106,12 +146,6 @@ export function useWebRTC() {
         console.error('[WebRTC] negotiationneeded error', err)
       } finally {
         makingOfferRef.current[remoteIndex] = false
-      }
-    }
-
-    pc.onicecandidate = ({ candidate }) => {
-      if (candidate) {
-        socket.emit('webrtc:signal', { roomCode, to: remoteIndex, candidate })
       }
     }
 
@@ -209,10 +243,9 @@ export function useWebRTC() {
     localStreamRef.current = stream
     getCallStore().setLocalStream(stream)
 
-    // Ensure TURN credentials are loaded
-    if (!iceConfig.iceServers || iceConfig.iceServers.length <= 2) {
-      await fetchTurnCredentials()
-    }
+    // Always await TURN credentials before creating PCs
+    await fetchTurnCredentials()
+    console.log(`[WebRTC] ICE config ready: ${iceConfig.iceServers?.length ?? 0} servers, relay-only=${FORCE_RELAY_ONLY}`)
 
     const playerCount = useGameStore.getState().gameState?.playerCount ?? 4
     for (let i = 0; i < playerCount; i++) {
@@ -234,10 +267,8 @@ export function useWebRTC() {
     let mounted = true
 
     async function init() {
-      // Ensure TURN credentials are ready
-      if (!iceConfig.iceServers || iceConfig.iceServers.length <= 2) {
-        await fetchTurnCredentials()
-      }
+      // Always await TURN credentials before anything else
+      await fetchTurnCredentials()
 
       const stream = await acquireLocalStream()
       if (!mounted) {

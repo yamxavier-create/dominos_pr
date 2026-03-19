@@ -10,14 +10,32 @@ export function registerWebRTCHandlers(socket: Socket, io: Server, rooms: RoomMa
     candidate?: unknown
   }) => {
     const room = rooms.getRoom(roomCode)
-    if (!room) { console.log('[WebRTC-Server] signal: room not found', roomCode); return }
-    if (!room.game) { console.log('[WebRTC-Server] signal: no game in room'); return }
+    if (!room) {
+      console.log('[WebRTC-Server] signal: room not found', roomCode)
+      socket.emit('webrtc:error', { reason: 'room_not_found', to })
+      return
+    }
+    if (!room.game) {
+      console.log('[WebRTC-Server] signal: no game in room')
+      socket.emit('webrtc:error', { reason: 'no_game', to })
+      return
+    }
     const fromPlayer = room.game.players.find(p => p.socketId === socket.id)
-    if (fromPlayer === undefined) { console.log('[WebRTC-Server] signal: sender not found, socketId=', socket.id); return }
+    if (fromPlayer === undefined) {
+      console.log('[WebRTC-Server] signal: sender not found, socketId=', socket.id)
+      socket.emit('webrtc:error', { reason: 'sender_not_found', to })
+      return
+    }
     const fromIndex = fromPlayer.index
     const targetPlayer = room.game.players.find(p => p.index === to)
-    if (!targetPlayer?.socketId) { console.log('[WebRTC-Server] signal: target not found, to=', to); return }
-    console.log(`[WebRTC-Server] signal: ${fromIndex} → ${to} (${desc ? 'SDP' : 'ICE'})`)
+    if (!targetPlayer?.socketId) {
+      console.log('[WebRTC-Server] signal: target not found, to=', to)
+      socket.emit('webrtc:error', { reason: 'target_not_found', to })
+      return
+    }
+    // Log whether target is still connected
+    const targetConnected = room.game.players[to]?.connected ?? false
+    console.log(`[WebRTC-Server] signal: ${fromIndex} → ${to} (${desc ? 'SDP' : 'ICE'}) target_connected=${targetConnected}`)
     io.to(targetPlayer.socketId).emit('webrtc:signal', { from: fromIndex, desc, candidate })
   })
 

@@ -156,6 +156,11 @@ export function useSocket() {
       useCallStore.getState().setPeerCameraOff(from, cameraOff)
     })
 
+    // WebRTC signaling errors from server — signal relay failed
+    socket.on('webrtc:error', ({ reason, to }: { reason: string; to: number }) => {
+      console.error(`[WebRTC] Server signal error: ${reason} (target peer ${to})`)
+    })
+
     socket.on('chat:message', (msg: ChatMessage) => {
       useUIStore.getState().addChatMessage(msg)
     })
@@ -191,6 +196,7 @@ export function useSocket() {
       socket.off('webrtc:lobby_updated')
       socket.off('webrtc:signal')
       socket.off('webrtc:peer_toggle')
+      socket.off('webrtc:error')
       socket.off('chat:message')
       socket.off('chat:history')
       socket.off('connection:player_disconnected')
