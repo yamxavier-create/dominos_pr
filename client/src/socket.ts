@@ -11,3 +11,8 @@ export const socket: Socket = io(SOCKET_URL, {
   reconnectionDelay: 1000,
   transports: ['websocket', 'polling'],
 })
+
+// Update auth token on socket (call before connecting or reconnecting)
+export function setSocketAuth(token: string | null) {
+  socket.auth = token ? { token } : {}
+}

@@ -2,14 +2,18 @@ import { Socket, Server } from 'socket.io'
 import { RoomManager } from '../game/RoomManager'
 import { GameMode } from '../game/GameState'
 import { buildClientGameState } from '../game/GameEngine'
+import { getSocketUser } from './authMiddleware'
 
 export function registerRoomHandlers(socket: Socket, io: Server, rooms: RoomManager) {
 
   socket.on('room:create', ({ playerName, gameMode }: { playerName: string; gameMode: GameMode }) => {
-    if (!playerName?.trim()) {
+    const socketUser = getSocketUser(socket)
+    const name = playerName?.trim() || socketUser.user?.displayName
+    if (!name) {
       return socket.emit('room:error', { code: 'INVALID_NAME', message: 'Nombre inválido' })
     }
-    const room = rooms.createRoom(socket.id, playerName.trim(), gameMode)
+    const userId = socketUser.user?.id
+    const room = rooms.createRoom(socket.id, name, gameMode, userId)
     socket.join(room.roomCode)
     socket.emit('room:created', {
       roomCode: room.roomCode,
@@ -19,10 +23,13 @@ export function registerRoomHandlers(socket: Socket, io: Server, rooms: RoomMana
   })
 
   socket.on('room:join', ({ roomCode, playerName }: { roomCode: string; playerName: string }) => {
-    if (!playerName?.trim()) {
+    const socketUser = getSocketUser(socket)
+    const name = playerName?.trim() || socketUser.user?.displayName
+    if (!name) {
       return socket.emit('room:error', { code: 'INVALID_NAME', message: 'Nombre inválido' })
     }
-    const result = rooms.joinRoom(socket.id, roomCode?.toUpperCase(), playerName.trim())
+    const userId = socketUser.user?.id
+    const result = rooms.joinRoom(socket.id, roomCode?.toUpperCase(), name, userId)
     if (!result) {
       return socket.emit('room:error', {
         code: 'ROOM_NOT_FOUND',

@@ -2,12 +2,16 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.registerRoomHandlers = registerRoomHandlers;
 const GameEngine_1 = require("../game/GameEngine");
+const authMiddleware_1 = require("./authMiddleware");
 function registerRoomHandlers(socket, io, rooms) {
     socket.on('room:create', ({ playerName, gameMode }) => {
-        if (!playerName?.trim()) {
+        const socketUser = (0, authMiddleware_1.getSocketUser)(socket);
+        const name = playerName?.trim() || socketUser.user?.displayName;
+        if (!name) {
             return socket.emit('room:error', { code: 'INVALID_NAME', message: 'Nombre inválido' });
         }
-        const room = rooms.createRoom(socket.id, playerName.trim(), gameMode);
+        const userId = socketUser.user?.id;
+        const room = rooms.createRoom(socket.id, name, gameMode, userId);
         socket.join(room.roomCode);
         socket.emit('room:created', {
             roomCode: room.roomCode,
@@ -16,10 +20,13 @@ function registerRoomHandlers(socket, io, rooms) {
         });
     });
     socket.on('room:join', ({ roomCode, playerName }) => {
-        if (!playerName?.trim()) {
+        const socketUser = (0, authMiddleware_1.getSocketUser)(socket);
+        const name = playerName?.trim() || socketUser.user?.displayName;
+        if (!name) {
             return socket.emit('room:error', { code: 'INVALID_NAME', message: 'Nombre inválido' });
         }
-        const result = rooms.joinRoom(socket.id, roomCode?.toUpperCase(), playerName.trim());
+        const userId = socketUser.user?.id;
+        const result = rooms.joinRoom(socket.id, roomCode?.toUpperCase(), name, userId);
         if (!result) {
             return socket.emit('room:error', {
                 code: 'ROOM_NOT_FOUND',

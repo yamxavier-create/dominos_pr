@@ -33,6 +33,7 @@ export interface ClientPlayer {
   connected: boolean
   isMe: boolean
   tiles?: Tile[]  // only for local player
+  userId?: string // set for authenticated users
 }
 
 export interface TeamScores {

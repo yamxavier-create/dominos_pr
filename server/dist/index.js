@@ -13,12 +13,16 @@ const RoomManager_1 = require("./game/RoomManager");
 const handlers_1 = require("./socket/handlers");
 const GameEngine_1 = require("./game/GameEngine");
 const gameHandlers_1 = require("./socket/gameHandlers");
+const authRoutes_1 = __importDefault(require("./auth/authRoutes"));
+const authMiddleware_1 = require("./socket/authMiddleware");
 const app = (0, express_1.default)();
 const httpServer = (0, http_1.createServer)(app);
 if (config_1.config.NODE_ENV !== 'production') {
     app.use((0, cors_1.default)({ origin: config_1.config.CLIENT_ORIGIN }));
 }
 app.use(express_1.default.json());
+// Auth REST API
+app.use('/api/auth', authRoutes_1.default);
 const io = new socket_io_1.Server(httpServer, {
     cors: config_1.config.NODE_ENV !== 'production'
         ? { origin: config_1.config.CLIENT_ORIGIN, methods: ['GET', 'POST'] }
@@ -26,6 +30,8 @@ const io = new socket_io_1.Server(httpServer, {
     pingTimeout: 60000,
     pingInterval: 25000,
 });
+// Socket.io auth middleware — identifies user or marks as guest
+io.use(authMiddleware_1.authMiddleware);
 const rooms = new RoomManager_1.RoomManager();
 // Health check for Railway
 app.get('/health', (_req, res) => {

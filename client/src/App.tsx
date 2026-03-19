@@ -1,17 +1,21 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useSocket } from './hooks/useSocket'
 import { useBackgroundMusic } from './hooks/useBackgroundMusic'
+import { useAuth } from './hooks/useAuth'
 import { MenuPage } from './pages/MenuPage'
 import { LobbyPage } from './pages/LobbyPage'
 import { GamePage } from './pages/GamePage'
+import { AuthPage } from './pages/AuthPage'
 
 function AppRoutes() {
   useSocket()
   useBackgroundMusic()
+  useAuth() // Auto-login from stored token
 
   return (
     <Routes>
       <Route path="/" element={<MenuPage />} />
+      <Route path="/auth" element={<AuthPage />} />
       <Route path="/lobby" element={<LobbyPage />} />
       <Route path="/game" element={<GamePage />} />
       <Route path="*" element={<Navigate to="/" replace />} />

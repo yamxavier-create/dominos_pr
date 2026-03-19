@@ -8,6 +8,8 @@ import { RoomManager } from './game/RoomManager'
 import { registerHandlers } from './socket/handlers'
 import { buildClientGameState } from './game/GameEngine'
 import { checkRematchCancellation } from './socket/gameHandlers'
+import authRoutes from './auth/authRoutes'
+import { authMiddleware } from './socket/authMiddleware'
 
 const app = express()
 const httpServer = createServer(app)
@@ -17,6 +19,9 @@ if (config.NODE_ENV !== 'production') {
 }
 app.use(express.json())
 
+// Auth REST API
+app.use('/api/auth', authRoutes)
+
 const io = new Server(httpServer, {
   cors: config.NODE_ENV !== 'production'
     ? { origin: config.CLIENT_ORIGIN, methods: ['GET', 'POST'] }
@@ -24,6 +29,9 @@ const io = new Server(httpServer, {
   pingTimeout: 60000,
   pingInterval: 25000,
 })
+
+// Socket.io auth middleware — identifies user or marks as guest
+io.use(authMiddleware)
 
 const rooms = new RoomManager()
 

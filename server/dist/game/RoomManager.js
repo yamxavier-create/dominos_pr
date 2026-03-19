@@ -18,13 +18,13 @@ class RoomManager {
         // Clean up idle rooms every 10 minutes
         this.cleanupInterval = setInterval(() => this.cleanup(), 10 * 60 * 1000);
     }
-    createRoom(socketId, playerName, gameMode) {
+    createRoom(socketId, playerName, gameMode, userId) {
         const roomCode = generateRoomCode(new Set(this.rooms.keys()));
         const room = {
             roomCode,
             hostSocketId: socketId,
             gameMode,
-            players: [{ socketId, name: playerName, seatIndex: 0, connected: true }],
+            players: [{ socketId, name: playerName, seatIndex: 0, connected: true, userId }],
             status: 'waiting',
             game: null,
             lastActivity: Date.now(),
@@ -35,21 +35,25 @@ class RoomManager {
         this.socketToRoom.set(socketId, roomCode);
         return room;
     }
-    joinRoom(socketId, roomCode, playerName) {
+    joinRoom(socketId, roomCode, playerName, userId) {
         const room = this.rooms.get(roomCode);
         if (!room)
             return null;
         if (room.status === 'in_game') {
-            // Reconnect attempt: find matching disconnected player by name
+            // Reconnect attempt: match by userId first (more reliable), then by name
             if (room.game) {
-                const player = room.game.players.find(p => p.name === playerName && !p.connected);
+                const player = room.game.players.find(p => !p.connected && ((userId && p.userId === userId) || p.name === playerName));
                 if (player) {
                     player.socketId = socketId;
                     player.connected = true;
+                    if (userId)
+                        player.userId = userId;
                     const rp = room.players.find(p => p.seatIndex === player.index);
                     if (rp) {
                         rp.socketId = socketId;
                         rp.connected = true;
+                        if (userId)
+                            rp.userId = userId;
                     }
                     this.socketToRoom.set(socketId, roomCode);
                     room.lastActivity = Date.now();
@@ -63,7 +67,7 @@ class RoomManager {
         if (room.players.some(p => p.name === playerName))
             return null;
         const seatIndex = room.players.length;
-        const rp = { socketId, name: playerName, seatIndex, connected: true };
+        const rp = { socketId, name: playerName, seatIndex, connected: true, userId };
         room.players.push(rp);
         this.socketToRoom.set(socketId, roomCode);
         room.lastActivity = Date.now();
@@ -150,6 +154,7 @@ class RoomManager {
                 index: p.seatIndex,
                 name: p.name,
                 connected: p.connected,
+                userId: p.userId,
             })),
             status: room.status,
         };

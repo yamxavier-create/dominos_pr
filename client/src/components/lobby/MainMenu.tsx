@@ -1,8 +1,9 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { GameMode } from '../../types/game'
-import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { useRoomStore } from '../../store/roomStore'
+import { useAuthStore } from '../../store/authStore'
 import { useGameActions } from '../../hooks/useGameActions'
 
 type View = 'home' | 'create' | 'join'
@@ -30,13 +31,18 @@ const OutlineBtn = ({ children, onClick }: { children: React.ReactNode; onClick?
 
 export function MainMenu() {
   const [view, setView] = useState<View>('home')
-  const [playerName, setPlayerName] = useState('')
+  const { isAuthenticated, user } = useAuthStore()
+  const [playerName, setPlayerName] = useState(user?.displayName || '')
   const [roomCode, setRoomCode] = useState('')
   const [selectedMode, setSelectedMode] = useState<GameMode>('modo200')
+  const navigate = useNavigate()
 
   const { createRoom, joinRoom } = useGameActions()
   const error = useRoomStore(s => s.error)
   const { clearError } = useRoomStore()
+
+  // Auto-fill name when user logs in
+  const effectiveName = playerName || user?.displayName || ''
 
   const handleCreate = () => {
     if (!playerName.trim()) return
@@ -152,6 +158,31 @@ export function MainMenu() {
 
   return (
     <div className="flex flex-col items-center gap-10 w-full max-w-sm">
+      {/* User badge (logged in) or login link */}
+      {isAuthenticated && user ? (
+        <div className="w-full flex items-center justify-between px-1">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-green-500/20 border border-green-500/40 flex items-center justify-center text-xs font-bold text-green-400">
+              {user.displayName[0]?.toUpperCase()}
+            </div>
+            <span className="font-body text-white/70 text-sm">{user.displayName}</span>
+          </div>
+          <button
+            onClick={() => navigate('/auth')}
+            className="font-body text-white/30 hover:text-white/50 text-xs transition-colors"
+          >
+            Cambiar cuenta
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => navigate('/auth')}
+          className="font-body text-green-400/70 hover:text-green-400 text-sm transition-colors"
+        >
+          Iniciar sesión / Crear cuenta
+        </button>
+      )}
+
       {/* Logo */}
       <div className="text-center">
         <div className="text-7xl mb-4" style={{ filter: 'drop-shadow(0 0 20px rgba(34,197,94,0.4))' }}>🁣</div>

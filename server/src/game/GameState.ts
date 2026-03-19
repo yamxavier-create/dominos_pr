@@ -37,6 +37,7 @@ export interface PlayerState {
   name: string
   tiles: Tile[]
   connected: boolean
+  userId?: string  // Set for authenticated users, undefined for guests
 }
 
 export interface TeamScores {
@@ -74,6 +75,7 @@ export interface RoomPlayer {
   name: string
   seatIndex: number
   connected: boolean
+  userId?: string  // Set for authenticated users, undefined for guests
 }
 
 export interface Room {
