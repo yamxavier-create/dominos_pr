@@ -438,20 +438,19 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
       return
     }
 
-    // Broadcast the state update (tile placed)
+    // Process auto-pass cascade for next player(s), then broadcast final state.
+    // Single broadcast ensures client gets awaitingBoneyardDraw set correctly.
+    const nextIdx = nextPlayerIndex(player.index, game.players.length)
+    const ended = processAutoPassCascade(io, game, nextIdx, player.index)
+
+    // Always broadcast the tile placement — even if the cascade ended the round,
+    // the client needs the state_snapshot to update the board before showing round_ended.
     broadcastStateWithAction(io, game, {
       type: 'play_tile',
       playerIndex: player.index,
       tile,
       targetEnd,
     })
-
-    // Process auto-pass cascade for next player(s)
-    const nextIdx = nextPlayerIndex(player.index, game.players.length)
-    const ended = processAutoPassCascade(io, game, nextIdx, player.index)
-    if (!ended) {
-      broadcastState(io, game)
-    }
   })
 
   socket.on('game:next_hand', ({ roomCode }: { roomCode: string }) => {

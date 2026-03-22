@@ -88,6 +88,10 @@ export function GameTable() {
   const boneyardCount = gameState.boneyardCount ?? 0
   const is2Player = playerCount === 2
 
+  // Defensive: show boneyard draw if it's my turn, I have no valid plays, and boneyard has tiles
+  // This covers edge cases where server didn't set awaitingBoneyardDraw
+  const shouldAwaitDraw = awaitingBoneyardDraw || (isMyTurn && validPlays.length === 0 && boneyardCount > 0)
+
   const myTiles = players[myPlayerIndex]?.tiles ?? []
   const validPlayIds = new Set(validPlays.map(vp => vp.tileId))
 
@@ -202,7 +206,7 @@ export function GameTable() {
           {is2Player && (
             <BoneyardPile
               count={boneyardCount}
-              awaitingDraw={awaitingBoneyardDraw}
+              awaitingDraw={shouldAwaitDraw}
               isMyTurn={isMyTurn}
               onDraw={drawFromBoneyard}
               currentPlayerName={players[currentPlayerIndex]?.name ?? ''}

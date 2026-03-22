@@ -21,8 +21,8 @@ export function BoneyardPile({ count, awaitingDraw, isMyTurn, onDraw, currentPla
     setTimeout(() => setTappedIndex(null), 400)
   }
 
-  // Spread mode — current player needs to draw
-  if (awaitingDraw) {
+  // Spread mode — only for the current player who needs to draw
+  if (awaitingDraw && isMyTurn) {
     const tileW = 36
     const tileH = 72
 
@@ -39,20 +39,21 @@ export function BoneyardPile({ count, awaitingDraw, isMyTurn, onDraw, currentPla
             <button
               key={i}
               onClick={() => handleTap(i)}
+              onTouchEnd={(e) => { e.preventDefault(); handleTap(i) }}
               disabled={!isMyTurn || tappedIndex !== null}
               className={`
                 relative transition-transform duration-150 rounded shrink-0
                 ${isMyTurn && tappedIndex === null ? 'cursor-pointer hover:-translate-y-2 active:scale-95' : 'cursor-default'}
                 ${tappedIndex === i ? '-translate-y-3 opacity-40' : ''}
               `}
-              style={{ width: tileW, height: tileH }}
+              style={{ width: tileW, height: tileH, touchAction: 'manipulation' }}
             >
               <DominoTile
                 pip1={0}
                 pip2={0}
                 orientation="vertical"
                 faceDown
-                style={{ width: tileW, height: tileH }}
+                style={{ width: tileW, height: tileH, pointerEvents: 'none' }}
               />
             </button>
           ))}
@@ -65,6 +66,11 @@ export function BoneyardPile({ count, awaitingDraw, isMyTurn, onDraw, currentPla
   const layerCount = Math.min(count, 4)
   return (
     <div className="absolute bottom-2 right-2 z-10">
+      {awaitingDraw && !isMyTurn && (
+        <p className="text-white/60 text-[10px] font-body mb-1 text-center whitespace-nowrap">
+          {currentPlayerName} jalando...
+        </p>
+      )}
       <div className="relative" style={{ width: 36, height: 68 }}>
         {Array.from({ length: layerCount }, (_, i) => (
           <div
