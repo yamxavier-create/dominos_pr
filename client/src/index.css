@@ -176,6 +176,18 @@ body {
   animation: bounce-slow 1s ease-in-out infinite;
 }
 
+/* Chat bubble float up and fade */
+@keyframes chat-bubble-anim {
+  0%   { opacity: 0; transform: translateY(4px); }
+  8%   { opacity: 1; transform: translateY(0); }
+  75%  { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-6px); }
+}
+
+.chat-bubble {
+  animation: chat-bubble-anim 4s ease-in-out forwards;
+}
+
 /* Felt table background */
 /* Chat panel slide in from right */
 @keyframes slide-in-right {

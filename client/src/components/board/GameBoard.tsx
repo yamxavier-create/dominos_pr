@@ -1,9 +1,7 @@
 import { useRef, useEffect, useState } from 'react'
 import { BoardState, BoardTile as BoardTileType } from '../../types/game'
 import { BoardTileItem, TILE_H_W, TILE_H_H, TILE_V_W, TILE_V_H } from './BoardTile'
-import { useUIStore } from '../../store/uiStore'
 import { useGameStore } from '../../store/gameStore'
-import { useGameActions } from '../../hooks/useGameActions'
 
 const GAP = 4
 const SNAKE_CAP = 620  // max snake row width (~7 tiles per row at 80px)
@@ -302,15 +300,12 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
 
 interface GameBoardProps {
   board: BoardState
-  validPlays: Array<{ tileId: string; targetEnd: 'left' | 'right' }>
 }
 
-export function GameBoard({ board, validPlays }: GameBoardProps) {
+export function GameBoard({ board }: GameBoardProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [dims, setDims] = useState({ w: 0, h: 0 })
   const lastTileSequence = useGameStore(s => s.lastTileSequence)
-  const selectedTileId = useUIStore(s => s.selectedTileId)
-  const { playTileOnEnd } = useGameActions()
 
   useEffect(() => {
     const el = containerRef.current
@@ -357,7 +352,7 @@ export function GameBoard({ board, validPlays }: GameBoardProps) {
   //   rendered position = center + (original - center) * scale
   // So: rightExtent * scale <= dims.w / 2  (right side)
   //     leftExtent  * scale <= dims.w / 2  (left side)
-  const BADGE_MARGIN = 48
+  const BADGE_MARGIN = 16
   const cx = dims.w / 2
   const cy = dims.h / 2
   const rightExtent = maxX - cx + BADGE_MARGIN
@@ -372,49 +367,6 @@ export function GameBoard({ board, validPlays }: GameBoardProps) {
     topExtent    > 0 ? (dims.h / 2) / topExtent    : 1,
   )
 
-  const leftEnd = board.tiles[0]
-  const rightEnd = board.tiles[board.tiles.length - 1]
-  const leftItem = layout[0]
-  const rightItem = layout[layout.length - 1]
-
-  const canPlayLeft = selectedTileId !== null && validPlays.some(vp => vp.tileId === selectedTileId && vp.targetEnd === 'left')
-  const canPlayRight = selectedTileId !== null && validPlays.some(vp => vp.tileId === selectedTileId && vp.targetEnd === 'right')
-
-  const endBadgeClass = (canPlay: boolean) => `
-    absolute flex items-center justify-center w-9 h-9 rounded-full text-sm font-bold font-body
-    border-2 transition-all duration-200 z-20 -translate-y-1/2
-    ${canPlay
-      ? 'bg-gold border-gold text-bg cursor-pointer scale-110 animate-pulse shadow-lg shadow-gold/50'
-      : 'bg-surface border-border text-white/60 cursor-default'
-    }
-  `
-
-  // Badge is w-9 (36px). Position depends on which side the exposed pip faces.
-  // Left end: exposed pip is leftPip. When flipped, it's displayed on the RIGHT physical side.
-  // When corner (vertical), the exposed pip is on top — place badge above.
-  const BADGE_OFF = 8  // gap between tile edge and badge edge
-  const leftDisplaySize = tileDisplaySize(leftEnd, leftItem.corner)
-  const leftBadgeOnRight = leftItem.flipped  // flipped = right-going row after corner turn
-  const leftBadgeX = leftItem.corner
-    ? leftItem.pos.x + leftDisplaySize.w / 2 + BADGE_OFF  // to the right of corner tile
-    : leftBadgeOnRight
-      ? leftItem.pos.x + leftDisplaySize.w / 2 + BADGE_OFF
-      : Math.max(2, leftItem.pos.x - leftDisplaySize.w / 2 - 36 - BADGE_OFF)
-  const leftBadgeY = leftItem.corner
-    ? leftItem.pos.y - leftDisplaySize.h / 4  // at exposed (top) pip center
-    : leftItem.pos.y
-
-  // Right end: exposed pip is rightPip. When flipped, displayed on LEFT physical side.
-  const rightDisplaySize = tileDisplaySize(rightEnd, rightItem.corner)
-  const rightBadgeOnLeft = rightItem.flipped
-  const rightBadgeX = rightItem.corner
-    ? rightItem.pos.x + rightDisplaySize.w / 2 + BADGE_OFF  // to the right of corner tile
-    : rightBadgeOnLeft
-      ? Math.max(2, rightItem.pos.x - rightDisplaySize.w / 2 - 36 - BADGE_OFF)
-      : rightItem.pos.x + rightDisplaySize.w / 2 + BADGE_OFF
-  const rightBadgeY = rightItem.corner
-    ? rightItem.pos.y + rightDisplaySize.h / 4  // at exposed (bottom) pip center
-    : rightItem.pos.y
 
   return (
     <div ref={containerRef} className="w-full h-full overflow-hidden relative">
@@ -442,27 +394,6 @@ export function GameBoard({ board, validPlays }: GameBoardProps) {
           )
         })}
 
-        {/* Left-end badge */}
-        {leftItem && board.leftEnd !== null && (
-          <button
-            onClick={() => canPlayLeft && playTileOnEnd('left')}
-            className={endBadgeClass(canPlayLeft)}
-            style={{ left: leftBadgeX, top: leftBadgeY }}
-          >
-            {board.leftEnd}
-          </button>
-        )}
-
-        {/* Right-end badge */}
-        {rightItem && board.rightEnd !== null && (
-          <button
-            onClick={() => canPlayRight && playTileOnEnd('right')}
-            className={endBadgeClass(canPlayRight)}
-            style={{ left: rightBadgeX, top: rightBadgeY }}
-          >
-            {board.rightEnd}
-          </button>
-        )}
       </div>
     </div>
   )

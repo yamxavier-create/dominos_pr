@@ -299,7 +299,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
       targetScore: room.gameMode === 'modo200' ? 20 : 500,
       phase: 'playing',
       handNumber: 1,
-      players: room.players.map((rp, i) => ({
+      players: [...room.players].sort((a, b) => a.seatIndex - b.seatIndex).map((rp, i) => ({
         index: i,
         socketId: rp.socketId,
         name: rp.name,

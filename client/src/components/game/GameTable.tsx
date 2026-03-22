@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useGameStore } from '../../store/gameStore'
 import { useRoomStore } from '../../store/roomStore'
 import { useUIStore } from '../../store/uiStore'
@@ -18,6 +18,7 @@ import { ScoreHistoryPanel } from './ScoreHistoryPanel'
 import { BoneyardPile } from './BoneyardPile'
 import { BoneyardDrawAnimation } from './BoneyardDrawAnimation'
 import { PasoChip } from './PasoChip'
+import { FloatingChatBubble } from '../chat/FloatingChatBubble'
 import { RoundEndModal } from './RoundEndModal'
 import { GameEndModal } from './GameEndModal'
 
@@ -54,6 +55,7 @@ export function GameTable() {
   const showScoreHistory = useUIStore(s => s.showScoreHistory)
   const setShowScoreHistory = useUIStore(s => s.setShowScoreHistory)
   const showRoundEnd = useUIStore(s => s.showRoundEnd)
+  const chatMessages = useUIStore(s => s.chatMessages)
 
   // Call store subscriptions
   const localStream = useCallStore(s => s.localStream)
@@ -63,6 +65,33 @@ export function GameTable() {
   const cameraOff = useCallStore(s => s.cameraOff)
   const myAudioEnabled = useCallStore(s => s.myAudioEnabled)
   const myVideoEnabled = useCallStore(s => s.myVideoEnabled)
+
+  // Track which chat messages are still visible (auto-expire after 4s)
+  const [visibleMsgIds, setVisibleMsgIds] = useState<Set<string>>(new Set())
+  const msgTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+
+  useEffect(() => {
+    const newIds = new Set(visibleMsgIds)
+    let changed = false
+    for (const msg of chatMessages) {
+      if (!msgTimersRef.current.has(msg.id)) {
+        newIds.add(msg.id)
+        changed = true
+        const timer = setTimeout(() => {
+          setVisibleMsgIds(prev => { const s = new Set(prev); s.delete(msg.id); return s })
+          msgTimersRef.current.delete(msg.id)
+        }, 4500)
+        msgTimersRef.current.set(msg.id, timer)
+      }
+    }
+    if (changed) setVisibleMsgIds(newIds)
+  }, [chatMessages])
+
+  const getFloatingMessages = useCallback((playerIndex: number) => {
+    return chatMessages
+      .filter(m => m.playerIndex === playerIndex && visibleMsgIds.has(m.id))
+      .slice(-2)
+  }, [chatMessages, visibleMsgIds])
 
   // Speaking detection
   useSpeakingDetection(remoteStreams, localStream, myPlayerIndex)
@@ -82,7 +111,8 @@ export function GameTable() {
   }
 
   const { players, board, currentPlayerIndex, scores, gameMode, targetScore, handNumber, validPlays, isMyTurn, forcedFirstTileId, awaitingBoneyardDraw } = gameState
-  const { drawFromBoneyard } = useGameActions()
+  const { drawFromBoneyard, playTileOnEnd } = useGameActions()
+  const selectedTileId = useUIStore(s => s.selectedTileId)
 
   const playerCount = gameState.playerCount ?? 4
   const boneyardCount = gameState.boneyardCount ?? 0
@@ -94,6 +124,11 @@ export function GameTable() {
 
   const myTiles = players[myPlayerIndex]?.tiles ?? []
   const validPlayIds = new Set(validPlays.map(vp => vp.tileId))
+
+  // When a tile is selected and can play on both ends, show end chooser
+  const canPlayLeft = selectedTileId !== null && validPlays.some(vp => vp.tileId === selectedTileId && vp.targetEnd === 'left')
+  const canPlayRight = selectedTileId !== null && validPlays.some(vp => vp.tileId === selectedTileId && vp.targetEnd === 'right')
+  const showEndChooser = canPlayLeft && canPlayRight
 
   // CW layout: bottom=me, top=partner(4p)/opponent(2p), left/right=opponents(4p only)
   const topIndex = is2Player ? (myPlayerIndex + 1) % 2 : (myPlayerIndex + 2) % 4
@@ -149,7 +184,7 @@ export function GameTable() {
         style={{
           display: 'grid',
           gridTemplateRows: 'auto 1fr auto',
-          gridTemplateColumns: 'auto 1fr auto',
+          gridTemplateColumns: 'minmax(60px, auto) 1fr minmax(60px, auto)',
         }}
       >
         {/* Top-left corner */}
@@ -170,6 +205,9 @@ export function GameTable() {
               {getPaso(topIndex) && (
                 <PasoChip show playerName={topPlayer.name} bonusPoints={getPaso(topIndex)!.passBonusAwarded} />
               )}
+              {getFloatingMessages(topIndex).map(msg => (
+                <FloatingChatBubble key={msg.id} message={msg} />
+              ))}
             </>
           )}
         </div>
@@ -192,13 +230,16 @@ export function GameTable() {
               {getPaso(leftIndex) && (
                 <PasoChip show playerName={leftPlayer.name} bonusPoints={getPaso(leftIndex)!.passBonusAwarded} />
               )}
+              {getFloatingMessages(leftIndex).map(msg => (
+                <FloatingChatBubble key={msg.id} message={msg} />
+              ))}
             </>
           )}
         </div>
 
         {/* Board center */}
         <div className="relative overflow-hidden w-full h-full">
-          <GameBoard board={board} validPlays={validPlays} />
+          <GameBoard board={board} />
           <TurnIndicator
             playerName={currentPlayerName}
             isMyTurn={isMyTurn}
@@ -235,6 +276,9 @@ export function GameTable() {
               {getPaso(rightIndex) && (
                 <PasoChip show playerName={rightPlayer.name} bonusPoints={getPaso(rightIndex)!.passBonusAwarded} />
               )}
+              {getFloatingMessages(rightIndex).map(msg => (
+                <FloatingChatBubble key={msg.id} message={msg} />
+              ))}
             </>
           )}
         </div>
@@ -255,6 +299,29 @@ export function GameTable() {
           )}
           {getPaso(myPlayerIndex) && (
             <PasoChip show playerName={myPlayer?.name ?? ''} bonusPoints={getPaso(myPlayerIndex)!.passBonusAwarded} />
+          )}
+          {getFloatingMessages(myPlayerIndex).map(msg => (
+            <FloatingChatBubble key={msg.id} message={msg} />
+          ))}
+          {showEndChooser && (
+            <div className="flex gap-3 mb-1">
+              <button
+                onClick={() => playTileOnEnd('left')}
+                onTouchEnd={(e) => { e.preventDefault(); playTileOnEnd('left') }}
+                className="px-4 py-1.5 rounded-full bg-gold/90 text-bg font-bold text-sm font-body shadow-lg active:scale-95 transition-transform"
+                style={{ touchAction: 'manipulation' }}
+              >
+                ← Izq ({board.leftEnd})
+              </button>
+              <button
+                onClick={() => playTileOnEnd('right')}
+                onTouchEnd={(e) => { e.preventDefault(); playTileOnEnd('right') }}
+                className="px-4 py-1.5 rounded-full bg-gold/90 text-bg font-bold text-sm font-body shadow-lg active:scale-95 transition-transform"
+                style={{ touchAction: 'manipulation' }}
+              >
+                Der ({board.rightEnd}) →
+              </button>
+            </div>
           )}
           <PlayerHand
             tiles={myTiles}
