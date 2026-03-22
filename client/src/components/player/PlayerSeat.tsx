@@ -27,6 +27,7 @@ export function PlayerSeat({
   isLocalPlayer,
 }: PlayerSeatProps) {
   const isVertical = position === 'left' || position === 'right'
+  const avatarSize = isVertical ? 48 : 80
   const initials = player.name.slice(0, 2).toUpperCase()
 
   // Only subscribe to call state for the local player to avoid unnecessary re-renders
@@ -52,7 +53,7 @@ export function PlayerSeat({
           isCurrentTurn={isCurrentTurn}
           isSpeaking={isSpeaking ?? false}
           isCameraOff={isCameraOff ?? true}
-          size={80}
+          size={avatarSize}
         />
         {/* Tile count badge */}
         <span

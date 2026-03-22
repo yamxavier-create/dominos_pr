@@ -184,7 +184,7 @@ export function GameTable() {
         style={{
           display: 'grid',
           gridTemplateRows: 'auto 1fr auto',
-          gridTemplateColumns: 'minmax(60px, auto) 1fr minmax(60px, auto)',
+          gridTemplateColumns: 'minmax(52px, auto) 1fr minmax(52px, auto)',
         }}
       >
         {/* Top-left corner */}
@@ -216,7 +216,7 @@ export function GameTable() {
         <div />
 
         {/* Left opponent (4-player only) */}
-        <div className="flex flex-col items-center justify-center gap-1 px-1 relative">
+        <div className="flex flex-col items-center justify-center gap-1 px-0.5 relative overflow-hidden">
           {!is2Player && leftPlayer && (
             <>
               <PlayerSeat
@@ -262,7 +262,7 @@ export function GameTable() {
         </div>
 
         {/* Right opponent (4-player only) */}
-        <div className="flex flex-col items-center justify-center gap-1 px-1 relative">
+        <div className="flex flex-col items-center justify-center gap-1 px-0.5 relative overflow-hidden">
           {!is2Player && rightPlayer && (
             <>
               <PlayerSeat

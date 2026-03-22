@@ -31,12 +31,12 @@ export function OpponentHand({ player, position }: OpponentHandProps) {
 
   if (position === 'left' || position === 'right') {
     return (
-      <div className="flex flex-col items-center justify-center gap-1 py-2">
+      <div className="flex flex-col items-center justify-center gap-0.5 py-1">
         {tiles.map(i => (
           <DominoTileBack
             key={i}
             orientation="horizontal"
-            style={{ width: BACK_H, height: BACK_W }}
+            style={{ width: 28, height: 14 }}
           />
         ))}
         {count === 0 && <span className="text-white/30 text-xs font-body">sin fichas</span>}
