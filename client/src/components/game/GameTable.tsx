@@ -121,7 +121,7 @@ export function GameTable() {
   }
 
   return (
-    <div className="flex flex-col h-dvh overflow-hidden select-none felt-table">
+    <div className="flex flex-col overflow-hidden select-none felt-table" style={{ height: '100dvh', minHeight: '-webkit-fill-available' }}>
       {/* Score bar */}
       <ScorePanel
         scores={scores}
