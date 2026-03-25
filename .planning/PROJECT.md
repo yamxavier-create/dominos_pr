@@ -40,29 +40,29 @@ Friends can start and finish a complete game of Puerto Rican dominoes online, in
 
 ## Current Milestone: v1.3 Social & Accounts
 
-**Goal:** Add user accounts with Supabase Auth, friends list with request/accept, online presence, and direct join — so players can find and play with friends without sharing lobby codes.
+**Goal:** Add user accounts (Prisma + PostgreSQL + JWT, already scaffolded), friends list with request/accept, online presence, and direct join — so players can find and play with friends without sharing lobby codes.
 
 **Target features:**
-- Supabase integration (PostgreSQL + Auth)
-- Google OAuth + email/password login (guest mode preserved)
-- User profiles with display name
-- Friends system (request/accept)
+- Complete Google OAuth wiring (placeholder exists on feature/social-v2)
+- Friends system with request/accept (Prisma model exists)
 - Online presence tracking for logged-in users
 - Direct join to a friend's lobby
+- Post-game "Add Friend" button
 
 ### Active
 
-- [ ] Supabase database and auth integration
-- [ ] Google OAuth and email/password authentication
-- [ ] Guest mode preserved — login unlocks social features
-- [ ] User profiles with display name
-- [ ] Friend request/accept system
-- [ ] Online presence (who's in a lobby, who's playing)
+- [ ] Complete Google OAuth client wiring
+- [ ] Friends REST API + socket events (request/accept/reject/list)
+- [ ] Username search for adding friends
+- [ ] Presence tracking system (online/in_lobby/in_game/offline)
+- [ ] Friends list UI with online status
 - [ ] Direct "Join" button to enter a friend's lobby
+- [ ] Post-game "Add Friend" button
+- [ ] Guest mode preserved — login unlocks social features
 
 ### Out of Scope
 
-- Native mobile app (App Store / Google Play) — deferred to future milestone
+- Native mobile app (App Store / Google Play) — planned for future milestone once features are solid; expect thousands of users at that stage
 - Offline mode — real-time is core value
 - Persistent chat history — in-memory is sufficient for casual play sessions
 - Spectator mode — requires seat assignment changes
@@ -84,7 +84,7 @@ PWA installable with service worker (socket.io and /health excluded from caching
 
 - **Tech Stack**: React + Socket.io + Zustand + Express + WebRTC — no new frameworks without clear justification
 - **No persistence**: In-memory room state only; server restart loses active games (acceptable for current scope)
-- **Supabase**: Auth + PostgreSQL for user accounts and social features; guest mode preserved for casual play
+- **Prisma + PostgreSQL**: Custom JWT auth + PostgreSQL for user accounts and social features; guest mode preserved for casual play
 - **TypeScript strict**: Both client and server enforce `"strict": true`
 
 ## Key Decisions
@@ -106,7 +106,7 @@ PWA installable with service worker (socket.io and /health excluded from caching
 | Circular avatar cameras over side panel | Video in player avatar position is less intrusive than side panel; works better on mobile | ✓ Good |
 | Speaking threshold 25 on first 8 FFT bins | Reliable speech frequency detection without over-sensitivity | ✓ Good |
 
-| Supabase for auth + DB | Free tier, Google OAuth built-in, PostgreSQL, eliminates custom auth complexity | — Pending |
+| Custom Prisma + PostgreSQL + JWT auth (not Supabase) | Already built on feature/social-v2 — monorepo with Express as sole authority benefits from custom stack | ✓ Good |
 | Guest + Login dual mode | Preserves frictionless casual play while unlocking social features for logged-in users | — Pending |
 
 ---

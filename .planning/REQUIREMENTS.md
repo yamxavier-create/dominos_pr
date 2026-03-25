@@ -1,63 +1,79 @@
 # Requirements: Dominos PR
 
-**Defined:** 2026-03-14
+**Defined:** 2026-03-25
 **Core Value:** Friends can start and finish a complete game of Puerto Rican dominoes online, in real time, from any device — without friction.
 
-## v1.2 Requirements
+## v1.3 Requirements
 
-Requirements for Sound & Audio milestone. Each maps to roadmap phases.
+Requirements for Social & Accounts milestone. Each maps to roadmap phases.
 
-### Sound Effects
+### Authentication
 
-- [x] **SFX-01**: User hears a clack sound when any player plays a tile on the board
-- [x] **SFX-02**: User hears a notification sound when it becomes their turn to play
-- [x] **SFX-03**: User hears a distinct sound when a player passes
+- [ ] **AUTH-01**: User can complete Google OAuth login via the existing placeholder button
+- [ ] **AUTH-02**: User can play as guest without logging in (current behavior preserved)
+- [ ] **AUTH-03**: Logged-in user's identity persists across browser refresh (JWT + localStorage)
 
-### Background Music
+### Profile
+
+- [ ] **PROF-01**: User can edit their display name after registration
+- [ ] **PROF-02**: User's avatar displays from Google account or default placeholder
+
+### Friends
+
+- [ ] **FRD-01**: User can search for other users by username
+- [ ] **FRD-02**: User can send a friend request to another user
+- [ ] **FRD-03**: User can accept or reject a pending friend request
+- [ ] **FRD-04**: User can view their friends list with online status
+- [ ] **FRD-05**: User can unfriend someone from their friends list
+- [ ] **FRD-06**: User can send a friend request from the post-game screen
+
+### Presence
+
+- [ ] **PRES-01**: User can see if a friend is online, in a lobby, in a game, or offline
+- [ ] **PRES-02**: User receives real-time notification when a friend comes online or enters a lobby
+- [ ] **PRES-03**: Presence handles multi-tab correctly (offline only when ALL tabs close)
+
+### Direct Join
+
+- [ ] **JOIN-01**: User can join a friend's lobby directly from the friends list via "Join" button
+- [ ] **JOIN-02**: Join button only appears when friend is in a lobby with available seats
+
+## Deferred from v1.2
+
+### Background Music (Phase 15 — deferred)
 
 - [ ] **MUS-01**: User hears lo-fi background music on the menu and lobby screens
 - [ ] **MUS-02**: Background music stops when the game starts
-
-### Audio Infrastructure
-
-- [x] **AUD-01**: Audio uses a shared AudioContext singleton (compatible with existing WebRTC speaking detection)
-- [x] **AUD-02**: Audio handles browser autoplay policy (unlocks on first user interaction)
-- [x] **AUD-03**: Audio files are cached by PWA service worker for offline playback
-
-### Audio Controls
-
 - [ ] **CTL-01**: User can toggle SFX on/off independently from music
 - [ ] **CTL-02**: User can toggle background music on/off independently from SFX
 
 ## Future Requirements
 
-### Extended Sound Effects
+### Notifications
 
-- **SFX-04**: User hears a fanfare when a round ends
-- **SFX-05**: User hears a distinct fanfare when a game ends
-- **SFX-06**: User hears a draw sound when pulling from boneyard (2-player mode)
-- **SFX-07**: User hears an accent sound on Capicú or Chuchazo
-- **SFX-08**: User hears a ping when a chat message arrives
+- **NOTIF-01**: User receives push notification when a friend invites them to play
+- **NOTIF-02**: User receives notification for new friend requests when app is backgrounded
 
-### Extended Controls
+### Social
 
-- **CTL-03**: User can adjust SFX volume with a slider
-- **CTL-04**: User can adjust music volume with a slider
-- **CTL-05**: Audio preferences persist across sessions via localStorage
+- **SOC-01**: User can invite a friend to their lobby (invitation system)
+- **SOC-02**: User can share a lobby link that deep-links into the PWA
 
-### Extended Music
+### Native App
 
-- **MUS-03**: Background music fades in/out smoothly on page transitions
+- **NAT-01**: App published to App Store (iOS)
+- **NAT-02**: App published to Google Play (Android)
+- **NAT-03**: Native push notifications
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Music during gameplay | Conflicts with WebRTC voice chat; creates audio fatigue |
-| Spatial audio / 3D positioning | Unnecessary complexity for a 2D board game |
-| Multiple music tracks / playlist | Single loop sufficient for lobby; defer to future |
-| Sound packs / themes | Over-engineering for current scope |
-| iOS silent mode override | Impossible — platform limitation, not a bug |
+| Matchmaking / random opponents | Changes social dynamic from friends-and-family to competitive |
+| Direct messages / chat between friends | In-game chat exists; out-of-game DMs add complexity without value |
+| Leaderboards | Competitive feature, not aligned with casual play core value |
+| Block / report system | Not needed until public matchmaking exists |
+| Friend count limit | Not critical at current scale |
 
 ## Traceability
 
@@ -65,22 +81,28 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUD-01 | Phase 13 | Complete |
-| AUD-02 | Phase 13 | Complete |
-| AUD-03 | Phase 13 | Complete |
-| SFX-01 | Phase 14 | Complete |
-| SFX-02 | Phase 14 | Complete |
-| SFX-03 | Phase 14 | Complete |
-| MUS-01 | Phase 15 | Pending |
-| MUS-02 | Phase 15 | Pending |
-| CTL-01 | Phase 15 | Pending |
-| CTL-02 | Phase 15 | Pending |
+| AUTH-01 | — | Pending |
+| AUTH-02 | — | Pending |
+| AUTH-03 | — | Pending |
+| PROF-01 | — | Pending |
+| PROF-02 | — | Pending |
+| FRD-01 | — | Pending |
+| FRD-02 | — | Pending |
+| FRD-03 | — | Pending |
+| FRD-04 | — | Pending |
+| FRD-05 | — | Pending |
+| FRD-06 | — | Pending |
+| PRES-01 | — | Pending |
+| PRES-02 | — | Pending |
+| PRES-03 | — | Pending |
+| JOIN-01 | — | Pending |
+| JOIN-02 | — | Pending |
 
 **Coverage:**
-- v1.2 requirements: 10 total
-- Mapped to phases: 10
-- Unmapped: 0
+- v1.3 requirements: 16 total
+- Mapped to phases: 0
+- Unmapped: 16 ⚠️
 
 ---
-*Requirements defined: 2026-03-14*
-*Last updated: 2026-03-14 after roadmap creation*
+*Requirements defined: 2026-03-25*
+*Last updated: 2026-03-25 after initial definition*
