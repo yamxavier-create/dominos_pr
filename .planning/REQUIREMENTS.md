@@ -1,7 +1,7 @@
 # Requirements: Dominos PR
 
 **Defined:** 2026-03-25
-**Core Value:** Friends can start and finish a complete game of Puerto Rican dominoes online, in real time, from any device — without friction.
+**Core Value:** Friends can start and finish a complete game of Puerto Rican dominoes online, in real time, from any device -- without friction.
 
 ## v1.3 Requirements
 
@@ -40,7 +40,7 @@ Requirements for Social & Accounts milestone. Each maps to roadmap phases.
 
 ## Deferred from v1.2
 
-### Background Music (Phase 15 — deferred)
+### Background Music (Phase 15 -- deferred)
 
 - [ ] **MUS-01**: User hears lo-fi background music on the menu and lobby screens
 - [ ] **MUS-02**: Background music stops when the game starts
@@ -81,28 +81,28 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | — | Pending |
-| AUTH-02 | — | Pending |
-| AUTH-03 | — | Pending |
-| PROF-01 | — | Pending |
-| PROF-02 | — | Pending |
-| FRD-01 | — | Pending |
-| FRD-02 | — | Pending |
-| FRD-03 | — | Pending |
-| FRD-04 | — | Pending |
-| FRD-05 | — | Pending |
-| FRD-06 | — | Pending |
-| PRES-01 | — | Pending |
-| PRES-02 | — | Pending |
-| PRES-03 | — | Pending |
-| JOIN-01 | — | Pending |
-| JOIN-02 | — | Pending |
+| AUTH-01 | Phase 16 | Pending |
+| AUTH-02 | Phase 16 | Pending |
+| AUTH-03 | Phase 16 | Pending |
+| PROF-01 | Phase 16 | Pending |
+| PROF-02 | Phase 16 | Pending |
+| FRD-01 | Phase 17 | Pending |
+| FRD-02 | Phase 17 | Pending |
+| FRD-03 | Phase 17 | Pending |
+| FRD-04 | Phase 17 | Pending |
+| FRD-05 | Phase 17 | Pending |
+| FRD-06 | Phase 19 | Pending |
+| PRES-01 | Phase 18 | Pending |
+| PRES-02 | Phase 18 | Pending |
+| PRES-03 | Phase 18 | Pending |
+| JOIN-01 | Phase 19 | Pending |
+| JOIN-02 | Phase 19 | Pending |
 
 **Coverage:**
 - v1.3 requirements: 16 total
-- Mapped to phases: 0
-- Unmapped: 16 ⚠️
+- Mapped to phases: 16
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-25*
-*Last updated: 2026-03-25 after initial definition*
+*Last updated: 2026-03-25 after roadmap creation*
