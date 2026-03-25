@@ -35,32 +35,39 @@ Friends can start and finish a complete game of Puerto Rican dominoes online, in
 - ✓ Circular live video avatars in player seat positions — v1.1
 - ✓ Camera and mic toggle controls during gameplay — v1.1
 - ✓ Speaking detection with visual glow indicator — v1.1
+- ✓ Audio foundation with shared AudioContext singleton — v1.2
+- ✓ Game sound effects (tile clack, turn notification, pass) — v1.2
 
-## Current Milestone: v1.2 Sound & Audio
+## Current Milestone: v1.3 Social & Accounts
 
-**Goal:** Add audio feedback to make the game feel alive — tile sounds, turn/pass notifications, and ambient lobby music.
+**Goal:** Add user accounts with Supabase Auth, friends list with request/accept, online presence, and direct join — so players can find and play with friends without sharing lobby codes.
 
 **Target features:**
-- Tile clack sound effect on play
-- Turn notification sound
-- Pass sound effect
-- Lo-fi background music in menu/lobby
-- Separate toggles for music and SFX
+- Supabase integration (PostgreSQL + Auth)
+- Google OAuth + email/password login (guest mode preserved)
+- User profiles with display name
+- Friends system (request/accept)
+- Online presence tracking for logged-in users
+- Direct join to a friend's lobby
 
 ### Active
 
-- [ ] Sound effects for tile placement, turn notification, and pass events
-- [ ] Lo-fi background music in menu and lobby screens
-- [ ] Separate audio controls for music and SFX
+- [ ] Supabase database and auth integration
+- [ ] Google OAuth and email/password authentication
+- [ ] Guest mode preserved — login unlocks social features
+- [ ] User profiles with display name
+- [ ] Friend request/accept system
+- [ ] Online presence (who's in a lobby, who's playing)
+- [ ] Direct "Join" button to enter a friend's lobby
 
 ### Out of Scope
 
-- Persistent accounts / login — in-memory rooms are sufficient for casual play
 - Native mobile app (App Store / Google Play) — deferred to future milestone
 - Offline mode — real-time is core value
 - Persistent chat history — in-memory is sufficient for casual play sessions
 - Spectator mode — requires seat assignment changes
 - TURN server — monitor post-deploy; add only if users report WebRTC connection failures
+- Background music — deferred from v1.2, not priority
 
 ## Context
 
@@ -77,7 +84,7 @@ PWA installable with service worker (socket.io and /health excluded from caching
 
 - **Tech Stack**: React + Socket.io + Zustand + Express + WebRTC — no new frameworks without clear justification
 - **No persistence**: In-memory room state only; server restart loses active games (acceptable for current scope)
-- **No auth**: Players identified by display name + socket ID; reconnection by name match
+- **Supabase**: Auth + PostgreSQL for user accounts and social features; guest mode preserved for casual play
 - **TypeScript strict**: Both client and server enforce `"strict": true`
 
 ## Key Decisions
@@ -99,5 +106,8 @@ PWA installable with service worker (socket.io and /health excluded from caching
 | Circular avatar cameras over side panel | Video in player avatar position is less intrusive than side panel; works better on mobile | ✓ Good |
 | Speaking threshold 25 on first 8 FFT bins | Reliable speech frequency detection without over-sensitivity | ✓ Good |
 
+| Supabase for auth + DB | Free tier, Google OAuth built-in, PostgreSQL, eliminates custom auth complexity | — Pending |
+| Guest + Login dual mode | Preserves frictionless casual play while unlocking social features for logged-in users | — Pending |
+
 ---
-*Last updated: 2026-03-14 after v1.2 milestone start*
+*Last updated: 2026-03-25 after v1.3 milestone start*
