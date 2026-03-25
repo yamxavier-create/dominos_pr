@@ -1,698 +1,647 @@
-# Architecture Patterns
+# Architecture Research
 
-**Domain:** Game audio integration -- sound effects and background music for existing domino web app
-**Researched:** 2026-03-14
-**Confidence:** HIGH (Web Audio API and HTMLAudioElement are stable browser APIs; patterns are well-established for game audio in React)
-
----
+**Domain:** Social features (auth, friends, presence, direct join) for real-time multiplayer domino app
+**Researched:** 2026-03-25
+**Confidence:** HIGH
 
 ## Current Architecture Snapshot
 
+Before defining the new architecture, here is what already exists and works.
+
+### What Is Already Built
+
+**Auth (complete):**
+- REST API at `/api/auth` with register, login, Google OAuth, `/me`, logout
+- JWT tokens with session table for revocation (Prisma + PostgreSQL)
+- Socket.io auth middleware that identifies authenticated users or marks as guest
+- `socket.data` carries `{ user?: { id, username, displayName }, guest: boolean }`
+- Client: `authStore` (Zustand), `useAuth` hook, `AuthPage` with LoginForm/RegisterForm/GoogleLoginButton
+- Token stored in `localStorage`, passed to socket via `socket.auth.token`
+
+**Database (complete):**
+- Prisma with PostgreSQL (via `@prisma/adapter-pg` driver adapter)
+- Models: `User`, `Session`, `UserStats`, `Friendship` (with `FriendshipStatus` enum: PENDING/ACCEPTED/REJECTED)
+- Friendship model has `@@unique([requesterId, targetId])` constraint
+
+**Scaffolding (empty):**
+- `server/src/social/` directory exists but is empty
+- No presence tracking code exists
+- No friend request handlers exist
+- No socialStore on client
+
+### What Is NOT Built
+
+| Feature | Server | Client | Notes |
+|---------|--------|--------|-------|
+| Friend request/accept/reject | Nothing | Nothing | DB schema ready (Friendship model) |
+| Friends list query | Nothing | Nothing | Need REST endpoint + socket events |
+| Online presence | Nothing | Nothing | Core feature -- socket-based |
+| Direct lobby join | Nothing | Nothing | Requires presence + room visibility |
+| User search (by username) | Nothing | Nothing | Needed for friend requests |
+| Social socket handlers | Nothing | Nothing | `server/src/social/` is empty |
+| Social Zustand store | Nothing | Nothing | No `socialStore.ts` yet |
+
+## System Overview
+
 ```
-[Browser]                          [Server (Express + Socket.io)]
-  React 18 + Vite 5                  Express 4 serves client/dist in production
-  Zustand (gameStore, roomStore,     Socket.io 4.7 on same HTTP server
-    uiStore, callStore)              RoomManager (in-memory)
-  Socket.io-client (ws://)           GameEngine (pure functions only)
-  WebRTC peer-to-peer                No database, no auth
-  useWebRTC hook
-  Pages: MenuPage, LobbyPage,       Server has ZERO audio responsibility
-    GamePage
+                          CLIENT                                       SERVER
+ ┌────────────────────────────────────┐     ┌────────────────────────────────────────────┐
+ │                                    │     │                                            │
+ │  ┌──────────┐   ┌──────────────┐   │     │  ┌──────────────┐   ┌──────────────────┐   │
+ │  │authStore │   │ socialStore  │   │     │  │ authRoutes   │   │ socialRoutes     │   │
+ │  │(exists)  │   │ (NEW)        │   │     │  │ (exists)     │   │ (NEW: REST)      │   │
+ │  └────┬─────┘   └──────┬───────┘   │     │  └──────────────┘   └──────────────────┘   │
+ │       │                │           │     │                                            │
+ │  ┌────┴────────────────┴────────┐  │     │  ┌──────────────────────────────────────┐  │
+ │  │          socket.ts           │  │◄───►│  │           Socket.io Server           │  │
+ │  │  (token in handshake.auth)   │  │ WS  │  │  authMiddleware (exists)             │  │
+ │  └──────────────────────────────┘  │     │  │                                      │  │
+ │                                    │     │  │  ┌──────────────┐  ┌──────────────┐  │  │
+ │  ┌──────────────────────────────┐  │     │  │  │roomHandlers  │  │socialHandlers│  │  │
+ │  │  useSocket (exists)          │  │     │  │  │(exists)      │  │(NEW)         │  │  │
+ │  │  + social events (NEW)       │  │     │  │  └──────────────┘  └──────────────┘  │  │
+ │  └──────────────────────────────┘  │     │  └──────────────────────────────────────┘  │
+ │                                    │     │                                            │
+ │  ┌──────────────────────────────┐  │     │  ┌──────────────────────────────────────┐  │
+ │  │  UI Components               │  │     │  │  PresenceManager (NEW)               │  │
+ │  │  - FriendsList (NEW)         │  │     │  │  - userId -> { socketIds, roomCode } │  │
+ │  │  - FriendRequests (NEW)      │  │     │  │  - Per-user Socket.io rooms          │  │
+ │  │  - OnlineIndicator (NEW)     │  │     │  └──────────────────────────────────────┘  │
+ │  └──────────────────────────────┘  │     │                                            │
+ │                                    │     │  ┌──────────────────────────────────────┐  │
+ │                                    │     │  │  RoomManager (exists)                │  │
+ │                                    │     │  │  + getUserRoom() (NEW method)        │  │
+ │                                    │     │  └──────────────────────────────────────┘  │
+ │                                    │     │                                            │
+ │                                    │     │  ┌──────────────────────────────────────┐  │
+ │                                    │     │  │  Prisma / PostgreSQL (exists)        │  │
+ │                                    │     │  │  Friendship model (exists, unused)   │  │
+ │                                    │     │  └──────────────────────────────────────┘  │
+ └────────────────────────────────────┘     └────────────────────────────────────────────┘
 ```
 
-**Key existing audio-related state:**
-- `uiStore.soundEnabled: boolean` -- exists but currently unused
-- `uiStore.toggleSound()` -- toggles the boolean, never actually triggers audio
+### Component Responsibilities
 
-**What does NOT change:**
-- Server code: zero changes. Audio is 100% client-side
-- GameEngine.ts: untouched
-- Socket events: no new events. Sounds trigger from existing events
-- gameStore, roomStore: untouched
-- callStore, useWebRTC: untouched (WebRTC audio is separate from game audio)
+| Component | Responsibility | Status |
+|-----------|----------------|--------|
+| `authStore` (client) | User identity, token, login state | EXISTS -- no changes needed |
+| `socialStore` (client) | Friends list, friend requests, presence map, pending counts | NEW |
+| `useAuth` hook (client) | Login/register/logout API calls, socket auth | EXISTS -- no changes needed |
+| `useSocket` hook (client) | All socket event listeners including social events | EXISTS -- add social event listeners |
+| `authMiddleware` (server) | Identify user or guest on socket connect | EXISTS -- no changes needed |
+| `authRoutes` (server) | REST: register, login, Google OAuth, /me, logout | EXISTS -- no changes needed |
+| `socialRoutes` (server) | REST: search users, get friends list, get friend requests | NEW |
+| `socialHandlers` (server) | Socket: friend request, accept/reject, presence subscribe | NEW |
+| `PresenceManager` (server) | Track online users, map userId to socketIds and room info | NEW |
+| `RoomManager` (server) | In-memory room/game state | EXISTS -- add userId-based room lookup |
 
----
-
-## Recommended Architecture
-
-### Core Decision: useAudio Custom Hook + AudioManager Singleton
-
-**Use a singleton AudioManager class** instantiated once, accessed by a `useAudio` hook. Do NOT use a Zustand store for audio playback state -- audio is imperative (play/stop/fade), not declarative React state.
-
-**Use HTMLAudioElement for background music** (simple, supports loop, volume control) and **Web Audio API (AudioContext) for sound effects** (low latency, can play overlapping sounds, no pop/click artifacts). This is the standard split for browser game audio.
-
-**Do NOT use Howler.js or use-sound.** The app needs ~5 sound effects and 1 music track. Howler.js adds 10KB gzipped for sprite sheets, spatial audio, and codec fallbacks this app does not need. Web Audio API + HTMLAudioElement covers everything with zero dependencies.
-
-### Architecture Diagram
+## Recommended New File Structure
 
 ```
-                    uiStore (state)
-                    +-----------------------+
-                    | musicEnabled: boolean |  <-- persisted to localStorage
-                    | sfxEnabled: boolean   |
-                    +-----------------------+
-                           |
-                           | reads via getState()
-                           v
-                    AudioManager (singleton)
-                    +-----------------------+
-                    | audioCtx: AudioContext |  <-- created on first user gesture
-                    | bgMusic: HTMLAudioElement
-                    | sfxBuffers: Map<string, AudioBuffer>
-                    | currentVolume: number  |
-                    +-----------------------+
-                       ^              ^
-                      /                \
-           useAudio hook            Direct calls from
-           (React bridge)           useSocket handlers
-           - exposes play/stop      - playSound('tilePlace')
-           - manages music          - playSound('pass')
-             lifecycle on           - playSound('yourTurn')
-             route change
+server/src/
+├── auth/                    # EXISTS -- no changes
+│   ├── authRoutes.ts
+│   ├── google.ts
+│   ├── jwt.ts
+│   └── passwordUtils.ts
+├── db/
+│   └── prisma.ts            # EXISTS -- no changes
+├── game/
+│   ├── GameEngine.ts        # EXISTS -- no changes
+│   ├── GameState.ts         # EXISTS -- no changes (userId already on RoomPlayer)
+│   └── RoomManager.ts       # EXISTS -- add getUserRoom() method
+├── social/
+│   ├── socialRoutes.ts      # NEW: REST endpoints for friend queries
+│   ├── socialHandlers.ts    # NEW: Socket event handlers for social
+│   └── PresenceManager.ts   # NEW: In-memory presence tracking
+├── socket/
+│   ├── authMiddleware.ts    # EXISTS -- no changes
+│   ├── chatHandlers.ts      # EXISTS -- no changes
+│   ├── gameHandlers.ts      # EXISTS -- no changes
+│   ├── handlers.ts          # EXISTS -- register socialHandlers
+│   ├── roomHandlers.ts      # EXISTS -- notify presence on room join/leave
+│   └── webrtcHandlers.ts    # EXISTS -- no changes
+├── config.ts                # EXISTS -- no changes
+└── index.ts                 # EXISTS -- mount socialRoutes, instantiate PresenceManager
+
+client/src/
+├── store/
+│   ├── authStore.ts         # EXISTS -- no changes
+│   ├── socialStore.ts       # NEW: friends, requests, presence
+│   ├── gameStore.ts         # EXISTS -- no changes
+│   ├── roomStore.ts         # EXISTS -- no changes
+│   ├── callStore.ts         # EXISTS -- no changes
+│   └── uiStore.ts           # EXISTS -- no changes
+├── hooks/
+│   ├── useAuth.ts           # EXISTS -- no changes
+│   ├── useSocket.ts         # EXISTS -- add social event listeners
+│   └── ...                  # other existing hooks unchanged
+├── components/
+│   ├── auth/                # EXISTS -- no changes
+│   ├── social/              # NEW
+│   │   ├── FriendsList.tsx       # Friends list with online indicators
+│   │   ├── FriendRequests.tsx    # Pending request list (incoming/outgoing)
+│   │   ├── UserSearch.tsx        # Search users by username
+│   │   ├── OnlineBadge.tsx       # Green/gray dot component
+│   │   └── SocialPanel.tsx       # Container that shows on MenuPage
+│   └── ...                  # other existing components unchanged
+├── pages/
+│   ├── MenuPage.tsx         # EXISTS -- add SocialPanel for logged-in users
+│   └── ...                  # other pages unchanged
+└── ...
 ```
 
-### Why NOT a Zustand Store for Audio
+### Structure Rationale
 
-Audio playback is imperative: you call `audioBuffer.start()` or `audio.play()`. Putting "isPlaying" in a store creates synchronization problems -- the store says playing but the browser paused (tab backgrounded, autoplay blocked). The AudioManager owns playback truth. The store only owns user preferences (enabled/disabled).
+- **`social/` on server:** Keeps all social logic (presence, friends, search) in one cohesive module, separate from game logic. Same pattern as `auth/` and `game/`.
+- **`socialStore` on client:** Single Zustand store for all social state (friends, requests, presence). Avoids fragmenting related state across multiple stores.
+- **`PresenceManager` as a class:** Mirrors the existing `RoomManager` pattern -- a plain TypeScript class holding in-memory state, injected into socket handlers.
+- **REST for queries, Socket for mutations and real-time:** Friend list fetch is a one-time query (REST). Friend request notifications and presence changes are real-time (Socket).
 
-### Why NOT Trigger All Sounds from Components
+## Architectural Patterns
 
-Socket events fire regardless of which component is mounted. `game:player_passed` fires even when the pass notification component hasn't rendered yet. The `useSocket` hook is always mounted (via `AppRoutes`) and receives every event -- it is the correct place to trigger game event sounds.
+### Pattern 1: Per-User Socket.io Rooms for Presence
 
-Background music, however, is route-dependent (menu/lobby yes, game no) -- that belongs in a hook that responds to route changes.
+**What:** When an authenticated user connects, their socket joins a room named `user:{userId}`. This enables targeted notifications (friend requests, presence updates) without maintaining a separate userId-to-socketId mapping for emit purposes.
 
----
+**When to use:** Always, for every authenticated socket connection.
 
-## Component Boundaries
+**Trade-offs:**
+- PRO: Socket.io manages the room lifecycle -- no manual cleanup needed on disconnect
+- PRO: Multi-tab safe -- multiple sockets from same user join the same room
+- PRO: `io.to('user:' + userId).emit(...)` works without custom lookup tables
+- CON: Adds one room join per authenticated connection (negligible cost)
 
-| Component | Responsibility | Communicates With |
-|-----------|---------------|-------------------|
-| **AudioManager** (new singleton) | Manages AudioContext, preloads buffers, plays SFX, controls music | uiStore (reads preferences), browser Audio APIs |
-| **useAudio** (new hook) | React bridge to AudioManager; manages music lifecycle on route changes; handles autoplay unlock | AudioManager, uiStore, React Router location |
-| **uiStore** (modified) | Stores `musicEnabled` and `sfxEnabled` preferences | AudioManager reads via getState(), UI components read via selectors |
-| **useSocket** (modified) | Calls `AudioManager.playSound()` in existing event handlers | AudioManager |
-| **useGameActions** (modified) | Calls `AudioManager.playSound('tilePlace')` on tile emit | AudioManager |
-| **AudioControls** (new UI component) | Toggle buttons for music/SFX in game HUD | uiStore |
+**Example:**
+```typescript
+// In the connection handler, after authMiddleware runs:
+io.on('connection', (socket) => {
+  const userData = getSocketUser(socket)
+  if (userData.user) {
+    socket.join(`user:${userData.user.id}`)
+    presence.connect(userData.user.id, socket.id)
+  }
 
----
+  // ... existing registerHandlers(socket, io, rooms) ...
+
+  socket.on('disconnect', () => {
+    if (userData.user) {
+      const result = presence.disconnect(userData.user.id, socket.id)
+      if (result?.wentOffline) {
+        // Notify subscribers that this user went offline
+        notifyFriendsOfPresenceChange(io, userData.user.id, 'offline')
+      }
+    }
+    // ... existing disconnect handler ...
+  })
+})
+```
+
+### Pattern 2: PresenceManager for Aggregated Status
+
+**What:** A server-side in-memory class that tracks which authenticated users are online and their current activity (idle on menu, in a specific lobby, playing a game). Updated on socket connect/disconnect and room join/leave.
+
+**When to use:** For answering "is this user online?" and "what is this user doing?" queries.
+
+**Trade-offs:**
+- PRO: O(1) lookup for any user's status
+- PRO: Handles multi-tab correctly (tracks all socketIds per user, only goes "offline" when last socket disconnects)
+- PRO: No database queries for real-time presence -- purely in-memory
+- CON: In-memory only -- lost on server restart (acceptable; matches existing RoomManager pattern)
+
+**Example:**
+```typescript
+type PresenceStatus = 'online' | 'in_lobby' | 'in_game'
+
+interface UserPresence {
+  userId: string
+  socketIds: Set<string>
+  status: PresenceStatus
+  roomCode?: string  // which lobby/game they're in
+}
+
+class PresenceManager {
+  private users = new Map<string, UserPresence>()
+  private socketToUser = new Map<string, string>() // socketId -> userId
+
+  connect(userId: string, socketId: string): void {
+    this.socketToUser.set(socketId, userId)
+    const existing = this.users.get(userId)
+    if (existing) {
+      existing.socketIds.add(socketId)
+    } else {
+      this.users.set(userId, {
+        userId,
+        socketIds: new Set([socketId]),
+        status: 'online',
+      })
+    }
+  }
+
+  disconnect(userId: string, socketId: string): { wentOffline: boolean } {
+    this.socketToUser.delete(socketId)
+    const user = this.users.get(userId)
+    if (!user) return { wentOffline: false }
+    user.socketIds.delete(socketId)
+    if (user.socketIds.size === 0) {
+      this.users.delete(userId)
+      return { wentOffline: true }
+    }
+    return { wentOffline: false }
+  }
+
+  setActivity(userId: string, status: PresenceStatus, roomCode?: string): void {
+    const user = this.users.get(userId)
+    if (user) {
+      user.status = status
+      user.roomCode = roomCode
+    }
+  }
+
+  getPresence(userId: string): UserPresence | null {
+    return this.users.get(userId) || null
+  }
+
+  getPresenceForMany(userIds: string[]): Map<string, UserPresence> {
+    const result = new Map<string, UserPresence>()
+    for (const id of userIds) {
+      const p = this.users.get(id)
+      if (p) result.set(id, p)
+    }
+    return result
+  }
+
+  getUserIdBySocket(socketId: string): string | undefined {
+    return this.socketToUser.get(socketId)
+  }
+}
+```
+
+### Pattern 3: REST for Reads, Socket for Writes and Real-Time Push
+
+**What:** Use REST endpoints for data that loads once on page mount (friends list, pending requests, user search results). Use Socket.io events for actions that need instant delivery to another user (send friend request, accept/reject, presence changes).
+
+**When to use:** Deciding whether a social feature should be REST or socket.
+
+**Trade-offs:**
+- PRO: REST requests use the existing Express + Prisma pipeline with proper HTTP error handling and status codes
+- PRO: Socket events only handle things that need real-time push to OTHER users
+- PRO: Avoids putting query-heavy DB reads on the socket event loop
+- CON: Two communication channels (but auth token already works for both -- HTTP header for REST, socket.handshake.auth for Socket)
+
+**REST endpoints (new, mounted at `/api/social`):**
+```
+GET  /api/social/friends          -- My accepted friends + their presence status
+GET  /api/social/requests         -- Pending incoming and outgoing requests
+GET  /api/social/search?q=xxx     -- Search users by username (for adding friends)
+```
+
+**Socket events (new, prefixed with `social:`):**
+```
+Client -> Server:
+  social:friend_request     { targetUsername: string }
+  social:friend_accept      { requestId: string }
+  social:friend_reject      { requestId: string }
+  social:friend_remove      { friendId: string }
+  social:subscribe_presence { friendIds: string[] }
+
+Server -> Client:
+  social:friend_request_received   { from: { id, username, displayName, avatarUrl }, requestId }
+  social:friend_request_sent       { requestId, to: { id, username, displayName } }
+  social:friend_accepted           { by: { id, username, displayName }, friendshipId }
+  social:friend_rejected           { requestId }
+  social:friend_removed            { byUserId }
+  social:presence_update           { userId, status, roomCode? }
+  social:presence_snapshot         { presences: Record<string, { status, roomCode? }> }
+  social:error                     { message: string }
+```
+
+### Pattern 4: Presence Subscription Model
+
+**What:** Instead of broadcasting presence changes to ALL connected users, each client subscribes to presence updates only for their specific friends. The server maintains a lightweight subscription map: which userId cares about which other userIds.
+
+**When to use:** When presence broadcasts would waste bandwidth on users who don't have the changing user in their friends list.
+
+**Trade-offs:**
+- PRO: Only sends presence to users who have the friend in their list
+- PRO: Scales to many concurrent users without N^2 broadcasts
+- CON: Requires a subscription map on the server (simple Map, same as PresenceManager)
+- CON: Client must re-subscribe if friends list changes (on accept/remove)
+
+**Implementation approach:**
+
+```typescript
+// Server-side: track who subscribes to whose presence
+class PresenceManager {
+  // ... existing fields ...
+  private subscriptions = new Map<string, Set<string>>()
+  // key = userId being watched, value = set of userIds watching
+
+  subscribe(watcherUserId: string, targetUserIds: string[]): void {
+    for (const targetId of targetUserIds) {
+      if (!this.subscriptions.has(targetId)) {
+        this.subscriptions.set(targetId, new Set())
+      }
+      this.subscriptions.get(targetId)!.add(watcherUserId)
+    }
+  }
+
+  unsubscribeAll(watcherUserId: string): void {
+    for (const [, watchers] of this.subscriptions) {
+      watchers.delete(watcherUserId)
+    }
+  }
+
+  getSubscribers(userId: string): Set<string> {
+    return this.subscriptions.get(userId) || new Set()
+  }
+}
+
+// When user X changes status:
+function notifyPresenceChange(io: Server, userId: string, status: string, roomCode?: string) {
+  const subscribers = presence.getSubscribers(userId)
+  for (const subscriberId of subscribers) {
+    io.to(`user:${subscriberId}`).emit('social:presence_update', {
+      userId, status, roomCode,
+    })
+  }
+}
+```
+
+**Client-side flow:**
+
+```typescript
+// After loading friends list, subscribe to their presence
+socket.emit('social:subscribe_presence', { friendIds: friends.map(f => f.id) })
+
+// Server responds with initial snapshot
+socket.on('social:presence_snapshot', ({ presences }) => {
+  socialStore.getState().setPresenceMap(presences)
+})
+
+// Ongoing updates
+socket.on('social:presence_update', ({ userId, status, roomCode }) => {
+  socialStore.getState().updatePresence(userId, status, roomCode)
+})
+```
 
 ## Data Flow
 
-### Sound Effect Trigger Flow
+### Friend Request Flow (new)
 
 ```
-Socket event arrives (e.g., game:player_passed)
-  |
-  v
-useSocket handler fires (already exists)
-  |
-  +-- existing logic (addPasoNotification, etc.)
-  |
-  +-- NEW: audioManager.playSound('pass')
-        |
-        +-- checks uiStore.getState().sfxEnabled
-        |   (if false, return immediately)
-        |
-        +-- audioCtx.createBufferSource()
-        +-- source.buffer = sfxBuffers.get('pass')
-        +-- source.connect(audioCtx.destination)
-        +-- source.start()
+[UserA clicks "Add Friend" for username "bob"]
+    |
+    v
+socket.emit('social:friend_request', { targetUsername: 'bob' })
+    |
+    v
+[Server: socialHandlers.ts]
+    ├── Validate: caller is authenticated (not guest)
+    ├── Prisma: find User where username = 'bob'
+    ├── Prisma: check no existing Friendship (either direction)
+    ├── Prisma: create Friendship(PENDING, requesterId=A, targetId=B)
+    ├── io.to('user:' + targetUserId).emit('social:friend_request_received', ...)
+    └── socket.emit('social:friend_request_sent', { requestId, to: {...} })
 ```
 
-### Background Music Lifecycle Flow
+### Friend Accept Flow (new)
 
 ```
-User lands on MenuPage
-  |
-  v
-useAudio hook detects route = '/' or '/lobby'
-  |
-  +-- audioManager.startMusic()
-        |
-        +-- checks uiStore.getState().musicEnabled
-        +-- bgMusic.play() (may need user gesture first)
-        +-- bgMusic.loop = true
-        +-- bgMusic.volume = 0.3
-  |
-User navigates to /game (game:started event)
-  |
-  v
-useAudio hook detects route = '/game'
-  |
-  +-- audioManager.fadeOutMusic(1000)  // 1s fade
-        +-- gradual volume reduction via requestAnimationFrame
-        +-- bgMusic.pause() when volume reaches 0
-  |
-User returns to lobby (game ends, navigates back)
-  |
-  v
-useAudio hook detects route = '/lobby'
-  |
-  +-- audioManager.fadeInMusic(1000)
+[UserB clicks "Accept" on pending request]
+    |
+    v
+socket.emit('social:friend_accept', { requestId: 'xxx' })
+    |
+    v
+[Server: socialHandlers.ts]
+    ├── Prisma: update Friendship set status = ACCEPTED
+    ├── io.to('user:' + requesterId).emit('social:friend_accepted', ...)
+    ├── socket.emit('social:friend_accepted', ...)
+    ├── Auto-subscribe both users to each other's presence
+    └── Send initial presence for the new friend to both users
 ```
 
-### User Preference Flow
+### Presence Update Flow (new)
 
 ```
-User taps SFX toggle in AudioControls
-  |
-  v
-uiStore.toggleSfx()
-  |
-  +-- sfxEnabled flips to false
-  +-- localStorage.setItem('sfxEnabled', 'false')
-  |
-  v
-Next playSound() call:
-  audioManager.playSound('tilePlace')
-    +-- reads uiStore.getState().sfxEnabled === false
-    +-- returns immediately, no sound
+[User connects with valid token]
+    |
+    v
+[authMiddleware identifies user] -> socket.join('user:' + userId)
+    |
+    v
+[PresenceManager.connect(userId, socketId)]
+    ├── First socket for this user? -> user just came online
+    │   └── Notify subscribers: io.to('user:' + subscriberId).emit('social:presence_update', ...)
+    └── Additional tab? -> no broadcast needed (already online)
+
+[User creates or joins room]
+    |
+    v
+[roomHandlers: room:create / room:join]
+    └── PresenceManager.setActivity(userId, 'in_lobby', roomCode)
+        └── Notify subscribers with { status: 'in_lobby', roomCode: 'COQUI-1234' }
+
+[Game starts]
+    |
+    v
+[gameHandlers: game:start]
+    └── PresenceManager.setActivity(userId, 'in_game', roomCode)
+        └── Notify subscribers with { status: 'in_game' } (no roomCode -- can't join mid-game)
+
+[User disconnects (last socket)]
+    |
+    v
+[PresenceManager.disconnect(userId, socketId)]
+    ├── Any other sockets for this user? NO -> went offline
+    └── Notify subscribers: presence_update { userId, status: 'offline' }
 ```
 
----
-
-## Integration Points: Existing Code Changes
-
-### 1. uiStore.ts -- Replace `soundEnabled` with Two Toggles
-
-```typescript
-// REMOVE
-soundEnabled: boolean
-toggleSound: () => void
-
-// ADD
-musicEnabled: boolean
-sfxEnabled: boolean
-toggleMusic: () => void
-toggleSfx: () => void
-setMusicEnabled: (v: boolean) => void
-setSfxEnabled: (v: boolean) => void
-```
-
-Initialize from localStorage with defaults:
-```typescript
-musicEnabled: localStorage.getItem('musicEnabled') !== 'false',  // default true
-sfxEnabled: localStorage.getItem('sfxEnabled') !== 'false',      // default true
-```
-
-Persist on change:
-```typescript
-toggleMusic: () => set(state => {
-  const next = !state.musicEnabled
-  localStorage.setItem('musicEnabled', String(next))
-  return { musicEnabled: next }
-}),
-toggleSfx: () => set(state => {
-  const next = !state.sfxEnabled
-  localStorage.setItem('sfxEnabled', String(next))
-  return { sfxEnabled: next }
-}),
-```
-
-### 2. useSocket.ts -- Add Sound Triggers to Existing Handlers
-
-Add to existing handlers (NOT new event listeners):
-
-| Existing Handler | Add Sound Call |
-|-----------------|----------------|
-| `game:state_snapshot` (when `lastAction?.type === 'play_tile'`) | `audioManager.playSound('tilePlace')` |
-| `game:state_snapshot` (when `gameState.isMyTurn` becomes true) | `audioManager.playSound('yourTurn')` |
-| `game:player_passed` | `audioManager.playSound('pass')` |
-| `game:round_ended` | `audioManager.playSound('roundEnd')` |
-| `game:game_ended` | `audioManager.playSound('gameEnd')` |
-| `game:started` | `audioManager.playSound('gameStart')` |
-
-**Critical: isMyTurn detection.** The `game:state_snapshot` handler receives every state update. To play "your turn" sound only when it becomes your turn (not on every snapshot), compare previous and current `isMyTurn`:
-
-```typescript
-// Inside game:state_snapshot handler
-const wasMyTurn = useGameStore.getState().gameState?.isMyTurn ?? false
-setGameState(gameState)  // existing
-if (!wasMyTurn && gameState.isMyTurn) {
-  audioManager.playSound('yourTurn')
-}
-```
-
-### 3. useGameActions.ts -- Optional: Tile Place Sound on Emit
-
-For immediate audio feedback (before server confirms), play tile sound on emit:
-
-```typescript
-// In selectTile, when emitting game:play_tile:
-socket.emit('game:play_tile', { roomCode, tileId, targetEnd: 'right' })
-audioManager.playSound('tilePlace')  // instant feedback
-```
-
-**Trade-off:** Playing on emit gives instant feedback but the play might be rejected by server. Playing on `game:state_snapshot` is authoritative but has network latency. **Recommendation: play on emit** -- server rejections are rare (client only shows valid plays), and the latency improvement matters more for game feel.
-
-If playing on emit, do NOT also play on `game:state_snapshot` for the local player's own tile plays. Detect by checking if the `lastAction.playerIndex` matches `myPlayerIndex`.
-
-### 4. App.tsx -- Mount useAudio Hook
-
-```typescript
-function AppRoutes() {
-  useSocket()   // existing
-  useAudio()    // NEW: manages music lifecycle, preloads sounds
-
-  return (
-    <Routes>...</Routes>
-  )
-}
-```
-
-### 5. vite.config.ts -- Add Audio File Types to PWA Cache
-
-```typescript
-globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,mp3,ogg}'],
-```
-
-Add `mp3` and `ogg` to the service worker precache glob so audio files are cached for offline-capable fast loading.
-
----
-
-## New Files
-
-| File | Purpose |
-|------|---------|
-| `client/src/audio/AudioManager.ts` | Singleton class: AudioContext, buffer loading, SFX playback, music control |
-| `client/src/hooks/useAudio.ts` | React hook: preload on mount, music lifecycle on route, autoplay unlock |
-| `client/src/components/ui/AudioControls.tsx` | Toggle buttons for music and SFX |
-| `client/public/sounds/tile-place.mp3` | Tile clack sound (~50KB) |
-| `client/public/sounds/your-turn.mp3` | Subtle notification chime (~30KB) |
-| `client/public/sounds/pass.mp3` | Soft knock or buzz (~30KB) |
-| `client/public/sounds/round-end.mp3` | Completion jingle (~50KB) |
-| `client/public/sounds/game-end.mp3` | Victory/defeat sound (~80KB) |
-| `client/public/sounds/bg-music.mp3` | Lo-fi loop (~500KB-1MB, 30-60s loop) |
-
----
-
-## Patterns to Follow
-
-### Pattern 1: AudioContext Creation on First User Gesture
-
-**What:** Create AudioContext inside a click/touch handler, not on page load.
-**Why:** All modern browsers (Chrome, Safari, Firefox) block AudioContext creation or suspend it until a user gesture. Creating on load results in a suspended context that silently fails.
-**How:**
-```typescript
-class AudioManager {
-  private ctx: AudioContext | null = null
-
-  private ensureContext(): AudioContext {
-    if (!this.ctx) {
-      this.ctx = new AudioContext()
-    }
-    if (this.ctx.state === 'suspended') {
-      this.ctx.resume()
-    }
-    return this.ctx
-  }
-}
-```
-Call `ensureContext()` inside every `playSound()`. The first call that happens after a user gesture (clicking a tile, pressing start) will create/resume the context.
-
-### Pattern 2: Preload Audio Buffers via fetch + decodeAudioData
-
-**What:** Fetch audio files and decode to AudioBuffer at app startup.
-**Why:** Web Audio API plays from pre-decoded buffers with <1ms latency. HTMLAudioElement has decode latency on first play.
-**How:**
-```typescript
-async preloadSounds(sounds: Record<string, string>) {
-  const ctx = this.ensureContext()
-  for (const [name, url] of Object.entries(sounds)) {
-    const response = await fetch(url)
-    const arrayBuffer = await response.arrayBuffer()
-    const audioBuffer = await ctx.decodeAudioData(arrayBuffer)
-    this.sfxBuffers.set(name, audioBuffer)
-  }
-}
-```
-Call from `useAudio` hook's `useEffect` on mount. Non-blocking -- sounds that aren't loaded yet simply don't play.
-
-### Pattern 3: HTMLAudioElement for Background Music (Not Web Audio API)
-
-**What:** Use `new Audio('/sounds/bg-music.mp3')` for background music.
-**Why:** HTMLAudioElement handles streaming (doesn't need full download before play), has built-in `loop` property, and doesn't require buffer management. Web Audio API would require loading the entire file into memory and manually implementing looping with `AudioBufferSourceNode`.
-**How:**
-```typescript
-private bgMusic = new Audio('/sounds/bg-music.mp3')
-
-constructor() {
-  this.bgMusic.loop = true
-  this.bgMusic.volume = 0.3
-}
-```
-
-### Pattern 4: Read Store State Imperatively, Not Reactively
-
-**What:** AudioManager reads `uiStore.getState().sfxEnabled` at call time.
-**Why:** AudioManager is not a React component. Subscribing to store changes to "pause when disabled" adds complexity. Checking the flag at play time is simpler and correct.
-```typescript
-playSound(name: string) {
-  if (!useUIStore.getState().sfxEnabled) return
-  // ... play
-}
-```
-
-### Pattern 5: Fade Music with requestAnimationFrame
-
-**What:** Smooth volume transitions on route change.
-**Why:** Abrupt stop/start of background music is jarring.
-```typescript
-fadeOut(durationMs = 1000) {
-  const start = this.bgMusic.volume
-  const startTime = performance.now()
-  const step = () => {
-    const elapsed = performance.now() - startTime
-    const progress = Math.min(elapsed / durationMs, 1)
-    this.bgMusic.volume = start * (1 - progress)
-    if (progress < 1) requestAnimationFrame(step)
-    else this.bgMusic.pause()
-  }
-  requestAnimationFrame(step)
-}
-```
-
----
-
-## Anti-Patterns to Avoid
-
-### Anti-Pattern 1: Creating AudioContext on Page Load
-
-**What:** `const ctx = new AudioContext()` at module level or in component body.
-**Why bad:** Context starts suspended. First `playSound()` call silently fails. Chrome DevTools shows "AudioContext was not allowed to start."
-**Instead:** Lazy-create in `ensureContext()`, resume on each use.
-
-### Anti-Pattern 2: Zustand Store for Audio Playback State
-
-**What:** Store `isPlaying`, `currentTrack`, etc. in Zustand.
-**Why bad:** Audio state lives in browser APIs. Zustand mirror goes stale when browser pauses audio (tab switch, autoplay block). Creates two sources of truth.
-**Instead:** AudioManager singleton owns playback truth. Store owns only user preferences (`musicEnabled`, `sfxEnabled`).
-
-### Anti-Pattern 3: Playing Sounds in React Component Render Cycle
-
-**What:** `useEffect(() => { playSound() }, [gameState.isMyTurn])`
-**Why bad:** useEffect fires after render. Sound lags behind visual by one frame. Also, strict mode double-fires cause double sounds in development.
-**Instead:** Play sounds in event handlers (useSocket callbacks, useGameActions emit handlers) where the trigger is synchronous and unambiguous.
-
-### Anti-Pattern 4: Creating New Audio() on Every Play
-
-**What:** `new Audio('/sounds/tile.mp3').play()` each time.
-**Why bad:** Each call allocates a new HTMLAudioElement, fetches the file (or hits cache), decodes it. Adds ~50-100ms latency. Memory leak if elements accumulate.
-**Instead:** Preloaded AudioBuffers via Web Audio API. One `createBufferSource()` per play is cheap (<1ms).
-
-### Anti-Pattern 5: One Big Sound Toggle
-
-**What:** Keep existing `soundEnabled` for both music and SFX.
-**Why bad:** Users commonly want SFX (game feedback) but not music, or vice versa. A single toggle forces all-or-nothing.
-**Instead:** Separate `musicEnabled` and `sfxEnabled`. Both default to true.
-
-### Anti-Pattern 6: Importing AudioManager in Every Component
-
-**What:** `import { audioManager } from '../audio/AudioManager'` in 10 files.
-**Why bad:** Scattered audio calls become hard to audit. If a sound name changes, grep 10 files.
-**Instead:** Centralize SFX triggers in useSocket (event-driven) and useGameActions (user actions). Only useAudio and these two hooks import AudioManager.
-
----
-
-## Critical: Browser Autoplay Policy
-
-Every major browser blocks audio before a user gesture:
-
-| Browser | Policy |
-|---------|--------|
-| Chrome/Edge | AudioContext starts suspended. HTMLAudioElement.play() returns rejected promise. |
-| Safari | Stricter. Even after gesture, audio may require same-origin or user-initiated event chain. |
-| Firefox | AudioContext suspended until user gesture in the page. |
-
-**Solution for this app:**
-
-The user always clicks before any audio plays:
-1. MenuPage: user clicks "Crear Sala" or "Unirse" -- this is the first gesture
-2. Background music starts on LobbyPage (user already interacted on MenuPage)
-3. Sound effects play during game (user clicked to start game)
-
-The `useAudio` hook should attempt `audioCtx.resume()` and `bgMusic.play()` on the first user interaction. Wire a one-time click listener on `document` that calls `audioManager.unlock()`:
-
-```typescript
-useEffect(() => {
-  const unlock = () => {
-    audioManager.unlock()
-    document.removeEventListener('click', unlock)
-    document.removeEventListener('touchstart', unlock)
-  }
-  document.addEventListener('click', unlock)
-  document.addEventListener('touchstart', unlock)
-  return () => {
-    document.removeEventListener('click', unlock)
-    document.removeEventListener('touchstart', unlock)
-  }
-}, [])
-```
-
----
-
-## AudioManager Class Design
-
-```typescript
-class AudioManager {
-  private ctx: AudioContext | null = null
-  private sfxBuffers = new Map<string, AudioBuffer>()
-  private bgMusic: HTMLAudioElement
-  private unlocked = false
-
-  constructor() {
-    this.bgMusic = new Audio()
-    this.bgMusic.loop = true
-    this.bgMusic.volume = 0.3
-  }
-
-  unlock() {
-    if (this.unlocked) return
-    this.ensureContext()
-    this.ctx?.resume()
-    this.unlocked = true
-  }
-
-  private ensureContext(): AudioContext {
-    if (!this.ctx) this.ctx = new AudioContext()
-    if (this.ctx.state === 'suspended') this.ctx.resume()
-    return this.ctx
-  }
-
-  async preload(sounds: Record<string, string>) {
-    const ctx = this.ensureContext()
-    const entries = Object.entries(sounds)
-    await Promise.all(entries.map(async ([name, url]) => {
-      try {
-        const resp = await fetch(url)
-        const buf = await resp.arrayBuffer()
-        const decoded = await ctx.decodeAudioData(buf)
-        this.sfxBuffers.set(name, decoded)
-      } catch (e) {
-        console.warn(`Failed to preload sound: ${name}`, e)
-      }
-    }))
-  }
-
-  playSound(name: string) {
-    if (!useUIStore.getState().sfxEnabled) return
-    const buffer = this.sfxBuffers.get(name)
-    if (!buffer || !this.ctx) return
-    const source = this.ctx.createBufferSource()
-    source.buffer = buffer
-    source.connect(this.ctx.destination)
-    source.start()
-  }
-
-  startMusic() {
-    if (!useUIStore.getState().musicEnabled) return
-    this.bgMusic.src = '/sounds/bg-music.mp3'
-    this.bgMusic.play().catch(() => {})  // swallow autoplay rejection
-  }
-
-  stopMusic() { /* fade out then pause */ }
-  fadeOut(ms: number) { /* rAF volume ramp */ }
-  fadeIn(ms: number) { /* rAF volume ramp */ }
-
-  setMusicEnabled(enabled: boolean) {
-    if (enabled) this.startMusic()
-    else { this.bgMusic.pause(); this.bgMusic.currentTime = 0 }
-  }
-}
-
-export const audioManager = new AudioManager()
-```
-
----
-
-## useAudio Hook Design
-
-```typescript
-export function useAudio() {
-  const location = useLocation()
-  const musicEnabled = useUIStore(s => s.musicEnabled)
-
-  // One-time: preload SFX buffers + register autoplay unlock
-  useEffect(() => {
-    audioManager.preload({
-      tilePlace: '/sounds/tile-place.mp3',
-      yourTurn: '/sounds/your-turn.mp3',
-      pass: '/sounds/pass.mp3',
-      roundEnd: '/sounds/round-end.mp3',
-      gameEnd: '/sounds/game-end.mp3',
-      gameStart: '/sounds/game-start.mp3',
-    })
-
-    const unlock = () => {
-      audioManager.unlock()
-      document.removeEventListener('click', unlock)
-      document.removeEventListener('touchstart', unlock)
-    }
-    document.addEventListener('click', unlock)
-    document.addEventListener('touchstart', unlock)
-    return () => {
-      document.removeEventListener('click', unlock)
-      document.removeEventListener('touchstart', unlock)
-    }
-  }, [])
-
-  // Music lifecycle: play on menu/lobby, fade out on game
-  useEffect(() => {
-    const isGamePage = location.pathname === '/game'
-    if (isGamePage) {
-      audioManager.fadeOut(1000)
-    } else if (musicEnabled) {
-      audioManager.fadeIn(1000)
-    }
-  }, [location.pathname, musicEnabled])
-
-  // React to musicEnabled toggle
-  useEffect(() => {
-    audioManager.setMusicEnabled(musicEnabled)
-  }, [musicEnabled])
-}
-```
-
----
-
-## PWA / Service Worker Considerations
-
-Audio files in `client/public/sounds/` will be precached by the service worker if `globPatterns` includes `mp3`. This is desirable: cached audio loads instantly on repeat visits.
-
-**Total audio budget estimate:** ~800KB-1.2MB (5 short SFX + 1 music loop). Acceptable for precaching. Service worker cache is typically 50MB+.
-
-**Modify vite.config.ts:**
-```typescript
-globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,mp3,ogg}'],
-```
-
----
-
-## Build Order (Dependency-Aware)
-
-### Phase 1: AudioManager + uiStore Changes
-
-1. Split `soundEnabled` into `musicEnabled` + `sfxEnabled` in uiStore with localStorage persistence
-2. Create `AudioManager.ts` singleton with Web Audio API SFX + HTMLAudioElement music
-3. Remove old `soundEnabled` / `toggleSound` from uiStore
-4. Update any existing UI that reads `soundEnabled` (find and replace)
-
-**Why first:** Foundation layer. Everything depends on AudioManager existing and preferences being stored correctly.
-
-### Phase 2: useAudio Hook + Autoplay Unlock
-
-1. Create `useAudio.ts` hook with preloading, autoplay unlock, and music lifecycle
-2. Mount in `App.tsx` (AppRoutes)
-3. Add placeholder audio files for testing (can use generated tones)
-4. Test: music plays on menu, fades on game start, resumes on lobby return
-5. Test: autoplay works after first click on Chrome, Safari, Firefox
-
-**Why second:** Establishes the music lifecycle and preloading. Proves the autoplay strategy works before wiring up game events.
-
-### Phase 3: SFX Triggers in useSocket + useGameActions
-
-1. Add `audioManager.playSound()` calls to useSocket event handlers
-2. Add tile place sound to useGameActions emit path
-3. Handle "your turn" detection (wasMyTurn vs isMyTurn comparison)
-4. Avoid double-play for local player's own tile (emit plays it, skip on snapshot)
-5. Test: play full game, verify each event triggers correct sound
-
-**Why third:** Depends on AudioManager (Phase 1) and preloaded buffers (Phase 2).
-
-### Phase 4: Audio Controls UI + Final Audio Files
-
-1. Create AudioControls component (two toggle buttons: music, SFX)
-2. Place in GamePage HUD (near existing controls) and optionally in menu
-3. Source or create final audio files (tile clack, turn chime, pass knock, etc.)
-4. Polish: adjust volumes, timing, fade durations
-5. Test on mobile: iOS Safari autoplay, Android Chrome background tab behavior
-
-**Why last:** UI polish and final assets. Core functionality works without pretty toggle buttons.
-
-### Dependency Graph
+### Direct Join Flow (new)
 
 ```
-Phase 1: AudioManager + uiStore ──> Phase 2: useAudio hook
-                                        |
-                                        v
-                                    Phase 3: SFX triggers in useSocket
-                                        |
-                                        v
-                                    Phase 4: Audio controls UI + polish
+[UserA sees friend "bob" with status 'in_lobby' and roomCode 'COQUI-1234']
+    |
+    v
+[FriendsList shows green "Join" button next to bob]
+    |
+    v
+[Click "Join"] -> populate roomStore with roomCode, navigate to join flow
+    |
+    v
+socket.emit('room:join', { roomCode: 'COQUI-1234', playerName: userA.displayName })
+    |
+    v
+[Existing room:join handler -- ZERO new server logic needed]
 ```
 
-Strictly sequential. Each phase builds on the previous.
+The critical insight: **direct join requires NO new server endpoint**. The client already has `room:join`. The presence data includes `roomCode` when a friend is `in_lobby`, so the FriendsList UI passes it to the existing join flow. The only gate: roomCode is only visible in presence when status is `in_lobby` (not `in_game`, since 4-player games fill up and joining mid-game isn't supported).
 
----
+### Friends List Load Flow (new)
 
-## Integration Points Summary
+```
+[MenuPage mounts, user is authenticated]
+    |
+    v
+[SocialPanel mounts]
+    |
+    v
+[useEffect: fetch friends and requests]
+    ├── GET /api/social/friends -> [{ id, username, displayName, avatarUrl }]
+    └── GET /api/social/requests -> { incoming: [...], outgoing: [...] }
+    |
+    v
+[socialStore.setFriends(friends), socialStore.setRequests(requests)]
+    |
+    v
+[socket.emit('social:subscribe_presence', { friendIds })]
+    |
+    v
+[Server responds with initial presence snapshot]
+    └── Server emits 'social:presence_snapshot' with current status of all online friends
+    |
+    v
+[socialStore.setPresenceMap(presences)]
+    |
+    v
+[FriendsList renders with online indicators and "Join" buttons where applicable]
+```
 
-| Change | Touches | Does NOT Touch |
-|--------|---------|----------------|
-| uiStore split | `uiStore.ts` (modify: replace soundEnabled with 2 booleans + localStorage) | gameStore, roomStore, callStore |
-| AudioManager | New file `audio/AudioManager.ts` | Server code, stores, any existing component |
-| useAudio hook | New file `hooks/useAudio.ts`, modify `App.tsx` (add hook call) | useSocket, useGameActions, useWebRTC |
-| SFX triggers | `useSocket.ts` (add ~6 playSound calls in existing handlers), `useGameActions.ts` (add 1 playSound call) | Server events, GameEngine, any component |
-| Audio controls | New file `components/ui/AudioControls.tsx`, modify `GamePage.tsx` or `GameTable.tsx` (mount component) | Game logic, socket events |
-| Audio files | New files in `client/public/sounds/` | Code (just static assets) |
-| PWA cache | `vite.config.ts` (add mp3 to globPatterns) | Service worker logic, socket denylist |
+## Integration Points with Existing Code
 
-**Server-side changes: zero.**
-**New socket events: zero.**
-**New Zustand stores: zero.**
-**Existing store modifications: uiStore only (replace 1 boolean with 2).**
+### Files That Need Modification
 
----
+| File | Change | Risk |
+|------|--------|------|
+| `server/src/index.ts` | Mount `socialRoutes`, instantiate `PresenceManager`, pass to handlers, call `presence.connect/disconnect` in connection lifecycle | LOW -- additive |
+| `server/src/socket/handlers.ts` | Import and call `registerSocialHandlers` (one new line) | LOW -- additive |
+| `server/src/socket/roomHandlers.ts` | After `room:create`, `room:join`, `room:leave`: call `presence.setActivity()` (3-4 lines) | LOW -- additive, no logic changes |
+| `server/src/game/RoomManager.ts` | Add `getUserRoom(userId)` method for looking up room by userId | LOW -- new method, no changes to existing |
+| `client/src/hooks/useSocket.ts` | Add `social:*` event listeners in existing `useEffect` | LOW -- additive, same pattern as all other listeners |
+| `client/src/pages/MenuPage.tsx` | Conditionally render `SocialPanel` when `isAuthenticated` | LOW -- one conditional block |
 
-## Scalability Considerations
+### Files That Stay Completely Unchanged
 
-| Concern | Current App | With Audio |
-|---------|-------------|------------|
-| Bundle size | ~2MB shell | +800KB-1.2MB audio assets (precached by SW) |
-| Memory | Minimal | +~2MB for decoded AudioBuffers (5 short clips) |
-| CPU | Negligible | Web Audio API SFX is trivial; no concern |
-| Mobile battery | N/A | HTMLAudioElement music loop is hardware-decoded; low impact |
-| Network on first load | ~2MB | +1MB; consider lazy-loading music file after SFX preloaded |
+- All auth files (authRoutes, authMiddleware, jwt, google, passwordUtils, authStore, useAuth, AuthPage, LoginForm, RegisterForm, GoogleLoginButton) -- complete and sufficient
+- All game files (GameEngine, GameState, gameHandlers, gameStore) -- game logic is untouched by social features
+- All WebRTC files (useWebRTC, webrtcHandlers, callStore) -- independent concern
+- All chat files (chatHandlers, chat components, uiStore chat state) -- independent concern
+- Prisma schema -- Friendship model already defined, no migration needed
+- Audio files -- independent concern
+- Socket.ts client -- no changes (auth token passing already works)
 
-**Optimization if needed:** Lazy-load `bg-music.mp3` only when entering lobby (not on preload). SFX files are small enough to preload eagerly.
+### Internal Boundaries
 
----
+| Boundary | Communication | Notes |
+|----------|---------------|-------|
+| `socialHandlers` <-> `PresenceManager` | Direct method calls (same process) | Both in-memory, server-side |
+| `socialHandlers` <-> `Prisma` | Async DB queries | For friendship CRUD |
+| `roomHandlers` <-> `PresenceManager` | Direct method calls | Room handlers notify presence on join/leave |
+| `socialRoutes` <-> `Prisma` | Async DB queries | REST endpoints for friend/request list fetches |
+| `socialStore` <-> `useSocket` | Zustand actions called from socket listener callbacks | Same pattern as gameStore/roomStore |
+| `SocialPanel` <-> `socialStore` | Zustand selectors | Same pattern as all existing components |
+| `socialRoutes` auth | Read `Authorization` header, verify JWT | Same pattern as `/api/auth/me` endpoint |
+
+### External Services
+
+| Service | Integration Pattern | Notes |
+|---------|---------------------|-------|
+| PostgreSQL (Railway) | Prisma ORM via `@prisma/adapter-pg` | Already configured, deployed, and running |
+| Google OAuth | `google-auth-library` server-side verification | Already implemented, no changes needed |
+
+## Scaling Considerations
+
+| Scale | Architecture Adjustments |
+|-------|--------------------------|
+| 0-200 concurrent users | Current architecture is fine. In-memory PresenceManager, single server instance on Railway. |
+| 200-2000 concurrent users | Still fine. Socket.io handles 10k+ connections per instance. PresenceManager Map is O(1). Subscription map is lightweight. |
+| 2000+ concurrent users | Consider Redis adapter for Socket.io if horizontal scaling needed. Move PresenceManager state to Redis. Not needed for this app's target audience. |
+
+### Scaling Priorities
+
+1. **First bottleneck:** PostgreSQL connection pool. Current `pg.Pool` uses defaults (~10 connections). For 200+ concurrent users doing friend queries, may need to increase pool size in `db/prisma.ts`. Railway Postgres handles this well.
+2. **Second bottleneck:** In-memory state (RoomManager + PresenceManager) ties the app to a single server instance. Only matters if deploying multiple instances behind a load balancer. Not a concern for current scope.
+
+## Anti-Patterns
+
+### Anti-Pattern 1: Querying Database for Real-Time Presence
+
+**What people do:** Store `lastSeenAt` in the database and poll it to determine "online" status (e.g., "seen in last 60 seconds").
+**Why it's wrong:** Database polling is slow, stale, and creates unnecessary load. The server ALREADY KNOWS who is connected via Socket.io.
+**Do this instead:** Use the in-memory PresenceManager. The existing database `lastSeenAt` field is fine for "last seen 3 days ago" profile info, but real-time presence must come from socket connection state.
+
+### Anti-Pattern 2: Broadcasting Presence to All Connected Users
+
+**What people do:** When any user's status changes, emit to ALL connected sockets via `io.emit(...)`.
+**Why it's wrong:** Wastes bandwidth. User A doesn't care that User Z (not their friend) went offline. With 200 users online, each presence change triggers 200 messages instead of ~5 (average friend count).
+**Do this instead:** Subscription model. Clients subscribe to presence for their friends only. Server only notifies subscribers via per-user rooms.
+
+### Anti-Pattern 3: Using Socket Events for Data Fetching
+
+**What people do:** Use socket events for everything: `socket.emit('get_friends')` with a callback or response event.
+**Why it's wrong:** Socket events are fire-and-forget with no built-in error handling, HTTP status codes, or request/response correlation. Loading a friends list is a standard request/response pattern. REST gives proper error codes, caching headers, and simpler debugging.
+**Do this instead:** REST for queries (`GET /api/social/friends`). Socket for real-time push notifications only.
+
+### Anti-Pattern 4: Creating a Special Server Event for Direct Join
+
+**What people do:** Build a new `social:join_friend` socket event that looks up the friend's room and performs a special join flow.
+**Why it's wrong:** Duplicates existing `room:join` logic. Two code paths for the same operation. If room join logic changes, the social join might not get updated.
+**Do this instead:** Include `roomCode` in presence data when status is `in_lobby`. Client reads the room code from presence and calls the EXISTING `room:join`. Zero new server logic for the join itself.
+
+### Anti-Pattern 5: Separate Socket.io Namespace for Social
+
+**What people do:** Create a `/social` namespace to separate social events from game events.
+**Why it's wrong:** Doubles the number of WebSocket connections per user (default namespace + social namespace). The auth middleware would need to run on both. Adds complexity for no benefit at this scale.
+**Do this instead:** Use the default namespace. Prefix social events with `social:` (same convention as `room:`, `game:`, `chat:`, `webrtc:` that already exist).
+
+### Anti-Pattern 6: Storing Presence in the Database
+
+**What people do:** Create a `UserPresence` table in PostgreSQL and update it on every connect/disconnect.
+**Why it's wrong:** Adds write load on every connection event. Stale data if server crashes (user appears "online" forever). A server restart already clears all Socket.io connections anyway.
+**Do this instead:** Purely in-memory PresenceManager. Mirrors how RoomManager already works. If the server restarts, all presence resets -- which is correct because all sockets also reset.
+
+## Build Order Recommendation
+
+Based on dependency analysis, the recommended implementation order:
+
+### Phase 1: Server Foundation (no client changes)
+1. **PresenceManager class** -- standalone, no dependencies on other new code
+2. **Wire PresenceManager into `index.ts`** -- connect/disconnect lifecycle
+3. **socialRoutes (REST)** -- `/api/social/friends`, `/requests`, `/search`. Depends only on Prisma (exists)
+4. **Mount socialRoutes in `index.ts`** -- `app.use('/api/social', socialRoutes)`
+
+### Phase 2: Server Social Socket Handlers
+5. **socialHandlers** -- friend request/accept/reject/remove socket events. Depends on PresenceManager + Prisma
+6. **Presence hooks in roomHandlers** -- call `presence.setActivity()` on room:create, room:join, room:leave
+7. **Register socialHandlers in handlers.ts**
+
+### Phase 3: Client Store and Listeners
+8. **socialStore (Zustand)** -- friends, requests, presence map
+9. **Social event listeners in useSocket** -- wire `social:*` events to socialStore actions
+
+### Phase 4: Client UI
+10. **Social UI components** -- FriendsList, FriendRequests, UserSearch, OnlineBadge, SocialPanel
+11. **MenuPage integration** -- render SocialPanel for authenticated users
+12. **Direct join flow** -- "Join" button reads roomCode from presence, calls existing join
+
+Steps 1-7 are server-side. Steps 8-12 are client-side. Within each phase, the order is strictly sequential (later steps depend on earlier ones). Phases 1-2 can be tested independently with Postman / socket client before any UI exists.
 
 ## Sources
 
-- Codebase: `client/src/store/uiStore.ts` -- existing `soundEnabled` boolean (line 23), `toggleSound` (line 39)
-- Codebase: `client/src/hooks/useSocket.ts` -- all event handlers where sounds should trigger
-- Codebase: `client/src/hooks/useGameActions.ts` -- `selectTile` and `playTileOnEnd` emit points
-- Codebase: `client/src/App.tsx` -- `AppRoutes` where useSocket is mounted (line 8)
-- Codebase: `client/src/pages/GamePage.tsx` -- current component tree
-- Codebase: `client/src/pages/MenuPage.tsx` -- first user interaction point
-- Codebase: `client/src/pages/LobbyPage.tsx` -- music should play here
-- Codebase: `client/vite.config.ts` -- PWA globPatterns (line 31)
-- Codebase: `.planning/PROJECT.md` -- v1.2 milestone scope
-- Training data: Web Audio API (AudioContext, AudioBuffer, AudioBufferSourceNode) -- HIGH confidence, stable W3C spec since 2018
-- Training data: HTMLAudioElement loop/volume/play -- HIGH confidence, basic DOM API
-- Training data: Browser autoplay policies (Chrome, Safari, Firefox) -- HIGH confidence, well-documented restrictions
-- Training data: requestAnimationFrame for volume fading -- HIGH confidence, standard technique
+- [Socket.IO Rooms documentation](https://socket.io/docs/v3/rooms/) -- per-user room pattern for targeted emit
+- [Socket.IO Private Messaging tutorial Part I](https://socket.io/get-started/private-messaging-part-1/) -- userId-based room joins
+- [Socket.IO Private Messaging tutorial Part II](https://socket.io/get-started/private-messaging-part-2/) -- presence tracking with rooms
+- [Socket.IO Server API: fetchSockets()](https://socket.io/docs/v4/server-api/#serverin-room) -- checking connected sockets in a room
+- [Socket.IO presence tracking patterns](https://medium.com/@ruveydayilmaz/handle-users-online-offline-status-with-socket-io-e92113c07eac) -- online/offline status with multi-tab handling
+- [Real-time notification system with Socket.IO](https://medium.com/jeeon/using-socket-io-in-oder-to-build-a-realtime-notification-system-249a1bfd960d) -- friend request notification architecture
+- Existing codebase: `server/src/socket/authMiddleware.ts` -- SocketUserData interface, getSocketUser helper
+- Existing codebase: `server/src/game/RoomManager.ts` -- in-memory state management pattern (Map-based)
+- Existing codebase: `server/src/auth/authRoutes.ts` -- REST endpoint pattern with JWT verification
+- Existing codebase: `server/prisma/schema.prisma` -- Friendship model already defined
+- Existing codebase: `client/src/hooks/useSocket.ts` -- socket event listener registration pattern
+- Existing codebase: `client/src/store/roomStore.ts` -- Zustand store pattern
 
 ---
-*Architecture analysis completed: 2026-03-14*
+*Architecture research for: Social features integration into Domino PR*
+*Researched: 2026-03-25*
