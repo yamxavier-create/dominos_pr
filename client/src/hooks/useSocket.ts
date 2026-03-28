@@ -5,7 +5,7 @@ import { useGameStore } from '../store/gameStore'
 import { useRoomStore } from '../store/roomStore'
 import { useUIStore, ChatMessage } from '../store/uiStore'
 import { useCallStore } from '../store/callStore'
-import { signalHandlerRef, peerJoinedCallRef } from './useWebRTC'
+import { signalHandlerRef, peerJoinedCallRef, resetForNewGameRef } from './useWebRTC'
 import { playSfx, preloadSfx } from '../audio/sfx'
 import { ClientGameState, RoundEndPayload, GameEndPayload, PassPayload, RematchVoteUpdate, RematchCancelled, BoneyardDrawPayload } from '../types/game'
 
@@ -69,6 +69,8 @@ export function useSocket() {
       clearScoreHistory()
       clearRematchState()
       useUIStore.getState().clearChatState()
+      // Tear down and re-establish WebRTC to prevent stream/PC accumulation
+      resetForNewGameRef.current?.()
       navigate('/game')
       preloadSfx()
     })

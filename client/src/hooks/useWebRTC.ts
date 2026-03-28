@@ -61,6 +61,7 @@ export function useWebRTC() {
   const makingOfferRef = useRef<Record<number, boolean>>({})
   const ignoreOfferRef = useRef<Record<number, boolean>>({})
   const localStreamRef = useRef<MediaStream | null>(null)
+  const wasInCallRef = useRef(false)
 
   const getCallStore = () => useCallStore.getState()
 
@@ -213,6 +214,30 @@ export function useWebRTC() {
     getCallStore().resetCallState()
   }, [])
 
+  // Tear down and optionally re-establish WebRTC when a new game starts.
+  // Prevents stream/PC accumulation across games that causes device exhaustion.
+  const resetForNewGame = useCallback(async () => {
+    const { myAudioEnabled, myVideoEnabled } = getCallStore()
+    const wasInCall = myAudioEnabled || myVideoEnabled
+    wasInCallRef.current = wasInCall
+
+    // Full teardown: stop tracks, close PCs, reset store
+    localStreamRef.current?.getTracks().forEach(track => track.stop())
+    localStreamRef.current = null
+    Object.values(pcsRef.current).forEach(pc => pc.close())
+    pcsRef.current = {}
+    makingOfferRef.current = {}
+    ignoreOfferRef.current = {}
+    getCallStore().resetCallState()
+
+    // If user was in a call, automatically rejoin with same settings
+    if (wasInCall) {
+      // Small delay to let old connections fully close and device release
+      await new Promise(r => setTimeout(r, 300))
+      await joinCallRef.current?.(myAudioEnabled, myVideoEnabled)
+    }
+  }, [])
+
   const handlePeerJoined = useCallback((peerIndex: number) => {
     const { myAudioEnabled, myVideoEnabled } = getCallStore()
     if (!myAudioEnabled && !myVideoEnabled) return
@@ -298,11 +323,13 @@ export function useWebRTC() {
     signalHandlerRef.current = handleSignal
     joinCallRef.current = joinCall
     peerJoinedCallRef.current = handlePeerJoined
+    resetForNewGameRef.current = resetForNewGame
 
     return () => {
       mounted = false
       joinCallRef.current = null
       peerJoinedCallRef.current = null
+      resetForNewGameRef.current = null
       cleanup()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -321,4 +348,8 @@ export const joinCallRef = {
 
 export const peerJoinedCallRef = {
   current: null as ((peerIndex: number) => void) | null
+}
+
+export const resetForNewGameRef = {
+  current: null as (() => Promise<void>) | null
 }
