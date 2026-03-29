@@ -99,10 +99,13 @@ body {
   }
 }
 
-/* Paso chip slide up */
+/* Paso chip slide up + shake */
 @keyframes paso-chip-in {
   0%   { opacity: 0; transform: translateY(8px) scale(0.9); }
-  20%  { opacity: 1; transform: translateY(0) scale(1); }
+  10%  { opacity: 1; transform: translateY(0) scale(1.1); }
+  14%  { opacity: 1; transform: translateY(0) scale(1.1) rotate(-3deg); }
+  18%  { opacity: 1; transform: translateY(0) scale(1.1) rotate(3deg); }
+  22%  { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
   75%  { opacity: 1; transform: translateY(0) scale(1); }
   100% { opacity: 0; transform: translateY(-6px) scale(0.95); }
 }
@@ -165,7 +168,7 @@ body {
 }
 
 .paso-toast {
-  animation: paso-chip-in 2.5s ease-in-out forwards;
+  animation: paso-chip-in 4.5s ease-in-out forwards;
 }
 
 .modal-enter {
@@ -225,6 +228,49 @@ body {
 .boneyard-fly-top    { animation: boneyard-fly-top 0.35s ease-out forwards; }
 .boneyard-fly-left   { animation: boneyard-fly-left 0.35s ease-out forwards; }
 .boneyard-fly-right  { animation: boneyard-fly-right 0.35s ease-out forwards; }
+
+/* Emoji reaction pop + float up near avatar */
+@keyframes reaction-pop {
+  0%   { opacity: 0; transform: scale(0) translateY(0); }
+  15%  { opacity: 1; transform: scale(1.4) translateY(-4px); }
+  30%  { opacity: 1; transform: scale(1) translateY(-8px); }
+  70%  { opacity: 1; transform: scale(1.05) translateY(-16px); }
+  100% { opacity: 0; transform: scale(0.8) translateY(-32px); }
+}
+
+.reaction-pop {
+  animation: reaction-pop 2.5s ease-out forwards;
+  pointer-events: none;
+}
+
+/* Emoji bar slide up */
+@keyframes emoji-bar-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.emoji-bar-in {
+  animation: emoji-bar-in 0.2s ease-out forwards;
+}
+
+/* Tile fly from seat to board */
+@keyframes tile-fly {
+  0%   { opacity: 1; transform: scale(0.7); }
+  50%  { opacity: 1; transform: scale(1.1); }
+  100% { opacity: 0; transform: scale(1); }
+}
+
+.tile-fly {
+  animation: tile-fly 0.6s ease-in-out forwards;
+  pointer-events: none;
+}
+
+/* Drag ghost tile following finger */
+.drag-ghost {
+  pointer-events: none;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5));
+  z-index: 100;
+}
 
 .felt-table {
   background:

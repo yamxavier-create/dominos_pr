@@ -19,6 +19,7 @@ import { BoneyardPile } from './BoneyardPile'
 import { BoneyardDrawAnimation } from './BoneyardDrawAnimation'
 import { PasoChip } from './PasoChip'
 import { FloatingChatBubble } from '../chat/FloatingChatBubble'
+import { AvatarReaction } from '../player/AvatarReaction'
 import { RoundEndModal } from './RoundEndModal'
 import { GameEndModal } from './GameEndModal'
 
@@ -56,6 +57,7 @@ export function GameTable() {
   const setShowScoreHistory = useUIStore(s => s.setShowScoreHistory)
   const showRoundEnd = useUIStore(s => s.showRoundEnd)
   const chatMessages = useUIStore(s => s.chatMessages)
+  const activeReactions = useUIStore(s => s.activeReactions)
 
   // Call store subscriptions
   const localStream = useCallStore(s => s.localStream)
@@ -89,9 +91,13 @@ export function GameTable() {
 
   const getFloatingMessages = useCallback((playerIndex: number) => {
     return chatMessages
-      .filter(m => m.playerIndex === playerIndex && visibleMsgIds.has(m.id))
+      .filter(m => m.playerIndex === playerIndex && m.type === 'text' && visibleMsgIds.has(m.id))
       .slice(-2)
   }, [chatMessages, visibleMsgIds])
+
+  const getReactions = useCallback((playerIndex: number) => {
+    return activeReactions.filter(r => r.playerIndex === playerIndex)
+  }, [activeReactions])
 
   // Speaking detection
   useSpeakingDetection(remoteStreams, localStream, myPlayerIndex)
@@ -191,7 +197,7 @@ export function GameTable() {
         <div />
 
         {/* Top opponent */}
-        <div className="flex flex-col items-center justify-start pt-1 gap-1 relative">
+        <div className="flex flex-col items-center justify-start pt-1 gap-1 relative" data-seat="top">
           {topPlayer && (
             <>
               <PlayerSeat
@@ -201,6 +207,7 @@ export function GameTable() {
                 {...teamInfo(topIndex, myPlayerIndex, playerCount, players)}
                 {...seatCallProps(topIndex)}
               />
+              <AvatarReaction reactions={getReactions(topIndex)} position="top" />
               <OpponentHand player={topPlayer} position="top" />
               {getPaso(topIndex) && (
                 <PasoChip show playerName={topPlayer.name} bonusPoints={getPaso(topIndex)!.passBonusAwarded} />
@@ -216,7 +223,7 @@ export function GameTable() {
         <div />
 
         {/* Left opponent (4-player only) */}
-        <div className="flex flex-col items-center justify-center gap-1 px-0.5 relative overflow-hidden">
+        <div className="flex flex-col items-center justify-center gap-1 px-0.5 relative" data-seat="left">
           {!is2Player && leftPlayer && (
             <>
               <PlayerSeat
@@ -226,6 +233,7 @@ export function GameTable() {
                 {...teamInfo(leftIndex, myPlayerIndex, playerCount, players)}
                 {...seatCallProps(leftIndex)}
               />
+              <AvatarReaction reactions={getReactions(leftIndex)} position="left" />
               <OpponentHand player={leftPlayer} position="left" />
               {getPaso(leftIndex) && (
                 <PasoChip show playerName={leftPlayer.name} bonusPoints={getPaso(leftIndex)!.passBonusAwarded} />
@@ -238,7 +246,7 @@ export function GameTable() {
         </div>
 
         {/* Board center */}
-        <div className="relative overflow-hidden w-full h-full">
+        <div className="relative overflow-hidden w-full h-full" data-board>
           <GameBoard board={board} />
           <TurnIndicator
             playerName={currentPlayerName}
@@ -262,7 +270,7 @@ export function GameTable() {
         </div>
 
         {/* Right opponent (4-player only) */}
-        <div className="flex flex-col items-center justify-center gap-1 px-0.5 relative overflow-hidden">
+        <div className="flex flex-col items-center justify-center gap-1 px-0.5 relative" data-seat="right">
           {!is2Player && rightPlayer && (
             <>
               <PlayerSeat
@@ -272,6 +280,7 @@ export function GameTable() {
                 {...teamInfo(rightIndex, myPlayerIndex, playerCount, players)}
                 {...seatCallProps(rightIndex)}
               />
+              <AvatarReaction reactions={getReactions(rightIndex)} position="right" />
               <OpponentHand player={rightPlayer} position="right" />
               {getPaso(rightIndex) && (
                 <PasoChip show playerName={rightPlayer.name} bonusPoints={getPaso(rightIndex)!.passBonusAwarded} />
@@ -287,7 +296,7 @@ export function GameTable() {
         <div />
 
         {/* My hand (bottom) */}
-        <div className="flex flex-col items-center justify-end gap-1 relative" style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}>
+        <div className="flex flex-col items-center justify-end gap-1 relative" data-seat="bottom" style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}>
           {myPlayer && (
             <PlayerSeat
               player={myPlayer}
@@ -297,6 +306,7 @@ export function GameTable() {
               {...seatCallProps(myPlayerIndex)}
             />
           )}
+          <AvatarReaction reactions={getReactions(myPlayerIndex)} position="bottom" />
           {getPaso(myPlayerIndex) && (
             <PasoChip show playerName={myPlayer?.name ?? ''} bonusPoints={getPaso(myPlayerIndex)!.passBonusAwarded} />
           )}

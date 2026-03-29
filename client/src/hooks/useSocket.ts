@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { socket } from '../socket'
 import { useGameStore } from '../store/gameStore'
 import { useRoomStore } from '../store/roomStore'
-import { useUIStore, ChatMessage } from '../store/uiStore'
+import { useUIStore, ChatMessage, ActiveReaction } from '../store/uiStore'
 import { useCallStore } from '../store/callStore'
 import { signalHandlerRef, peerJoinedCallRef, resetForNewGameRef } from './useWebRTC'
 import { playSfx, preloadSfx } from '../audio/sfx'
@@ -98,8 +98,26 @@ export function useSocket() {
       if (lastAction?.type === 'play_tile' && gameState.board.tiles.length > 0) {
         playSfx('tileClack')
         const last = gameState.board.tiles.reduce((a, b) => a.sequence > b.sequence ? a : b)
-        setLastTileSequence(last.sequence)
-        setTimeout(() => setLastTileSequence(null), 500)
+        // Trigger tile fly animation from the player who placed it
+        const action = lastAction as { playerIndex: number; tile?: { low: number; high: number }; targetEnd?: 'left' | 'right' }
+        if (action.tile) {
+          useUIStore.getState().setFlyingTile({
+            playerIndex: action.playerIndex,
+            tileId: last.tile.id,
+            pip1: action.tile.low,
+            pip2: action.tile.high,
+            targetEnd: action.targetEnd ?? 'right',
+          })
+          // Clear flying tile after animation completes, then reveal board tile
+          setTimeout(() => {
+            useUIStore.getState().setFlyingTile(null)
+            setLastTileSequence(last.sequence)
+            setTimeout(() => setLastTileSequence(null), 500)
+          }, 600)
+        } else {
+          setLastTileSequence(last.sequence)
+          setTimeout(() => setLastTileSequence(null), 500)
+        }
       }
     })
 
@@ -107,7 +125,7 @@ export function useSocket() {
       addPasoNotification(payload)
       setTimeout(() => {
         useUIStore.getState().removePasoNotification(payload.playerIndex)
-      }, 2500)
+      }, 4500)
     })
 
     socket.on('game:boneyard_draw', (payload: BoneyardDrawPayload) => {
@@ -165,6 +183,18 @@ export function useSocket() {
 
     socket.on('chat:message', (msg: ChatMessage) => {
       useUIStore.getState().addChatMessage(msg)
+      // Show reactions as animated emojis near avatar
+      if (msg.type === 'reaction') {
+        const reaction: ActiveReaction = {
+          id: msg.id,
+          playerIndex: msg.playerIndex,
+          emoji: msg.content,
+        }
+        useUIStore.getState().addActiveReaction(reaction)
+        setTimeout(() => {
+          useUIStore.getState().removeActiveReaction(reaction.id)
+        }, 2500)
+      }
     })
 
     socket.on('chat:history', ({ messages }: { messages: ChatMessage[] }) => {

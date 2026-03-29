@@ -2,6 +2,7 @@ import { useRef, useEffect, useState } from 'react'
 import { BoardState, BoardTile as BoardTileType } from '../../types/game'
 import { BoardTileItem, TILE_H_W, TILE_H_H, TILE_V_W, TILE_V_H } from './BoardTile'
 import { useGameStore } from '../../store/gameStore'
+import { useUIStore } from '../../store/uiStore'
 
 const GAP = 4
 const SNAKE_CAP = 620  // max snake row width (~7 tiles per row at 80px)
@@ -306,6 +307,7 @@ export function GameBoard({ board }: GameBoardProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [dims, setDims] = useState({ w: 0, h: 0 })
   const lastTileSequence = useGameStore(s => s.lastTileSequence)
+  const flyingTileId = useUIStore(s => s.flyingTile?.tileId ?? null)
 
   useEffect(() => {
     const el = containerRef.current
@@ -383,11 +385,23 @@ export function GameBoard({ board }: GameBoardProps) {
           const { pos, flipped, corner } = layout[idx]
           if (!pos) return null
           const { w, h } = tileDisplaySize(bt, corner)
+          const isFlying = bt.tile.id === flyingTileId
+          // Mark the end tiles so drag-drop and fly animation can find them
+          const isLeftEnd = idx === 0 && board.tiles.length > 1
+          const isRightEnd = idx === board.tiles.length - 1 && board.tiles.length > 1
           return (
             <div
               key={bt.tile.id}
               className="absolute"
-              style={{ left: pos.x - w / 2, top: pos.y - h / 2, width: w, height: h, overflow: 'hidden' }}
+              data-board-end={isLeftEnd ? 'left' : isRightEnd ? 'right' : undefined}
+              style={{
+                left: pos.x - w / 2,
+                top: pos.y - h / 2,
+                width: w,
+                height: h,
+                overflow: 'hidden',
+                opacity: isFlying ? 0 : undefined,
+              }}
             >
               <BoardTileItem boardTile={bt} isNew={bt.sequence === lastTileSequence} flipped={flipped} corner={corner} />
             </div>

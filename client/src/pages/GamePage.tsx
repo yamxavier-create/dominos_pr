@@ -7,6 +7,8 @@ import { GameTable } from '../components/game/GameTable'
 import { useWebRTC } from '../hooks/useWebRTC'
 import { ChatButton } from '../components/chat/ChatButton'
 import { ChatPanel } from '../components/chat/ChatPanel'
+import { EmojiBar } from '../components/chat/EmojiBar'
+import { TileFlyAnimation } from '../components/board/TileFlyAnimation'
 
 // Error boundary prevents a crash from showing the raw green background.
 // Instead it shows a recovery UI that lets the player get back to the lobby.
@@ -68,10 +70,14 @@ export function GamePage() {
     navigate('/lobby')
   }
 
+  const playerCount = gameState?.playerCount ?? 4
+
   return (
     <GameErrorBoundary onReset={handleErrorReset}>
       <GameTable />
       <ChatButton />
+      <EmojiBar />
+      <TileFlyAnimation playerCount={playerCount} />
       {chatOpen && <ChatPanel />}
     </GameErrorBoundary>
   )
