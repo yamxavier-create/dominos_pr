@@ -3,7 +3,7 @@ import { createServer } from 'http'
 import { Server } from 'socket.io'
 import cors from 'cors'
 import path from 'path'
-import { config } from './config'
+import { config, APP_VERSION } from './config'
 import { RoomManager } from './game/RoomManager'
 import { registerHandlers } from './socket/handlers'
 import { buildClientGameState } from './game/GameEngine'
@@ -87,5 +87,5 @@ io.on('connection', socket => {
 })
 
 httpServer.listen(config.PORT, () => {
-  console.log(`🎲 Dominó PR server running on port ${config.PORT}`)
+  console.log(`🎲 Dominó PR v${APP_VERSION} running on port ${config.PORT}`)
 })

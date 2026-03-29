@@ -78,5 +78,5 @@ io.on('connection', socket => {
     });
 });
 httpServer.listen(config_1.config.PORT, () => {
-    console.log(`🎲 Dominó PR server running on port ${config_1.config.PORT}`);
+    console.log(`🎲 Dominó PR v${config_1.APP_VERSION} running on port ${config_1.config.PORT}`);
 });
