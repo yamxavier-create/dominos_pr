@@ -150,10 +150,19 @@ export function useWebRTC() {
       }
     }
 
-    pc.ontrack = ({ streams }) => {
+    pc.ontrack = ({ streams, track }) => {
       if (streams[0]) {
-        console.log(`[WebRTC] Got remote track from peer ${remoteIndex}`)
+        console.log(`[WebRTC] Got remote ${track.kind} track from peer ${remoteIndex}`)
         getCallStore().setRemoteStream(remoteIndex, streams[0])
+
+        // Re-set stream when track unmutes/restarts (iOS background recovery)
+        track.onunmute = () => {
+          console.log(`[WebRTC] Track ${track.kind} unmuted from peer ${remoteIndex}`)
+          getCallStore().setRemoteStream(remoteIndex, streams[0])
+        }
+        track.onended = () => {
+          console.log(`[WebRTC] Track ${track.kind} ended from peer ${remoteIndex}`)
+        }
       }
     }
 
@@ -214,27 +223,21 @@ export function useWebRTC() {
     getCallStore().resetCallState()
   }, [])
 
-  // Tear down and optionally re-establish WebRTC when a new game starts.
-  // Prevents stream/PC accumulation across games that causes device exhaustion.
+  // When a new game starts, do a soft reset — ICE restart existing PCs
+  // instead of full teardown to avoid video glitches
   const resetForNewGame = useCallback(async () => {
     const { myAudioEnabled, myVideoEnabled } = getCallStore()
     const wasInCall = myAudioEnabled || myVideoEnabled
-    wasInCallRef.current = wasInCall
 
-    // Full teardown: stop tracks, close PCs, reset store
-    localStreamRef.current?.getTracks().forEach(track => track.stop())
-    localStreamRef.current = null
-    Object.values(pcsRef.current).forEach(pc => pc.close())
-    pcsRef.current = {}
-    makingOfferRef.current = {}
-    ignoreOfferRef.current = {}
-    getCallStore().resetCallState()
+    if (!wasInCall) return
 
-    // If user was in a call, automatically rejoin with same settings
-    if (wasInCall) {
-      // Small delay to let old connections fully close and device release
-      await new Promise(r => setTimeout(r, 300))
-      await joinCallRef.current?.(myAudioEnabled, myVideoEnabled)
+    // Soft reset: ICE restart all existing PCs to refresh connections
+    // This preserves streams and avoids the 300ms gap from full teardown
+    for (const [idx, pc] of Object.entries(pcsRef.current)) {
+      if (pc.connectionState !== 'closed') {
+        console.log(`[WebRTC] ICE restart for peer ${idx} (new game)`)
+        pc.restartIce()
+      }
     }
   }, [])
 

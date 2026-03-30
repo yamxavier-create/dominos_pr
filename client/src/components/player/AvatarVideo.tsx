@@ -30,7 +30,17 @@ export function AvatarVideo({
       video.play().catch(() => {})
     }
 
+    // Recovery: if video pauses/stalls, re-play
+    const handlePause = () => {
+      if (stream && stream.active) {
+        video.play().catch(() => {})
+      }
+    }
+
+    video.addEventListener('pause', handlePause)
+
     return () => {
+      video.removeEventListener('pause', handlePause)
       video.srcObject = null
     }
   }, [stream])
