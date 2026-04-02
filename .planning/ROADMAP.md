@@ -78,11 +78,11 @@ Full details: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md)
   3. Logged-in user refreshes the browser and is still logged in (JWT persisted in localStorage)
   4. Logged-in user can edit their display name from a profile section
   5. Logged-in user sees their Google profile picture as their avatar (or a default placeholder if unavailable)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 16-01: Google OAuth client wiring + guest-to-auth socket transition
-- [ ] 16-02: Profile UI -- display name editing, avatar display, auth-aware layout
+- [ ] 16-01-PLAN.md -- Google OAuth client wiring, /api dev proxy, logout socket fix (AUTH-01, AUTH-02, AUTH-03)
+- [ ] 16-02-PLAN.md -- Profile endpoint + ProfileSection UI with avatar and editable name (PROF-01, PROF-02)
 
 ### Phase 17: Friends System
 **Goal**: Logged-in users can find other players by username, send/manage friend requests, and see a friends list -- the foundation for all social features
