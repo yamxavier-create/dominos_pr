@@ -15,8 +15,8 @@ Requirements for Social & Accounts milestone. Each maps to roadmap phases.
 
 ### Profile
 
-- [ ] **PROF-01**: User can edit their display name after registration
-- [ ] **PROF-02**: User's avatar displays from Google account or default placeholder
+- [x] **PROF-01**: User can edit their display name after registration
+- [x] **PROF-02**: User's avatar displays from Google account or default placeholder
 
 ### Friends
 
@@ -84,8 +84,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-01 | Phase 16 | Complete |
 | AUTH-02 | Phase 16 | Complete |
 | AUTH-03 | Phase 16 | Complete |
-| PROF-01 | Phase 16 | Pending |
-| PROF-02 | Phase 16 | Pending |
+| PROF-01 | Phase 16 | Complete |
+| PROF-02 | Phase 16 | Complete |
 | FRD-01 | Phase 17 | Pending |
 | FRD-02 | Phase 17 | Pending |
 | FRD-03 | Phase 17 | Pending |

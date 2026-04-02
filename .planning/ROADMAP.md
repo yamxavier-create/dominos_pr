@@ -61,7 +61,7 @@ Full details: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md)
 
 **Milestone Goal:** Add user accounts, friends list with request/accept, online presence, and direct join -- so players can find and play with friends without sharing lobby codes.
 
-- [ ] **Phase 16: Auth & Profile** - Complete Google OAuth, preserve guest mode, display name editing and avatar display
+- [x] **Phase 16: Auth & Profile** - Complete Google OAuth, preserve guest mode, display name editing and avatar display (completed 2026-04-02)
 - [ ] **Phase 17: Friends System** - Search, request, accept/reject, list, unfriend -- full friends CRUD with real-time notifications
 - [ ] **Phase 18: Presence** - Online/in_lobby/in_game/offline tracking with multi-tab support and friend notifications
 - [ ] **Phase 19: Social Integration** - Direct join from friends list and post-game "Add Friend" button
@@ -151,7 +151,7 @@ Phases execute in numeric order: 16 -> 17 -> 18 -> 19
 | 13. Audio Foundation | v1.2 | 2/2 | Complete | 2026-03-14 |
 | 14. Game Sound Effects | v1.2 | 1/1 | Complete | 2026-03-14 |
 | 15. Background Music | v1.2 | 0/1 | Deferred | - |
-| 16. Auth & Profile | 1/2 | In Progress|  | - |
+| 16. Auth & Profile | 2/2 | Complete   | 2026-04-02 | - |
 | 17. Friends System | v1.3 | 0/2 | Not started | - |
 | 18. Presence | v1.3 | 0/2 | Not started | - |
 | 19. Social Integration | v1.3 | 0/2 | Not started | - |

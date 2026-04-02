@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Social & Accounts
-status: executing
-stopped_at: Completed 16-01-PLAN.md
-last_updated: "2026-04-02"
-last_activity: 2026-04-02 -- Executed 16-01 (Google OAuth client wiring)
+status: completed
+stopped_at: Completed 16-02-PLAN.md (Profile & Avatar) -- Phase 16 complete
+last_updated: "2026-04-02T22:08:30.396Z"
+last_activity: 2026-04-02 -- Completed 16-02 (Profile & Avatar)
 progress:
   total_phases: 4
-  completed_phases: 0
-  total_plans: 8
-  completed_plans: 1
-  percent: 12
+  completed_phases: 1
+  total_plans: 2
+  completed_plans: 2
+  percent: 100
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-25)
 
 **Core value:** Friends can start and finish a complete game of Puerto Rican dominoes online, in real time, from any device -- without friction.
-**Current focus:** v1.3 Social & Accounts -- Phase 16 (Auth & Profile) ready to plan
+**Current focus:** v1.3 Social & Accounts -- Phase 16 (Auth & Profile) COMPLETE
 
 ## Current Position
 
 Phase: 16 of 19 (Auth & Profile) -- first phase of v1.3
-Plan: 1 of 2 in current phase
-Status: Executing
-Last activity: 2026-04-02 -- Completed 16-01 (Google OAuth client wiring)
+Plan: 2 of 2 in current phase (PHASE COMPLETE)
+Status: Phase 16 complete, ready for Phase 17
+Last activity: 2026-04-02 -- Completed 16-02 (Profile & Avatar)
 
-Progress: [█░░░░░░░░░] 12%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -43,7 +43,8 @@ Progress: [█░░░░░░░░░] 12%
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 16-auth-profile | 1/2 | 3min | 3min |
+| 16-auth-profile | 2/2 | 5min | 2.5min |
+| Phase 16-auth-profile P02 | 2min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -57,6 +58,8 @@ See PROJECT.md Key Decisions table for full log.
 - Join via direct button (not invitation system)
 - GoogleLogin component (not useGoogleLogin hook) for ID token flow matching server's verifyGoogleToken()
 - Env-gated Google button: returns null without VITE_GOOGLE_CLIENT_ID, preserving guest-only mode
+- Display name max 20 chars trimmed server-side; referrerPolicy no-referrer on Google avatar
+- ProfileSection replaces old user badge with avatar + editable name + logout button
 
 ### Research Pitfalls (from research/SUMMARY.md)
 
@@ -76,6 +79,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-02
-Stopped at: Completed 16-01-PLAN.md (Google OAuth client wiring)
-Resume file: .planning/phases/16-auth-profile/16-01-SUMMARY.md
+Last session: 2026-04-02T22:08:28.947Z
+Stopped at: Completed 16-02-PLAN.md (Profile & Avatar) -- Phase 16 complete
+Resume file: None
