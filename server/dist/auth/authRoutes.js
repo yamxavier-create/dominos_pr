@@ -187,4 +187,36 @@ router.post('/logout', async (req, res) => {
         res.status(200).json({ ok: true });
     }
 });
+// PATCH /api/auth/profile
+router.patch('/profile', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader?.startsWith('Bearer ')) {
+            res.status(401).json({ error: 'No token provided' });
+            return;
+        }
+        const token = authHeader.slice(7);
+        const payload = (0, jwt_1.verifyToken)(token);
+        const { displayName } = req.body;
+        if (!displayName || typeof displayName !== 'string') {
+            res.status(400).json({ error: 'Display name is required' });
+            return;
+        }
+        const sanitized = displayName.trim().slice(0, 20);
+        if (sanitized.length < 1) {
+            res.status(400).json({ error: 'Display name too short' });
+            return;
+        }
+        const user = await prisma_1.default.user.update({
+            where: { id: payload.sub },
+            data: { displayName: sanitized },
+            select: { id: true, username: true, displayName: true, avatarUrl: true },
+        });
+        res.json({ user });
+    }
+    catch (err) {
+        console.error('[Auth] Profile update error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
 exports.default = router;
