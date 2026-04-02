@@ -79,6 +79,11 @@ export function useAuth() {
     }
     logout()
     setSocketAuth(null)
+    // Reconnect socket without auth token so server sees guest identity
+    if (socket.connected) {
+      socket.disconnect()
+      socket.connect()
+    }
   }
 
   return { register, login, loginWithGoogle, logout: handleLogout, isAuthenticated, user, token }
