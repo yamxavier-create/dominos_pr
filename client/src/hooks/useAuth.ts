@@ -86,5 +86,16 @@ export function useAuth() {
     }
   }
 
-  return { register, login, loginWithGoogle, logout: handleLogout, isAuthenticated, user, token }
+  const updateProfile = async (displayName: string) => {
+    const { user: updatedUser } = await apiCall('/profile', {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ displayName }),
+    })
+    // Update local store with new display name
+    const { updateUser } = useAuthStore.getState()
+    updateUser({ displayName: updatedUser.displayName })
+  }
+
+  return { register, login, loginWithGoogle, logout: handleLogout, updateProfile, isAuthenticated, user, token }
 }
