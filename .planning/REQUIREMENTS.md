@@ -9,9 +9,9 @@ Requirements for Social & Accounts milestone. Each maps to roadmap phases.
 
 ### Authentication
 
-- [ ] **AUTH-01**: User can complete Google OAuth login via the existing placeholder button
-- [ ] **AUTH-02**: User can play as guest without logging in (current behavior preserved)
-- [ ] **AUTH-03**: Logged-in user's identity persists across browser refresh (JWT + localStorage)
+- [x] **AUTH-01**: User can complete Google OAuth login via the existing placeholder button
+- [x] **AUTH-02**: User can play as guest without logging in (current behavior preserved)
+- [x] **AUTH-03**: Logged-in user's identity persists across browser refresh (JWT + localStorage)
 
 ### Profile
 
@@ -81,9 +81,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | Phase 16 | Pending |
-| AUTH-02 | Phase 16 | Pending |
-| AUTH-03 | Phase 16 | Pending |
+| AUTH-01 | Phase 16 | Complete |
+| AUTH-02 | Phase 16 | Complete |
+| AUTH-03 | Phase 16 | Complete |
 | PROF-01 | Phase 16 | Pending |
 | PROF-02 | Phase 16 | Pending |
 | FRD-01 | Phase 17 | Pending |

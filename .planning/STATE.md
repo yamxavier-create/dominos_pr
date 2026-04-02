@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Social & Accounts
-status: ready_to_plan
-stopped_at: Roadmap created, ready to plan Phase 16
-last_updated: "2026-03-25"
-last_activity: 2026-03-25 -- Roadmap created for v1.3
+status: executing
+stopped_at: Completed 16-01-PLAN.md
+last_updated: "2026-04-02"
+last_activity: 2026-04-02 -- Executed 16-01 (Google OAuth client wiring)
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 8
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 12
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-25)
 ## Current Position
 
 Phase: 16 of 19 (Auth & Profile) -- first phase of v1.3
-Plan: 0 of 2 in current phase
-Status: Ready to plan
-Last activity: 2026-03-25 -- Roadmap created for v1.3 (4 phases, 16 requirements)
+Plan: 1 of 2 in current phase
+Status: Executing
+Last activity: 2026-04-02 -- Completed 16-01 (Google OAuth client wiring)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 12%
 
 ## Performance Metrics
 
@@ -43,7 +43,7 @@ Progress: [░░░░░░░░░░] 0%
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 16-auth-profile | 1/2 | 3min | 3min |
 
 ## Accumulated Context
 
@@ -55,6 +55,8 @@ See PROJECT.md Key Decisions table for full log.
 - Guest + Login dual mode: guests play as before, login unlocks social features
 - Friends use request/accept model (not direct add)
 - Join via direct button (not invitation system)
+- GoogleLogin component (not useGoogleLogin hook) for ID token flow matching server's verifyGoogleToken()
+- Env-gated Google button: returns null without VITE_GOOGLE_CLIENT_ID, preserving guest-only mode
 
 ### Research Pitfalls (from research/SUMMARY.md)
 
@@ -74,6 +76,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-25
-Stopped at: Roadmap created for v1.3, ready to plan Phase 16
-Resume file: None
+Last session: 2026-04-02
+Stopped at: Completed 16-01-PLAN.md (Google OAuth client wiring)
+Resume file: .planning/phases/16-auth-profile/16-01-SUMMARY.md
