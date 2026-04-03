@@ -108,11 +108,11 @@ Plans:
   1. User can see each friend's current status (online/in_lobby/in_game/offline) on the friends list and it updates in real-time
   2. User receives a real-time notification when a friend comes online or enters a lobby
   3. User with multiple tabs open is shown as online (not flickering offline) and only goes offline when ALL tabs are closed (grace period prevents flicker)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 18-01: PresenceManager server class + socket integration (Map<userId, Set<socketId>>, grace period, status computation)
-- [ ] 18-02: Presence UI + friend notifications (status badges, online/lobby toast notifications)
+- [ ] 18-01-PLAN.md -- PresenceManager server class + socket integration + room/game event hooks + GET /friends status field (PRES-01, PRES-03)
+- [ ] 18-02-PLAN.md -- socialStore presence types + useSocket presence listeners + FriendsList status badges + PresenceToast notifications (PRES-01, PRES-02, PRES-03)
 
 ### Phase 19: Social Integration
 **Goal**: The social features connect to gameplay -- users can jump directly into a friend's lobby and add opponents as friends after a game
