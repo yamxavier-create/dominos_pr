@@ -6,6 +6,8 @@ import { useRoomStore } from '../../store/roomStore'
 import { useAuthStore } from '../../store/authStore'
 import { useGameActions } from '../../hooks/useGameActions'
 import { ProfileSection } from '../auth/ProfileSection'
+import { SocialPanel } from '../social/SocialPanel'
+import { useSocialStore } from '../../store/socialStore'
 
 type View = 'home' | 'create' | 'join'
 
@@ -32,7 +34,9 @@ const OutlineBtn = ({ children, onClick }: { children: React.ReactNode; onClick?
 
 export function MainMenu() {
   const [view, setView] = useState<View>('home')
+  const [showSocial, setShowSocial] = useState(false)
   const { isAuthenticated, user } = useAuthStore()
+  const incomingRequestCount = useSocialStore((s) => s.requests.filter((r) => r.direction === 'incoming').length)
   const [playerName, setPlayerName] = useState(user?.displayName || '')
   const [roomCode, setRoomCode] = useState('')
   const [selectedMode, setSelectedMode] = useState<GameMode>('modo200')
@@ -157,11 +161,32 @@ export function MainMenu() {
     )
   }
 
+  if (showSocial && isAuthenticated) {
+    return (
+      <div className="flex flex-col items-center w-full max-w-sm">
+        <SocialPanel onClose={() => setShowSocial(false)} />
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col items-center gap-10 w-full max-w-sm">
       {/* Profile section (logged in) or login link */}
       {isAuthenticated && user ? (
-        <ProfileSection />
+        <div className="w-full flex flex-col gap-3">
+          <ProfileSection />
+          <button
+            onClick={() => setShowSocial(true)}
+            className="font-body text-green-400/70 hover:text-green-400 text-sm transition-colors relative self-start"
+          >
+            Amigos
+            {incomingRequestCount > 0 && (
+              <span className="ml-1.5 inline-flex items-center justify-center bg-green-500 text-white text-[10px] font-bold rounded-full w-4 h-4">
+                {incomingRequestCount}
+              </span>
+            )}
+          </button>
+        </div>
       ) : (
         <button
           onClick={() => navigate('/auth')}
