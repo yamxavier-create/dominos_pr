@@ -31,6 +31,7 @@ export function ProfileSection() {
   const [editName, setEditName] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showMenu, setShowMenu] = useState(false)
 
   if (!user) return null
 
@@ -64,11 +65,58 @@ export function ProfileSection() {
   }
 
   return (
-    <div className="w-full flex items-center gap-3 px-1">
-      <Avatar user={user} size={40} />
-      <div className="flex-1 min-w-0">
-        {editing ? (
-          <div className="flex items-center gap-2">
+    <div className="relative">
+      {/* Gear icon button */}
+      <button
+        onClick={() => setShowMenu(!showMenu)}
+        className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-colors hover:bg-white/10"
+        style={{ border: '1.5px solid rgba(255,255,255,0.15)' }}
+        title="Cuenta"
+      >
+        <svg className="w-[18px] h-[18px] sm:w-[22px] sm:h-[22px]" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+        </svg>
+      </button>
+
+      {/* Dropdown menu */}
+      {showMenu && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
+          <div
+            className="absolute top-full left-0 mt-2 z-50 rounded-xl py-1.5 min-w-[160px] shadow-xl"
+            style={{ background: 'rgba(15,35,24,0.95)', border: '1px solid rgba(255,255,255,0.10)', backdropFilter: 'blur(12px)' }}
+          >
+            {/* User info header */}
+            <div className="px-4 py-2 border-b border-white/10 mb-1">
+              <p className="font-body text-white/90 text-sm font-semibold truncate">{user.displayName}</p>
+            </div>
+            {!editing ? (
+              <button
+                onClick={() => { startEditing(); setShowMenu(false) }}
+                className="w-full text-left px-4 py-2 font-body text-white/70 hover:text-white hover:bg-white/5 text-xs sm:text-sm transition-colors"
+              >
+                Editar nombre
+              </button>
+            ) : null}
+            <button
+              onClick={() => { logout(); setShowMenu(false) }}
+              className="w-full text-left px-4 py-2 font-body text-red-400/70 hover:text-red-400 hover:bg-white/5 text-xs sm:text-sm transition-colors"
+            >
+              Cerrar sesión
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Edit name inline (shown when editing) */}
+      {editing && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={cancelEditing} />
+          <div
+            className="absolute top-full left-0 mt-2 z-50 rounded-xl p-3 shadow-xl flex items-center gap-2"
+            style={{ background: 'rgba(15,35,24,0.95)', border: '1px solid rgba(255,255,255,0.10)', backdropFilter: 'blur(12px)' }}
+          >
             <input
               type="text"
               value={editName}
@@ -79,41 +127,18 @@ export function ProfileSection() {
               }}
               maxLength={20}
               autoFocus
-              className="font-body text-sm text-white bg-white/10 border border-white/20 rounded-lg px-2 py-1 w-full outline-none focus:border-green-500/50"
+              className="font-body text-sm text-white bg-white/10 border border-white/20 rounded-lg px-2.5 py-1.5 w-32 sm:w-40 outline-none focus:border-green-500/50"
             />
-            <button
-              onClick={saveName}
-              disabled={saving}
-              className="font-body text-xs text-green-400 hover:text-green-300 transition-colors shrink-0"
-            >
-              {saving ? '...' : 'OK'}
+            <button onClick={saveName} disabled={saving} className="font-body text-xs text-green-400 hover:text-green-300 transition-colors">
+              {saving ? '...' : '✓'}
             </button>
-            <button
-              onClick={cancelEditing}
-              className="font-body text-xs text-white/30 hover:text-white/50 transition-colors shrink-0"
-            >
-              X
+            <button onClick={cancelEditing} className="font-body text-xs text-white/30 hover:text-white/50 transition-colors">
+              ✕
             </button>
+            {error && <p className="font-body text-accent text-[10px]">{error}</p>}
           </div>
-        ) : (
-          <div className="flex items-center gap-2">
-            <span className="font-body text-white/80 text-sm truncate">{user.displayName}</span>
-            <button
-              onClick={startEditing}
-              className="font-body text-white/30 hover:text-white/50 text-xs transition-colors shrink-0"
-            >
-              editar
-            </button>
-          </div>
-        )}
-        {error && <p className="font-body text-accent text-xs mt-0.5">{error}</p>}
-      </div>
-      <button
-        onClick={logout}
-        className="font-body text-white/30 hover:text-white/50 text-xs transition-colors shrink-0"
-      >
-        Salir
-      </button>
+        </>
+      )}
     </div>
   )
 }

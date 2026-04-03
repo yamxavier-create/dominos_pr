@@ -3,9 +3,19 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.setRoomManager = setRoomManager;
+exports.setPresenceManager = setPresenceManager;
 const express_1 = require("express");
 const prisma_1 = __importDefault(require("../db/prisma"));
 const jwt_1 = require("../auth/jwt");
+let roomManagerRef = null;
+let presenceRef = null;
+function setRoomManager(rm) {
+    roomManagerRef = rm;
+}
+function setPresenceManager(pm) {
+    presenceRef = pm;
+}
 const router = (0, express_1.Router)();
 /** Extract authenticated userId from Bearer token, or send 401 */
 async function requireAuth(req, res) {
@@ -96,7 +106,17 @@ router.get('/friends', async (req, res) => {
                 target: { select: userSelect },
             },
         });
-        const friends = friendships.map(f => f.requesterId === userId ? f.target : f.requester);
+        const friends = friendships.map(f => {
+            const friend = f.requesterId === userId ? f.target : f.requester;
+            const roomCode = roomManagerRef?.getRoomCodeByUserId(friend.id);
+            const room = roomCode ? roomManagerRef?.getRoom(roomCode) : undefined;
+            const status = presenceRef?.getStatus(friend.id) ?? 'offline';
+            return {
+                ...friend,
+                roomCode: room && room.status === 'waiting' && room.players.length < 4 ? roomCode : null,
+                status,
+            };
+        });
         res.json({ friends });
     }
     catch (err) {

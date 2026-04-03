@@ -216,7 +216,7 @@ function checkRematchCancellation(io, room, disconnectedSocketId) {
     });
     room.rematchVotes = [];
 }
-function registerGameHandlers(socket, io, rooms) {
+function registerGameHandlers(socket, io, rooms, presence) {
     socket.on('game:start', ({ roomCode }) => {
         const room = rooms.getRoom(roomCode);
         if (!room)
@@ -264,6 +264,11 @@ function registerGameHandlers(socket, io, rooms) {
         for (const player of game.players) {
             const clientState = (0, GameEngine_1.buildClientGameState)(game, player.index);
             io.to(player.socketId).emit('game:started', { gameState: clientState });
+        }
+        // Notify friends that players are now in_game
+        for (const rp of room.players) {
+            if (rp.userId)
+                presence.notifyStatusChange(rp.userId);
         }
     });
     socket.on('game:play_tile', ({ roomCode, tileId, targetEnd }) => {

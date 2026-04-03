@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRoomStore } from '../../store/roomStore'
 import { useGameActions } from '../../hooks/useGameActions'
 import { socket } from '../../socket'
 import { useCallStore } from '../../store/callStore'
+import { useAuthStore } from '../../store/authStore'
+import { useSocialStore, Friend } from '../../store/socialStore'
 
 const teamColors = ['#22C55E', '#F97316', '#22C55E', '#F97316']
 const seatLabels = ['Host', 'Jugador 2', 'Jugador 3', 'Jugador 4']
@@ -14,9 +16,31 @@ export function RoomLobby() {
   const myPlayerIndex = useRoomStore(s => s.myPlayerIndex)
   const { startGame } = useGameActions()
   const [selectedSeat, setSelectedSeat] = useState<number | null>(null)
+  const [showInvite, setShowInvite] = useState(false)
+  const [invitedIds, setInvitedIds] = useState<Set<string>>(new Set())
   const myAudioEnabled = useCallStore(s => s.myAudioEnabled)
   const myVideoEnabled = useCallStore(s => s.myVideoEnabled)
   const lobbyOpts = useCallStore(s => s.lobbyOpts)
+  const isAuthenticated = useAuthStore(s => s.isAuthenticated)
+  const token = useAuthStore(s => s.token)
+  const friends = useSocialStore(s => s.friends)
+  const setFriends = useSocialStore(s => s.setFriends)
+
+  // Fetch friends when invite panel opens
+  useEffect(() => {
+    if (!showInvite || !token) return
+    fetch(`${(import.meta.env.VITE_API_URL || '')}/api/social/friends`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => setFriends(data.friends))
+      .catch(() => {})
+  }, [showInvite, token])
+
+  const sendInvite = (friendId: string) => {
+    socket.emit('social:invite_to_game', { friendUserId: friendId })
+    setInvitedIds(prev => new Set(prev).add(friendId))
+  }
 
   const handleToggleAudio = () => {
     const newAudio = !myAudioEnabled
@@ -192,6 +216,48 @@ export function RoomLobby() {
           </p>
         )}
       </div>
+
+      {/* Invite friends */}
+      {isAuthenticated && room.players.length < 4 && (
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={() => setShowInvite(!showInvite)}
+            className="w-full font-body text-sm py-2.5 rounded-xl text-white/70 hover:text-white transition-all hover:bg-white/5"
+            style={{ border: '1px solid rgba(255,255,255,0.12)' }}
+          >
+            {showInvite ? 'Cerrar' : 'Invitar Amigos'}
+          </button>
+          {showInvite && (
+            <div className="flex flex-col gap-1.5 max-h-32 overflow-y-auto scrollbar-none">
+              {friends.length === 0 ? (
+                <p className="font-body text-white/30 text-xs text-center py-2">No tienes amigos agregados</p>
+              ) : (
+                friends.map((f: Friend) => {
+                  const alreadyInRoom = room.players.some(p => p.userId === f.id)
+                  const invited = invitedIds.has(f.id)
+                  return (
+                    <div key={f.id} className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2">
+                      <p className="font-body text-white text-xs truncate flex-1">{f.displayName}</p>
+                      {alreadyInRoom ? (
+                        <span className="font-body text-green-400 text-[10px]">En sala</span>
+                      ) : invited ? (
+                        <span className="font-body text-white/40 text-[10px]">Enviado ✓</span>
+                      ) : (
+                        <button
+                          onClick={() => sendInvite(f.id)}
+                          className="font-body text-green-400 hover:text-green-300 text-xs font-bold transition-colors"
+                        >
+                          Invitar
+                        </button>
+                      )}
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Start / waiting */}
       {isHost ? (

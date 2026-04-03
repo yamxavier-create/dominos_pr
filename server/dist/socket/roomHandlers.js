@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.registerRoomHandlers = registerRoomHandlers;
 const GameEngine_1 = require("../game/GameEngine");
 const authMiddleware_1 = require("./authMiddleware");
-function registerRoomHandlers(socket, io, rooms) {
+function registerRoomHandlers(socket, io, rooms, presence) {
     socket.on('room:create', ({ playerName, gameMode }) => {
         const socketUser = (0, authMiddleware_1.getSocketUser)(socket);
         const name = playerName?.trim() || socketUser.user?.displayName;
@@ -18,6 +18,8 @@ function registerRoomHandlers(socket, io, rooms) {
             room: rooms.getRoomInfo(room),
             myPlayerIndex: 0,
         });
+        if (userId)
+            presence.notifyStatusChange(userId);
     });
     socket.on('room:join', ({ roomCode, playerName }) => {
         const socketUser = (0, authMiddleware_1.getSocketUser)(socket);
@@ -51,6 +53,8 @@ function registerRoomHandlers(socket, io, rooms) {
             socket.emit('room:joined', { roomCode: room.roomCode, room: rooms.getRoomInfo(room), myPlayerIndex: seatIndex });
             io.to(room.roomCode).emit('room:updated', { room: rooms.getRoomInfo(room) });
         }
+        if (userId)
+            presence.notifyStatusChange(userId);
     });
     // Lightweight reconnection: update socket ID in room/game state and re-join Socket.IO room.
     // Triggered by client on socket reconnect (new socket ID after transport close).
@@ -107,5 +111,8 @@ function registerRoomHandlers(socket, io, rooms) {
         const { roomCode, room } = result;
         socket.leave(roomCode);
         io.to(roomCode).emit('room:updated', { room: rooms.getRoomInfo(room) });
+        const socketUser = (0, authMiddleware_1.getSocketUser)(socket);
+        if (socketUser.user)
+            presence.notifyStatusChange(socketUser.user.id);
     });
 }

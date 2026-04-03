@@ -15,6 +15,7 @@ class RoomManager {
     constructor() {
         this.rooms = new Map();
         this.socketToRoom = new Map(); // socketId → roomCode
+        this.userToRoom = new Map(); // userId → roomCode
         // Clean up idle rooms every 10 minutes
         this.cleanupInterval = setInterval(() => this.cleanup(), 10 * 60 * 1000);
     }
@@ -33,6 +34,8 @@ class RoomManager {
         };
         this.rooms.set(roomCode, room);
         this.socketToRoom.set(socketId, roomCode);
+        if (userId)
+            this.userToRoom.set(userId, roomCode);
         return room;
     }
     joinRoom(socketId, roomCode, playerName, userId) {
@@ -70,6 +73,8 @@ class RoomManager {
         const rp = { socketId, name: playerName, seatIndex, connected: true, userId };
         room.players.push(rp);
         this.socketToRoom.set(socketId, roomCode);
+        if (userId)
+            this.userToRoom.set(userId, roomCode);
         room.lastActivity = Date.now();
         return { room, seatIndex };
     }
@@ -81,6 +86,11 @@ class RoomManager {
         if (!room)
             return null;
         this.socketToRoom.delete(socketId);
+        // Clean up userId mapping for lobby leaves
+        const leavingPlayer = room.players.find(p => p.socketId === socketId);
+        if (leavingPlayer?.userId && room.status === 'waiting') {
+            this.userToRoom.delete(leavingPlayer.userId);
+        }
         if (room.status === 'waiting') {
             // Remove the player from lobby
             room.players = room.players.filter(p => p.socketId !== socketId);
@@ -159,12 +169,19 @@ class RoomManager {
             status: room.status,
         };
     }
+    /** Get the roomCode a userId is currently in (lobby or game) */
+    getRoomCodeByUserId(userId) {
+        return this.userToRoom.get(userId);
+    }
     cleanup() {
         const cutoff = Date.now() - 60 * 60 * 1000; // 1 hour
         for (const [code, room] of this.rooms) {
             if (room.lastActivity < cutoff) {
-                for (const p of room.players)
+                for (const p of room.players) {
                     this.socketToRoom.delete(p.socketId);
+                    if (p.userId)
+                        this.userToRoom.delete(p.userId);
+                }
                 this.rooms.delete(code);
             }
         }

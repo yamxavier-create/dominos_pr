@@ -65,7 +65,7 @@ export interface RoomInfo {
   roomCode: string
   hostSocketId: string
   gameMode: GameMode
-  players: Array<{ index: number; name: string; connected: boolean }>
+  players: Array<{ index: number; name: string; connected: boolean; userId?: string }>
   status: 'waiting' | 'in_game'
 }
 

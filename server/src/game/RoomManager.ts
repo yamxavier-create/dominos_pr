@@ -15,6 +15,7 @@ function generateRoomCode(existing: Set<string>): string {
 export class RoomManager {
   private rooms = new Map<string, Room>()
   private socketToRoom = new Map<string, string>() // socketId → roomCode
+  private userToRoom = new Map<string, string>()   // userId → roomCode
   private cleanupInterval: NodeJS.Timeout
 
   constructor() {
@@ -37,6 +38,7 @@ export class RoomManager {
     }
     this.rooms.set(roomCode, room)
     this.socketToRoom.set(socketId, roomCode)
+    if (userId) this.userToRoom.set(userId, roomCode)
     return room
   }
 
@@ -69,6 +71,7 @@ export class RoomManager {
     const rp: RoomPlayer = { socketId, name: playerName, seatIndex, connected: true, userId }
     room.players.push(rp)
     this.socketToRoom.set(socketId, roomCode)
+    if (userId) this.userToRoom.set(userId, roomCode)
     room.lastActivity = Date.now()
     return { room, seatIndex }
   }
@@ -80,6 +83,12 @@ export class RoomManager {
     if (!room) return null
 
     this.socketToRoom.delete(socketId)
+
+    // Clean up userId mapping for lobby leaves
+    const leavingPlayer = room.players.find(p => p.socketId === socketId)
+    if (leavingPlayer?.userId && room.status === 'waiting') {
+      this.userToRoom.delete(leavingPlayer.userId)
+    }
 
     if (room.status === 'waiting') {
       // Remove the player from lobby
@@ -160,11 +169,19 @@ export class RoomManager {
     }
   }
 
+  /** Get the roomCode a userId is currently in (lobby or game) */
+  getRoomCodeByUserId(userId: string): string | undefined {
+    return this.userToRoom.get(userId)
+  }
+
   private cleanup() {
     const cutoff = Date.now() - 60 * 60 * 1000 // 1 hour
     for (const [code, room] of this.rooms) {
       if (room.lastActivity < cutoff) {
-        for (const p of room.players) this.socketToRoom.delete(p.socketId)
+        for (const p of room.players) {
+          this.socketToRoom.delete(p.socketId)
+          if (p.userId) this.userToRoom.delete(p.userId)
+        }
         this.rooms.delete(code)
       }
     }

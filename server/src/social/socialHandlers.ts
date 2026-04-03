@@ -1,10 +1,11 @@
 import { Socket, Server } from 'socket.io'
 import prisma from '../db/prisma'
 import { getSocketUser } from '../socket/authMiddleware'
+import { RoomManager } from '../game/RoomManager'
 
 const userSelect = { id: true, username: true, displayName: true, avatarUrl: true } as const
 
-export function registerSocialHandlers(socket: Socket, io: Server): void {
+export function registerSocialHandlers(socket: Socket, io: Server, rooms?: RoomManager): void {
 
   // --- social:friend_request ---
   socket.on('social:friend_request', async ({ targetUserId }: { targetUserId: string }) => {
@@ -200,6 +201,60 @@ export function registerSocialHandlers(socket: Socket, io: Server): void {
     } catch (err) {
       console.error('[Social] friend_remove error:', err)
       socket.emit('social:error', { message: 'Failed to remove friend' })
+    }
+  })
+
+  // --- social:invite_to_game ---
+  socket.on('social:invite_to_game', async ({ friendUserId }: { friendUserId: string }) => {
+    try {
+      const userData = getSocketUser(socket)
+      if (!userData.user || !rooms) {
+        return socket.emit('social:error', { message: 'Login required' })
+      }
+      const userId = userData.user.id
+
+      // Verify friendship
+      const friendship = await prisma.friendship.findFirst({
+        where: {
+          status: 'ACCEPTED',
+          OR: [
+            { requesterId: userId, targetId: friendUserId },
+            { requesterId: friendUserId, targetId: userId },
+          ],
+        },
+      })
+      if (!friendship) {
+        return socket.emit('social:error', { message: 'Not friends' })
+      }
+
+      // Get sender's current room
+      const roomCode = rooms.getRoomCodeBySocket(socket.id)
+      if (!roomCode) {
+        return socket.emit('social:error', { message: 'Not in a room' })
+      }
+      const room = rooms.getRoom(roomCode)
+      if (!room || room.status !== 'waiting') {
+        return socket.emit('social:error', { message: 'Room not accepting players' })
+      }
+      if (room.players.length >= 4) {
+        return socket.emit('social:error', { message: 'Room is full' })
+      }
+
+      // Send invite to friend
+      io.to(`user:${friendUserId}`).emit('social:game_invite', {
+        roomCode,
+        from: {
+          id: userData.user.id,
+          displayName: userData.user.displayName,
+        },
+        playerCount: room.players.length,
+        gameMode: room.gameMode,
+      })
+
+      socket.emit('social:invite_sent', { to: friendUserId, roomCode })
+    } catch (err) {
+      console.error('[Social] invite_to_game error:', err)
+      socket.emit('social:error', { message: 'Failed to send invite' })
     }
   })
 }

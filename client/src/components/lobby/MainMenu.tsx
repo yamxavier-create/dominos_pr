@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { GameMode } from '../../types/game'
 import { Input } from '../ui/Input'
@@ -15,7 +15,7 @@ const GreenBtn = ({ children, onClick, disabled }: { children: React.ReactNode; 
   <button
     onClick={onClick}
     disabled={disabled}
-    className="w-full font-body font-bold py-3.5 rounded-2xl text-white text-base transition-all hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+    className="w-full font-body font-bold py-3 sm:py-4 rounded-2xl text-white text-base sm:text-lg transition-all hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
     style={{ background: 'linear-gradient(135deg, #22C55E, #16a34a)' }}
   >
     {children}
@@ -25,7 +25,7 @@ const GreenBtn = ({ children, onClick, disabled }: { children: React.ReactNode; 
 const OutlineBtn = ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
   <button
     onClick={onClick}
-    className="w-full font-body font-bold py-3.5 rounded-2xl text-white text-base transition-all hover:bg-white/10 active:scale-95"
+    className="w-full font-body font-bold py-3 sm:py-4 rounded-2xl text-white text-base sm:text-lg transition-all hover:bg-white/10 active:scale-95"
     style={{ border: '1.5px solid rgba(255,255,255,0.20)' }}
   >
     {children}
@@ -46,8 +46,12 @@ export function MainMenu() {
   const error = useRoomStore(s => s.error)
   const { clearError } = useRoomStore()
 
-  // Auto-fill name when user logs in
-  const effectiveName = playerName || user?.displayName || ''
+  // Auto-fill name when user logs in (user may load after mount)
+  useEffect(() => {
+    if (user?.displayName && !playerName) {
+      setPlayerName(user.displayName)
+    }
+  }, [user?.displayName])
 
   const handleCreate = () => {
     if (!playerName.trim()) return
@@ -63,7 +67,7 @@ export function MainMenu() {
 
   if (view === 'create') {
     return (
-      <div className="flex flex-col gap-5 w-full max-w-sm">
+      <div className="flex flex-col gap-4 sm:gap-5 w-full max-w-xs sm:max-w-sm md:max-w-md">
         <button
           onClick={() => { setView('home'); clearError() }}
           className="font-body text-white/40 hover:text-white/70 text-sm self-start transition-colors"
@@ -72,8 +76,8 @@ export function MainMenu() {
         </button>
 
         <div className="text-center">
-          <h2 className="font-header text-4xl text-gold">Crear Sala</h2>
-          <p className="font-body text-white/50 text-sm mt-1">Elige el modo de juego</p>
+          <h2 className="font-header text-3xl sm:text-4xl text-gold">Crear Sala</h2>
+          <p className="font-body text-white/50 text-xs sm:text-sm mt-1">Elige el modo de juego</p>
         </div>
 
         <Input
@@ -122,7 +126,7 @@ export function MainMenu() {
 
   if (view === 'join') {
     return (
-      <div className="flex flex-col gap-5 w-full max-w-sm">
+      <div className="flex flex-col gap-4 sm:gap-5 w-full max-w-xs sm:max-w-sm md:max-w-md">
         <button
           onClick={() => { setView('home'); clearError() }}
           className="font-body text-white/40 hover:text-white/70 text-sm self-start transition-colors"
@@ -131,8 +135,8 @@ export function MainMenu() {
         </button>
 
         <div className="text-center">
-          <h2 className="font-header text-4xl text-gold">Unirse a Sala</h2>
-          <p className="font-body text-white/50 text-sm mt-1">Ingresa el código de sala</p>
+          <h2 className="font-header text-3xl sm:text-4xl text-gold">Unirse a Sala</h2>
+          <p className="font-body text-white/50 text-xs sm:text-sm mt-1">Ingresa el código de sala</p>
         </div>
 
         <Input
@@ -163,31 +167,44 @@ export function MainMenu() {
 
   if (showSocial && isAuthenticated) {
     return (
-      <div className="flex flex-col items-center w-full max-w-sm">
+      <div className="flex flex-col items-center w-full max-w-xs sm:max-w-sm md:max-w-md">
         <SocialPanel onClose={() => setShowSocial(false)} />
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col items-center gap-10 w-full max-w-sm">
-      {/* Profile section (logged in) or login link */}
+    <div className="flex flex-col items-center gap-6 sm:gap-10 w-full max-w-xs sm:max-w-sm md:max-w-md">
+      {/* Top bar: profile pill + social icon */}
       {isAuthenticated && user ? (
-        <div className="w-full flex flex-col gap-3">
+        <div className="w-full flex items-center justify-between">
+          {/* Profile pill — avatar + name */}
           <ProfileSection />
-          <OutlineBtn onClick={() => setShowSocial(true)}>
-            Amigos
+
+          {/* Right cluster: friends icon */}
+          <button
+            onClick={() => setShowSocial(true)}
+            className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-colors hover:bg-white/10"
+            style={{ border: '1.5px solid rgba(255,255,255,0.15)' }}
+            title="Amigos"
+          >
+            <svg className="w-[18px] h-[18px] sm:w-[22px] sm:h-[22px]" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
             {incomingRequestCount > 0 && (
-              <span className="ml-1.5 inline-flex items-center justify-center bg-green-500 text-white text-[10px] font-bold rounded-full w-4 h-4">
+              <span className="absolute -top-1 -right-1 bg-primary text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
                 {incomingRequestCount}
               </span>
             )}
-          </OutlineBtn>
+          </button>
         </div>
       ) : (
         <button
           onClick={() => navigate('/auth')}
-          className="font-body text-green-400/70 hover:text-green-400 text-sm transition-colors"
+          className="font-body text-green-400/70 hover:text-green-400 text-sm sm:text-base transition-colors"
         >
           Iniciar sesion / Crear cuenta
         </button>
@@ -195,28 +212,27 @@ export function MainMenu() {
 
       {/* Logo */}
       <div className="text-center">
-        <div className="text-7xl mb-4" style={{ filter: 'drop-shadow(0 0 20px rgba(34,197,94,0.4))' }}>🁣</div>
+        <div className="text-6xl sm:text-7xl md:text-8xl mb-3 sm:mb-4" style={{ filter: 'drop-shadow(0 0 20px rgba(34,197,94,0.4))' }}>🁣</div>
         <h1
-          className="font-header leading-none"
+          className="font-header leading-none text-[3.5rem] sm:text-[4.5rem] md:text-[5.5rem]"
           style={{
-            fontSize: '4.5rem',
             color: '#EAB308',
             textShadow: '0 0 30px rgba(234,179,8,0.4), 0 2px 8px rgba(0,0,0,0.6)',
           }}
         >
           Dominó PR
         </h1>
-        <p className="font-body mt-2 text-base" style={{ color: '#22C55E' }}>
+        <p className="font-body mt-1.5 sm:mt-2 text-sm sm:text-base" style={{ color: '#22C55E' }}>
           Doble Seis Puertorriqueño
         </p>
       </div>
 
-      <div className="flex flex-col gap-3 w-full">
+      <div className="flex flex-col gap-2.5 sm:gap-3 w-full">
         <GreenBtn onClick={() => setView('create')}>Crear Sala</GreenBtn>
         <OutlineBtn onClick={() => setView('join')}>Unirse a Sala</OutlineBtn>
       </div>
 
-      <p className="font-body text-white/20 text-xs text-center">
+      <p className="font-body text-white/20 text-[10px] sm:text-xs text-center">
         4 jugadores · Equipos · En línea
       </p>
     </div>
