@@ -29,9 +29,9 @@ Requirements for Social & Accounts milestone. Each maps to roadmap phases.
 
 ### Presence
 
-- [ ] **PRES-01**: User can see if a friend is online, in a lobby, in a game, or offline
+- [x] **PRES-01**: User can see if a friend is online, in a lobby, in a game, or offline
 - [ ] **PRES-02**: User receives real-time notification when a friend comes online or enters a lobby
-- [ ] **PRES-03**: Presence handles multi-tab correctly (offline only when ALL tabs close)
+- [x] **PRES-03**: Presence handles multi-tab correctly (offline only when ALL tabs close)
 
 ### Direct Join
 
@@ -92,9 +92,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FRD-04 | Phase 17 | Complete |
 | FRD-05 | Phase 17 | Complete |
 | FRD-06 | Phase 19 | Pending |
-| PRES-01 | Phase 18 | Pending |
+| PRES-01 | Phase 18 | Complete |
 | PRES-02 | Phase 18 | Pending |
-| PRES-03 | Phase 18 | Pending |
+| PRES-03 | Phase 18 | Complete |
 | JOIN-01 | Phase 19 | Pending |
 | JOIN-02 | Phase 19 | Pending |
 

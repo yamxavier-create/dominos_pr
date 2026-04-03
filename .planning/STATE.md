@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Social & Accounts
-status: completed
-stopped_at: Completed 17-02-PLAN.md (Client Friends UI) -- Phase 17 complete
-last_updated: "2026-04-03T04:50:42.953Z"
-last_activity: 2026-04-03 -- Completed 17-02 (Client Friends UI)
+status: in_progress
+stopped_at: Completed 18-01-PLAN.md (Server Presence Manager)
+last_updated: "2026-04-03T14:48:11Z"
+last_activity: 2026-04-03 -- Completed 18-01 (Server Presence Manager)
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
-  percent: 100
+  total_plans: 6
+  completed_plans: 5
+  percent: 83
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-25)
 
 **Core value:** Friends can start and finish a complete game of Puerto Rican dominoes online, in real time, from any device -- without friction.
-**Current focus:** v1.3 Social & Accounts -- Phase 17 (Friends System)
+**Current focus:** v1.3 Social & Accounts -- Phase 18 (Presence)
 
 ## Current Position
 
-Phase: 17 of 19 (Friends System) -- second phase of v1.3
-Plan: 2 of 2 in current phase (COMPLETE)
-Status: Phase 17 complete -- all plans done
-Last activity: 2026-04-03 -- Completed 17-02 (Client Friends UI)
+Phase: 18 of 19 (Presence) -- third phase of v1.3
+Plan: 1 of 2 in current phase (Plan 01 complete)
+Status: Phase 18 in progress
+Last activity: 2026-04-03 -- Completed 18-01 (Server Presence Manager)
 
-Progress: [██████████] 100%
+Progress: [████████░░] 83%
 
 ## Performance Metrics
 
@@ -47,6 +47,7 @@ Progress: [██████████] 100%
 | Phase 16-auth-profile P02 | 2min | 2 tasks | 4 files |
 | Phase 17-friends-system P01 | 3min | 2 tasks | 4 files |
 | Phase 17-friends-system P02 | 5min | 3 tasks | 7 files |
+| Phase 18-presence P01 | 3min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,8 @@ See PROJECT.md Key Decisions table for full log.
 - [Phase 17-friends-system]: SocialPanel replaces MainMenu view when open (not overlay) -- clean mobile UX
 - [Phase 17-friends-system]: socialStore uses getState() in socket listeners to avoid stale closures
 - [Phase 17-friends-system]: Default social tab is "friends" (most frequent action), not search
+- [Phase 18-presence]: Used room.players (with userId) for game:start presence notifications, not game.players (which omit userId)
+- [Phase 18-presence]: presence.removeSocket fires before rooms.leaveRoom to ensure grace timer starts before room state changes
 
 ### Research Pitfalls (from research/SUMMARY.md)
 
@@ -87,6 +90,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-03T04:47:06.303Z
-Stopped at: Completed 17-02-PLAN.md (Client Friends UI) -- Phase 17 complete
+Last session: 2026-04-03T14:48:11Z
+Stopped at: Completed 18-01-PLAN.md (Server Presence Manager)
 Resume file: None
