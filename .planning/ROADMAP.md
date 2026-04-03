@@ -122,11 +122,11 @@ Plans:
   1. User can tap "Join" on a friend who is in a lobby and enter that lobby directly (no room code needed)
   2. The "Join" button only appears when the friend is in a lobby that has available seats (not full, not in-game)
   3. User can tap "Add Friend" on the post-game screen next to any logged-in opponent and send a friend request
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 19-01: Direct join flow (server-validated join via friend's userId, privacy-safe room resolution)
-- [ ] 19-02: Post-game "Add Friend" button + end-to-end social integration testing
+- [ ] 19-01-PLAN.md -- Privacy-safe direct join via social:join_friend, canJoin boolean replacing roomCode in REST and presence (JOIN-01, JOIN-02)
+- [ ] 19-02-PLAN.md -- Post-game "Add Friend" section in GameEndModal with batch friendship status check (FRD-06)
 
 ## Progress
 
