@@ -152,6 +152,6 @@ Phases execute in numeric order: 16 -> 17 -> 18 -> 19
 | 14. Game Sound Effects | v1.2 | 1/1 | Complete | 2026-03-14 |
 | 15. Background Music | v1.2 | 0/1 | Deferred | - |
 | 16. Auth & Profile | 2/2 | Complete    | 2026-04-02 | - |
-| 17. Friends System | v1.3 | 0/2 | Not started | - |
+| 17. Friends System | 1/2 | In Progress|  | - |
 | 18. Presence | v1.3 | 0/2 | Not started | - |
 | 19. Social Integration | v1.3 | 0/2 | Not started | - |

@@ -14,6 +14,7 @@ const handlers_1 = require("./socket/handlers");
 const GameEngine_1 = require("./game/GameEngine");
 const gameHandlers_1 = require("./socket/gameHandlers");
 const authRoutes_1 = __importDefault(require("./auth/authRoutes"));
+const socialRoutes_1 = __importDefault(require("./social/socialRoutes"));
 const authMiddleware_1 = require("./socket/authMiddleware");
 const app = (0, express_1.default)();
 const httpServer = (0, http_1.createServer)(app);
@@ -23,6 +24,8 @@ if (config_1.config.NODE_ENV !== 'production') {
 app.use(express_1.default.json());
 // Auth REST API
 app.use('/api/auth', authRoutes_1.default);
+// Social REST API (friends, search, requests)
+app.use('/api/social', socialRoutes_1.default);
 const io = new socket_io_1.Server(httpServer, {
     cors: config_1.config.NODE_ENV !== 'production'
         ? { origin: config_1.config.CLIENT_ORIGIN, methods: ['GET', 'POST'] }
@@ -45,6 +48,11 @@ if (config_1.config.NODE_ENV === 'production') {
 }
 io.on('connection', socket => {
     console.log(`[socket] connected: ${socket.id}`);
+    // Join per-user room for real-time social notifications
+    const userData = (0, authMiddleware_1.getSocketUser)(socket);
+    if (userData.user) {
+        socket.join(`user:${userData.user.id}`);
+    }
     (0, handlers_1.registerHandlers)(socket, io, rooms);
     socket.on('disconnect', reason => {
         console.log(`[socket] disconnected: ${socket.id} — ${reason}`);

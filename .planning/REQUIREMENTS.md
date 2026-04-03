@@ -20,11 +20,11 @@ Requirements for Social & Accounts milestone. Each maps to roadmap phases.
 
 ### Friends
 
-- [ ] **FRD-01**: User can search for other users by username
-- [ ] **FRD-02**: User can send a friend request to another user
-- [ ] **FRD-03**: User can accept or reject a pending friend request
-- [ ] **FRD-04**: User can view their friends list with online status
-- [ ] **FRD-05**: User can unfriend someone from their friends list
+- [x] **FRD-01**: User can search for other users by username
+- [x] **FRD-02**: User can send a friend request to another user
+- [x] **FRD-03**: User can accept or reject a pending friend request
+- [x] **FRD-04**: User can view their friends list with online status
+- [x] **FRD-05**: User can unfriend someone from their friends list
 - [ ] **FRD-06**: User can send a friend request from the post-game screen
 
 ### Presence
@@ -86,11 +86,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-03 | Phase 16 | Complete |
 | PROF-01 | Phase 16 | Complete |
 | PROF-02 | Phase 16 | Complete |
-| FRD-01 | Phase 17 | Pending |
-| FRD-02 | Phase 17 | Pending |
-| FRD-03 | Phase 17 | Pending |
-| FRD-04 | Phase 17 | Pending |
-| FRD-05 | Phase 17 | Pending |
+| FRD-01 | Phase 17 | Complete |
+| FRD-02 | Phase 17 | Complete |
+| FRD-03 | Phase 17 | Complete |
+| FRD-04 | Phase 17 | Complete |
+| FRD-05 | Phase 17 | Complete |
 | FRD-06 | Phase 19 | Pending |
 | PRES-01 | Phase 18 | Pending |
 | PRES-02 | Phase 18 | Pending |
