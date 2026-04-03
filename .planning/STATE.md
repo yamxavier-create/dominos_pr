@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Social & Accounts
 status: completed
-stopped_at: Completed 17-01-PLAN.md (Server Friends System)
-last_updated: "2026-04-03T04:09:38.531Z"
-last_activity: 2026-04-03 -- Completed 17-01 (Server Friends System)
+stopped_at: Completed 17-02-PLAN.md (Client Friends UI) -- Phase 17 complete
+last_updated: "2026-04-03T04:47:06.314Z"
+last_activity: 2026-04-03 -- Completed 17-02 (Client Friends UI)
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 3
-  percent: 75
+  completed_plans: 4
+  percent: 100
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-25)
 ## Current Position
 
 Phase: 17 of 19 (Friends System) -- second phase of v1.3
-Plan: 1 of 2 in current phase
-Status: Plan 17-01 complete, ready for Plan 17-02
-Last activity: 2026-04-03 -- Completed 17-01 (Server Friends System)
+Plan: 2 of 2 in current phase (COMPLETE)
+Status: Phase 17 complete -- all plans done
+Last activity: 2026-04-03 -- Completed 17-02 (Client Friends UI)
 
-Progress: [████████░░] 75%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -46,6 +46,7 @@ Progress: [████████░░] 75%
 | 16-auth-profile | 2/2 | 5min | 2.5min |
 | Phase 16-auth-profile P02 | 2min | 2 tasks | 4 files |
 | Phase 17-friends-system P01 | 3min | 2 tasks | 4 files |
+| Phase 17-friends-system P02 | 5min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -64,6 +65,9 @@ See PROJECT.md Key Decisions table for full log.
 - [Phase 17-friends-system]: Reject deletes Friendship row (not REJECTED status) -- cleaner, no stale data
 - [Phase 17-friends-system]: Reverse PENDING auto-accepts: if A requests B and B requests A, second request auto-accepts
 - [Phase 17-friends-system]: Per-user socket room (user:{userId}) joined on connection for real-time social notifications
+- [Phase 17-friends-system]: SocialPanel replaces MainMenu view when open (not overlay) -- clean mobile UX
+- [Phase 17-friends-system]: socialStore uses getState() in socket listeners to avoid stale closures
+- [Phase 17-friends-system]: Default social tab is "friends" (most frequent action), not search
 
 ### Research Pitfalls (from research/SUMMARY.md)
 
@@ -83,6 +87,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-03T04:09:38.521Z
-Stopped at: Completed 17-01-PLAN.md (Server Friends System)
+Last session: 2026-04-03T04:47:06.303Z
+Stopped at: Completed 17-02-PLAN.md (Client Friends UI) -- Phase 17 complete
 Resume file: None
