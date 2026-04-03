@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useGameStore } from '../../store/gameStore'
 import { useUIStore } from '../../store/uiStore'
 import { useRoomStore } from '../../store/roomStore'
+import { useAuthStore } from '../../store/authStore'
 import { socket } from '../../socket'
 
 export function GameEndModal() {
@@ -13,6 +14,11 @@ export function GameEndModal() {
   const myPlayerIndex = useRoomStore(s => s.myPlayerIndex)
   const roomCode = useRoomStore(s => s.roomCode)
 
+  const isAuthenticated = useAuthStore(s => s.isAuthenticated)
+  const authUserId = useAuthStore(s => s.user?.id)
+  const [opponentStatuses, setOpponentStatuses] = useState<Record<string, { status: string; direction: string | null }> | null>(null)
+  const [sentRequests, setSentRequests] = useState<Set<string>>(new Set())
+
   const [showRevancha, setShowRevancha] = useState(false)
 
   useEffect(() => {
@@ -23,6 +29,29 @@ export function GameEndModal() {
     const timer = setTimeout(() => setShowRevancha(true), 2500)
     return () => clearTimeout(timer)
   }, [showGameEnd])
+
+  // Fetch friendship statuses when game end modal shows
+  useEffect(() => {
+    if (!showGameEnd || !isAuthenticated || !gameEndData) return
+    const gameState = useGameStore.getState().gameState
+    if (!gameState) return
+
+    const playerUserIds = gameState.players
+      .filter(p => !p.isMe && p.userId && p.userId !== authUserId)
+      .map(p => p.userId!)
+
+    if (playerUserIds.length === 0) {
+      setOpponentStatuses({})
+      return
+    }
+
+    socket.emit('social:check_users', { userIds: playerUserIds }, (res: { users: Record<string, { status: string; direction: string | null }> }) => {
+      setOpponentStatuses(res.users)
+    })
+
+    // Reset sent requests tracking
+    setSentRequests(new Set())
+  }, [showGameEnd, isAuthenticated, gameEndData, authUserId])
 
   if (!showGameEnd || !gameEndData) return null
 
@@ -39,6 +68,11 @@ export function GameEndModal() {
 
   const handleRematchVote = () => {
     socket.emit('game:rematch_vote', { roomCode })
+  }
+
+  const handleAddFriend = (targetUserId: string) => {
+    socket.emit('social:friend_request', { targetUserId })
+    setSentRequests(prev => new Set(prev).add(targetUserId))
   }
 
   // Team labels relative to player
@@ -177,6 +211,40 @@ export function GameEndModal() {
               </div>
             )}
           </div>
+
+          {/* Add Friend section -- only for authenticated users */}
+          {isAuthenticated && opponentStatuses && Object.keys(opponentStatuses).length > 0 && (
+            <div className="px-6 pb-4 border-t border-white/10 pt-3">
+              <p className="font-body text-white/40 text-xs mb-2 uppercase tracking-wider">
+                Agregar Amigo
+              </p>
+              {gameState?.players
+                .filter(p => !p.isMe && p.userId && p.userId !== authUserId)
+                .map(p => {
+                  const friendStatus = opponentStatuses[p.userId!]
+                  if (!friendStatus) return null
+                  const isFriend = friendStatus.status === 'ACCEPTED'
+                  const isPending = friendStatus.status === 'PENDING' || sentRequests.has(p.userId!)
+                  return (
+                    <div key={p.index} className="flex items-center justify-between py-1.5">
+                      <span className="font-body text-white/70 text-sm">{p.name}</span>
+                      {isFriend ? (
+                        <span className="font-body text-green-400 text-xs">Amigos</span>
+                      ) : isPending ? (
+                        <span className="font-body text-white/40 text-xs">Pendiente</span>
+                      ) : (
+                        <button
+                          onClick={() => handleAddFriend(p.userId!)}
+                          className="font-body text-xs font-bold px-3 py-1 rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors"
+                        >
+                          Agregar
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+            </div>
+          )}
         </div>
       </div>
     </div>

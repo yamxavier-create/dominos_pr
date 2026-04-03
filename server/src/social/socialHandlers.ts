@@ -259,6 +259,57 @@ export function registerSocialHandlers(socket: Socket, io: Server, rooms?: RoomM
     }
   })
 
+  // --- social:check_users ---
+  socket.on('social:check_users', async (
+    { userIds }: { userIds: string[] },
+    callback: (res: { users: Record<string, { status: string; direction: string | null }> }) => void
+  ) => {
+    try {
+      const userData = getSocketUser(socket)
+      if (!userData.user) {
+        if (typeof callback === 'function') callback({ users: {} })
+        return
+      }
+      const userId = userData.user.id
+
+      // Filter out self and limit to prevent abuse
+      const filteredIds = userIds.filter(id => id !== userId).slice(0, 10)
+      if (filteredIds.length === 0) {
+        if (typeof callback === 'function') callback({ users: {} })
+        return
+      }
+
+      const friendships = await prisma.friendship.findMany({
+        where: {
+          OR: [
+            { requesterId: userId, targetId: { in: filteredIds } },
+            { requesterId: { in: filteredIds }, targetId: userId },
+          ],
+        },
+      })
+
+      const statusMap: Record<string, { status: string; direction: string | null }> = {}
+      for (const uid of filteredIds) {
+        const f = friendships.find(
+          fr => fr.requesterId === uid || fr.targetId === uid
+        )
+        if (f) {
+          statusMap[uid] = {
+            status: f.status,
+            direction: f.requesterId === userId ? 'outgoing' : 'incoming',
+          }
+        } else {
+          statusMap[uid] = { status: 'NONE', direction: null }
+        }
+      }
+
+      if (typeof callback === 'function') callback({ users: statusMap })
+    } catch (err) {
+      console.error('[Social] check_users error:', err)
+      if (typeof callback === 'function') callback({ users: {} })
+    }
+  })
+
   // --- social:join_friend ---
   socket.on('social:join_friend', async ({ friendUserId }: { friendUserId: string }) => {
     try {
