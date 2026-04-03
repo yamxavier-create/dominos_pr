@@ -94,11 +94,11 @@ Plans:
   3. User can accept or reject a pending friend request from their requests list
   4. User can view their friends list showing all accepted friends
   5. User can unfriend someone and they disappear from both users' lists
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 17-01: Friends REST API + socket events (server-side CRUD, bidirectional race prevention)
-- [ ] 17-02: socialStore + Friends UI (search, requests, friends list, unfriend)
+- [ ] 17-01-PLAN.md -- Friends REST API (search, friends, requests) + socket events (request, accept, reject, remove) with bidirectional race prevention (FRD-01, FRD-02, FRD-03, FRD-04, FRD-05)
+- [ ] 17-02-PLAN.md -- socialStore + Friends UI (SocialPanel, UserSearch, FriendRequests, FriendsList) + MainMenu integration (FRD-01, FRD-02, FRD-03, FRD-04, FRD-05)
 
 ### Phase 18: Presence
 **Goal**: Logged-in users can see what their friends are doing in real-time -- online, in a lobby, in a game, or offline -- with correct multi-tab behavior
