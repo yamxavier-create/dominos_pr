@@ -6,6 +6,8 @@ import { MenuPage } from './pages/MenuPage'
 import { LobbyPage } from './pages/LobbyPage'
 import { GamePage } from './pages/GamePage'
 import { AuthPage } from './pages/AuthPage'
+import { GameInviteToast } from './components/social/GameInviteToast'
+import { PresenceToast } from './components/social/PresenceToast'
 
 function AppRoutes() {
   useSocket()
@@ -13,13 +15,17 @@ function AppRoutes() {
   useAuth() // Auto-login from stored token
 
   return (
-    <Routes>
-      <Route path="/" element={<MenuPage />} />
-      <Route path="/auth" element={<AuthPage />} />
-      <Route path="/lobby" element={<LobbyPage />} />
-      <Route path="/game" element={<GamePage />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <>
+      <GameInviteToast />
+      <PresenceToast />
+      <Routes>
+        <Route path="/" element={<MenuPage />} />
+        <Route path="/auth" element={<AuthPage />} />
+        <Route path="/lobby" element={<LobbyPage />} />
+        <Route path="/game" element={<GamePage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   )
 }
 

@@ -5,7 +5,7 @@ import { useGameStore } from '../store/gameStore'
 import { useRoomStore } from '../store/roomStore'
 import { useUIStore, ChatMessage, ActiveReaction } from '../store/uiStore'
 import { useCallStore } from '../store/callStore'
-import { useSocialStore } from '../store/socialStore'
+import { useSocialStore, PresenceStatus } from '../store/socialStore'
 import { signalHandlerRef, peerJoinedCallRef, resetForNewGameRef } from './useWebRTC'
 import { playSfx, preloadSfx } from '../audio/sfx'
 import { ClientGameState, RoundEndPayload, GameEndPayload, PassPayload, RematchVoteUpdate, RematchCancelled, BoneyardDrawPayload } from '../types/game'
@@ -244,6 +244,31 @@ export function useSocket() {
       })
     })
 
+    // Presence events -- real-time status updates
+    socket.on('presence:friend_status_changed', (data: { userId: string; status: PresenceStatus }) => {
+      useSocialStore.getState().updateFriendStatus(data.userId, data.status)
+    })
+
+    socket.on('presence:friend_online', (data: { userId: string; displayName: string }) => {
+      useSocialStore.getState().addPresenceNotification({
+        id: `online-${data.userId}-${Date.now()}`,
+        userId: data.userId,
+        displayName: data.displayName,
+        type: 'online',
+        timestamp: Date.now(),
+      })
+    })
+
+    socket.on('presence:friend_in_lobby', (data: { userId: string; displayName: string }) => {
+      useSocialStore.getState().addPresenceNotification({
+        id: `lobby-${data.userId}-${Date.now()}`,
+        userId: data.userId,
+        displayName: data.displayName,
+        type: 'in_lobby',
+        timestamp: Date.now(),
+      })
+    })
+
     socket.on('social:error', (data: { message: string }) => {
       console.warn('[Social] Error:', data.message)
     })
@@ -278,6 +303,9 @@ export function useSocket() {
       socket.off('social:friend_rejected')
       socket.off('social:friend_removed')
       socket.off('social:game_invite')
+      socket.off('presence:friend_status_changed')
+      socket.off('presence:friend_online')
+      socket.off('presence:friend_in_lobby')
       socket.off('social:error')
     }
   }, [])
