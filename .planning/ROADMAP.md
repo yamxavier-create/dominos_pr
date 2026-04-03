@@ -64,7 +64,7 @@ Full details: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md)
 - [x] **Phase 16: Auth & Profile** - Complete Google OAuth, preserve guest mode, display name editing and avatar display (completed 2026-04-02)
 - [x] **Phase 17: Friends System** - Search, request, accept/reject, list, unfriend -- full friends CRUD with real-time notifications (completed 2026-04-03)
 - [x] **Phase 18: Presence** - Online/in_lobby/in_game/offline tracking with multi-tab support and friend notifications (completed 2026-04-03)
-- [ ] **Phase 19: Social Integration** - Direct join from friends list and post-game "Add Friend" button
+- [x] **Phase 19: Social Integration** - Direct join from friends list and post-game "Add Friend" button (completed 2026-04-03)
 
 ## Phase Details
 
@@ -154,4 +154,4 @@ Phases execute in numeric order: 16 -> 17 -> 18 -> 19
 | 16. Auth & Profile | 2/2 | Complete    | 2026-04-02 | - |
 | 17. Friends System | 2/2 | Complete    | 2026-04-03 | - |
 | 18. Presence | 2/2 | Complete    | 2026-04-03 | - |
-| 19. Social Integration | 1/2 | In Progress|  | - |
+| 19. Social Integration | 2/2 | Complete   | 2026-04-03 | - |

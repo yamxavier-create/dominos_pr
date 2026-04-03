@@ -25,7 +25,7 @@ Requirements for Social & Accounts milestone. Each maps to roadmap phases.
 - [x] **FRD-03**: User can accept or reject a pending friend request
 - [x] **FRD-04**: User can view their friends list with online status
 - [x] **FRD-05**: User can unfriend someone from their friends list
-- [ ] **FRD-06**: User can send a friend request from the post-game screen
+- [x] **FRD-06**: User can send a friend request from the post-game screen
 
 ### Presence
 
@@ -91,7 +91,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FRD-03 | Phase 17 | Complete |
 | FRD-04 | Phase 17 | Complete |
 | FRD-05 | Phase 17 | Complete |
-| FRD-06 | Phase 19 | Pending |
+| FRD-06 | Phase 19 | Complete |
 | PRES-01 | Phase 18 | Complete |
 | PRES-02 | Phase 18 | Complete |
 | PRES-03 | Phase 18 | Complete |
