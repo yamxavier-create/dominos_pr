@@ -35,8 +35,8 @@ Requirements for Social & Accounts milestone. Each maps to roadmap phases.
 
 ### Direct Join
 
-- [ ] **JOIN-01**: User can join a friend's lobby directly from the friends list via "Join" button
-- [ ] **JOIN-02**: Join button only appears when friend is in a lobby with available seats
+- [x] **JOIN-01**: User can join a friend's lobby directly from the friends list via "Join" button
+- [x] **JOIN-02**: Join button only appears when friend is in a lobby with available seats
 
 ## Deferred from v1.2
 
@@ -95,8 +95,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PRES-01 | Phase 18 | Complete |
 | PRES-02 | Phase 18 | Complete |
 | PRES-03 | Phase 18 | Complete |
-| JOIN-01 | Phase 19 | Pending |
-| JOIN-02 | Phase 19 | Pending |
+| JOIN-01 | Phase 19 | Complete |
+| JOIN-02 | Phase 19 | Complete |
 
 **Coverage:**
 - v1.3 requirements: 16 total

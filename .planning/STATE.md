@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Social & Accounts
-status: completed
-stopped_at: Completed 18-02-PLAN.md (Client Presence Display)
-last_updated: "2026-04-03T14:59:45.181Z"
-last_activity: 2026-04-03 -- Completed 18-02 (Client Presence Display)
+status: executing
+stopped_at: Completed 19-01-PLAN.md (Direct Join from Friends List)
+last_updated: "2026-04-03T20:45:21.040Z"
+last_activity: 2026-04-03 -- Completed 19-01 (Direct Join from Friends List)
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 6
-  completed_plans: 6
-  percent: 100
+  total_plans: 8
+  completed_plans: 7
+  percent: 88
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-25)
 
 **Core value:** Friends can start and finish a complete game of Puerto Rican dominoes online, in real time, from any device -- without friction.
-**Current focus:** v1.3 Social & Accounts -- Phase 18 (Presence)
+**Current focus:** v1.3 Social & Accounts -- Phase 19 (Social Integration)
 
 ## Current Position
 
-Phase: 18 of 19 (Presence) -- third phase of v1.3
-Plan: 2 of 2 in current phase (Phase 18 complete)
-Status: Phase 18 complete
-Last activity: 2026-04-03 -- Completed 18-02 (Client Presence Display)
+Phase: 19 of 19 (Social Integration) -- fourth phase of v1.3
+Plan: 1 of 2 in current phase (19-01 complete)
+Status: In progress
+Last activity: 2026-04-03 -- Completed 19-01 (Direct Join from Friends List)
 
-Progress: [██████████] 100%
+Progress: [█████████░] 88%
 
 ## Performance Metrics
 
@@ -49,6 +49,7 @@ Progress: [██████████] 100%
 | Phase 17-friends-system P02 | 5min | 3 tasks | 7 files |
 | Phase 18-presence P01 | 3min | 2 tasks | 6 files |
 | Phase 18-presence P02 | 3min | 2 tasks | 5 files |
+| Phase 19-social-integration P01 | 3min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -74,6 +75,10 @@ See PROJECT.md Key Decisions table for full log.
 - [Phase 18-presence]: presence.removeSocket fires before rooms.leaveRoom to ensure grace timer starts before room state changes
 - [Phase 18-presence]: Friend status defaults to 'online' for socket-created objects (requests/acceptances) since those users are actively connected
 - [Phase 18-presence]: Toast auto-dismisses after 4s, max 3 visible -- unobtrusive during gameplay
+- [Phase 19-social-integration]: canJoin boolean replaces roomCode in all friend data paths -- room codes never leave the server
+- [Phase 19-social-integration]: social:join_friend auto-leaves current waiting lobby before joining friend's room
+- [Phase 19-social-integration]: In-game users get error instead of auto-leave when trying to join a friend
+- [Phase 19-social-integration]: All room players get presence notifications on join so friends see updated canJoin
 
 ### Research Pitfalls (from research/SUMMARY.md)
 
@@ -93,6 +98,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-03T14:56:11.278Z
-Stopped at: Completed 18-02-PLAN.md (Client Presence Display)
+Last session: 2026-04-03T20:45:21.029Z
+Stopped at: Completed 19-01-PLAN.md (Direct Join from Friends List)
 Resume file: None
