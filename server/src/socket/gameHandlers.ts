@@ -278,7 +278,9 @@ export function checkRematchCancellation(
   room.rematchVotes = []
 }
 
-export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomManager) {
+import { PresenceManager } from '../presence/PresenceManager'
+
+export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomManager, presence: PresenceManager) {
 
   socket.on('game:start', ({ roomCode }: { roomCode: string }) => {
     const room = rooms.getRoom(roomCode)
@@ -329,6 +331,11 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     for (const player of game.players) {
       const clientState = buildClientGameState(game, player.index)
       io.to(player.socketId).emit('game:started', { gameState: clientState })
+    }
+
+    // Notify friends that players are now in_game
+    for (const rp of room.players) {
+      if (rp.userId) presence.notifyStatusChange(rp.userId)
     }
   })
 

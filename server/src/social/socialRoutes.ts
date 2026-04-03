@@ -1,6 +1,19 @@
 import { Router, Request, Response } from 'express'
 import prisma from '../db/prisma'
 import { verifyToken } from '../auth/jwt'
+import { RoomManager } from '../game/RoomManager'
+import { PresenceManager } from '../presence/PresenceManager'
+
+let roomManagerRef: RoomManager | null = null
+let presenceRef: PresenceManager | null = null
+
+export function setRoomManager(rm: RoomManager) {
+  roomManagerRef = rm
+}
+
+export function setPresenceManager(pm: PresenceManager) {
+  presenceRef = pm
+}
 
 const router = Router()
 
@@ -101,9 +114,17 @@ router.get('/friends', async (req: Request, res: Response) => {
       },
     })
 
-    const friends = friendships.map(f =>
-      f.requesterId === userId ? f.target : f.requester
-    )
+    const friends = friendships.map(f => {
+      const friend = f.requesterId === userId ? f.target : f.requester
+      const roomCode = roomManagerRef?.getRoomCodeByUserId(friend.id)
+      const room = roomCode ? roomManagerRef?.getRoom(roomCode) : undefined
+      const status = presenceRef?.getStatus(friend.id) ?? 'offline'
+      return {
+        ...friend,
+        roomCode: room && room.status === 'waiting' && room.players.length < 4 ? roomCode : null,
+        status,
+      }
+    })
 
     res.json({ friends })
   } catch (err) {

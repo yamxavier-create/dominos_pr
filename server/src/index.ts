@@ -9,7 +9,8 @@ import { registerHandlers } from './socket/handlers'
 import { buildClientGameState } from './game/GameEngine'
 import { checkRematchCancellation } from './socket/gameHandlers'
 import authRoutes from './auth/authRoutes'
-import socialRoutes from './social/socialRoutes'
+import socialRoutes, { setRoomManager, setPresenceManager } from './social/socialRoutes'
+import { PresenceManager } from './presence/PresenceManager'
 import { authMiddleware, getSocketUser } from './socket/authMiddleware'
 
 const app = express()
@@ -38,6 +39,10 @@ const io = new Server(httpServer, {
 io.use(authMiddleware)
 
 const rooms = new RoomManager()
+setRoomManager(rooms)
+
+const presence = new PresenceManager(io, rooms)
+setPresenceManager(presence)
 
 // Health check for Railway
 app.get('/health', (_req, res) => {
@@ -58,15 +63,27 @@ io.on('connection', socket => {
   const userData = getSocketUser(socket)
   if (userData.user) {
     socket.join(`user:${userData.user.id}`)
+    presence.addSocket(userData.user.id, socket.id)
   }
 
-  registerHandlers(socket, io, rooms)
+  registerHandlers(socket, io, rooms, presence)
 
   socket.on('disconnect', reason => {
     console.log(`[socket] disconnected: ${socket.id} — ${reason}`)
 
+    // Remove socket from presence tracking (starts grace period if last socket)
+    if (userData.user) {
+      presence.removeSocket(userData.user.id, socket.id)
+    }
+
     const result = rooms.leaveRoom(socket.id)
-    if (!result) return
+    if (!result) {
+      // Even without a room, presence may have changed (online -> offline)
+      if (userData.user) {
+        presence.notifyStatusChange(userData.user.id)
+      }
+      return
+    }
 
     const { roomCode, room } = result
 
@@ -92,6 +109,11 @@ io.on('connection', socket => {
       }
     } else {
       io.to(roomCode).emit('room:updated', { room: rooms.getRoomInfo(room) })
+    }
+
+    // Notify friends about status change (room leave)
+    if (userData.user) {
+      presence.notifyStatusChange(userData.user.id)
     }
   })
 })

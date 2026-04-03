@@ -1,10 +1,11 @@
 import { Socket, Server } from 'socket.io'
 import { RoomManager } from '../game/RoomManager'
+import { PresenceManager } from '../presence/PresenceManager'
 import { GameMode } from '../game/GameState'
 import { buildClientGameState } from '../game/GameEngine'
 import { getSocketUser } from './authMiddleware'
 
-export function registerRoomHandlers(socket: Socket, io: Server, rooms: RoomManager) {
+export function registerRoomHandlers(socket: Socket, io: Server, rooms: RoomManager, presence: PresenceManager) {
 
   socket.on('room:create', ({ playerName, gameMode }: { playerName: string; gameMode: GameMode }) => {
     const socketUser = getSocketUser(socket)
@@ -20,6 +21,7 @@ export function registerRoomHandlers(socket: Socket, io: Server, rooms: RoomMana
       room: rooms.getRoomInfo(room),
       myPlayerIndex: 0,
     })
+    if (userId) presence.notifyStatusChange(userId)
   })
 
   socket.on('room:join', ({ roomCode, playerName }: { roomCode: string; playerName: string }) => {
@@ -54,6 +56,7 @@ export function registerRoomHandlers(socket: Socket, io: Server, rooms: RoomMana
       socket.emit('room:joined', { roomCode: room.roomCode, room: rooms.getRoomInfo(room), myPlayerIndex: seatIndex })
       io.to(room.roomCode).emit('room:updated', { room: rooms.getRoomInfo(room) })
     }
+    if (userId) presence.notifyStatusChange(userId)
   })
 
   // Lightweight reconnection: update socket ID in room/game state and re-join Socket.IO room.
@@ -114,5 +117,7 @@ export function registerRoomHandlers(socket: Socket, io: Server, rooms: RoomMana
     const { roomCode, room } = result
     socket.leave(roomCode)
     io.to(roomCode).emit('room:updated', { room: rooms.getRoomInfo(room) })
+    const socketUser = getSocketUser(socket)
+    if (socketUser.user) presence.notifyStatusChange(socketUser.user.id)
   })
 }
