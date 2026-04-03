@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Social & Accounts
-status: in_progress
-stopped_at: Completed 18-01-PLAN.md (Server Presence Manager)
-last_updated: "2026-04-03T14:48:11Z"
-last_activity: 2026-04-03 -- Completed 18-01 (Server Presence Manager)
+status: completed
+stopped_at: Completed 18-02-PLAN.md (Client Presence Display)
+last_updated: "2026-04-03T14:56:11.289Z"
+last_activity: 2026-04-03 -- Completed 18-02 (Client Presence Display)
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 6
-  completed_plans: 5
-  percent: 83
+  completed_plans: 6
+  percent: 100
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-25)
 ## Current Position
 
 Phase: 18 of 19 (Presence) -- third phase of v1.3
-Plan: 1 of 2 in current phase (Plan 01 complete)
-Status: Phase 18 in progress
-Last activity: 2026-04-03 -- Completed 18-01 (Server Presence Manager)
+Plan: 2 of 2 in current phase (Phase 18 complete)
+Status: Phase 18 complete
+Last activity: 2026-04-03 -- Completed 18-02 (Client Presence Display)
 
-Progress: [████████░░] 83%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -48,6 +48,7 @@ Progress: [████████░░] 83%
 | Phase 17-friends-system P01 | 3min | 2 tasks | 4 files |
 | Phase 17-friends-system P02 | 5min | 3 tasks | 7 files |
 | Phase 18-presence P01 | 3min | 2 tasks | 6 files |
+| Phase 18-presence P02 | 3min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,8 @@ See PROJECT.md Key Decisions table for full log.
 - [Phase 17-friends-system]: Default social tab is "friends" (most frequent action), not search
 - [Phase 18-presence]: Used room.players (with userId) for game:start presence notifications, not game.players (which omit userId)
 - [Phase 18-presence]: presence.removeSocket fires before rooms.leaveRoom to ensure grace timer starts before room state changes
+- [Phase 18-presence]: Friend status defaults to 'online' for socket-created objects (requests/acceptances) since those users are actively connected
+- [Phase 18-presence]: Toast auto-dismisses after 4s, max 3 visible -- unobtrusive during gameplay
 
 ### Research Pitfalls (from research/SUMMARY.md)
 
@@ -90,6 +93,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-03T14:48:11Z
-Stopped at: Completed 18-01-PLAN.md (Server Presence Manager)
+Last session: 2026-04-03T14:56:11.278Z
+Stopped at: Completed 18-02-PLAN.md (Client Presence Display)
 Resume file: None
