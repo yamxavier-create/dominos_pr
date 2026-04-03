@@ -11,5 +11,5 @@ function registerHandlers(socket, io, rooms, presence) {
     (0, gameHandlers_1.registerGameHandlers)(socket, io, rooms, presence);
     (0, chatHandlers_1.registerChatHandlers)(socket, io, rooms);
     (0, webrtcHandlers_1.registerWebRTCHandlers)(socket, io, rooms);
-    (0, socialHandlers_1.registerSocialHandlers)(socket, io, rooms);
+    (0, socialHandlers_1.registerSocialHandlers)(socket, io, rooms, presence);
 }

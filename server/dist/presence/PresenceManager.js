@@ -76,11 +76,16 @@ class PresenceManager {
     /** Broadcast current status to all online friends via their per-user Socket.IO rooms */
     async broadcastStatusToFriends(userId) {
         const status = this.getStatus(userId);
+        // Compute joinability -- can friends join this user's room?
+        const roomCode = this.rooms.getRoomCodeByUserId(userId);
+        const room = roomCode ? this.rooms.getRoom(roomCode) : undefined;
+        const canJoin = !!(room && room.status === 'waiting' && room.players.length < 4);
         const friendIds = await this.getFriendIds(userId);
         for (const friendId of friendIds) {
             this.io.to(`user:${friendId}`).emit('presence:friend_status_changed', {
                 userId,
                 status,
+                canJoin,
             });
         }
         // Toast-worthy transitions: emit additional events with display name
