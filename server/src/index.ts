@@ -9,7 +9,8 @@ import { registerHandlers } from './socket/handlers'
 import { buildClientGameState } from './game/GameEngine'
 import { checkRematchCancellation } from './socket/gameHandlers'
 import authRoutes from './auth/authRoutes'
-import { authMiddleware } from './socket/authMiddleware'
+import socialRoutes from './social/socialRoutes'
+import { authMiddleware, getSocketUser } from './socket/authMiddleware'
 
 const app = express()
 const httpServer = createServer(app)
@@ -21,6 +22,9 @@ app.use(express.json())
 
 // Auth REST API
 app.use('/api/auth', authRoutes)
+
+// Social REST API (friends, search, requests)
+app.use('/api/social', socialRoutes)
 
 const io = new Server(httpServer, {
   cors: config.NODE_ENV !== 'production'
@@ -49,6 +53,12 @@ if (config.NODE_ENV === 'production') {
 
 io.on('connection', socket => {
   console.log(`[socket] connected: ${socket.id}`)
+
+  // Join per-user room for real-time social notifications
+  const userData = getSocketUser(socket)
+  if (userData.user) {
+    socket.join(`user:${userData.user.id}`)
+  }
 
   registerHandlers(socket, io, rooms)
 
