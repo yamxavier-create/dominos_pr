@@ -2,10 +2,11 @@ import { Socket, Server } from 'socket.io'
 import prisma from '../db/prisma'
 import { getSocketUser } from '../socket/authMiddleware'
 import { RoomManager } from '../game/RoomManager'
+import { PresenceManager } from '../presence/PresenceManager'
 
 const userSelect = { id: true, username: true, displayName: true, avatarUrl: true } as const
 
-export function registerSocialHandlers(socket: Socket, io: Server, rooms?: RoomManager): void {
+export function registerSocialHandlers(socket: Socket, io: Server, rooms?: RoomManager, presence?: PresenceManager): void {
 
   // --- social:friend_request ---
   socket.on('social:friend_request', async ({ targetUserId }: { targetUserId: string }) => {
@@ -255,6 +256,90 @@ export function registerSocialHandlers(socket: Socket, io: Server, rooms?: RoomM
     } catch (err) {
       console.error('[Social] invite_to_game error:', err)
       socket.emit('social:error', { message: 'Failed to send invite' })
+    }
+  })
+
+  // --- social:join_friend ---
+  socket.on('social:join_friend', async ({ friendUserId }: { friendUserId: string }) => {
+    try {
+      const userData = getSocketUser(socket)
+      if (!userData.user || !rooms || !presence) {
+        return socket.emit('social:error', { message: 'Login required' })
+      }
+      const userId = userData.user.id
+
+      // 1. Verify friendship exists and is ACCEPTED
+      const friendship = await prisma.friendship.findFirst({
+        where: {
+          status: 'ACCEPTED',
+          OR: [
+            { requesterId: userId, targetId: friendUserId },
+            { requesterId: friendUserId, targetId: userId },
+          ],
+        },
+      })
+      if (!friendship) {
+        return socket.emit('social:error', { message: 'Not friends' })
+      }
+
+      // 2. Already-in-room guard
+      const currentRoomCode = rooms.getRoomCodeBySocket(socket.id)
+      if (currentRoomCode) {
+        const currentRoom = rooms.getRoom(currentRoomCode)
+        if (currentRoom && currentRoom.status === 'in_game') {
+          return socket.emit('social:error', { message: 'Leave your current game first' })
+        }
+        // Auto-leave waiting lobby
+        if (currentRoom && currentRoom.status === 'waiting') {
+          const leaveResult = rooms.leaveRoom(socket.id)
+          if (leaveResult) {
+            socket.leave(leaveResult.roomCode)
+            io.to(leaveResult.roomCode).emit('room:updated', { room: rooms.getRoomInfo(leaveResult.room) })
+          }
+        }
+      }
+
+      // 3. Resolve friend's room (server-side only -- roomCode never sent to client before join)
+      const friendRoomCode = rooms.getRoomCodeByUserId(friendUserId)
+      if (!friendRoomCode) {
+        return socket.emit('social:error', { message: 'Friend is not in a room' })
+      }
+      const room = rooms.getRoom(friendRoomCode)
+      if (!room || room.status !== 'waiting') {
+        return socket.emit('social:error', { message: 'Room is not available' })
+      }
+      if (room.players.length >= 4) {
+        return socket.emit('social:error', { message: 'Room is full' })
+      }
+
+      // 4. Perform join using RoomManager (reuses all existing logic: seat assignment, name check, etc.)
+      const playerName = userData.user.displayName
+      const result = rooms.joinRoom(socket.id, friendRoomCode, playerName, userId)
+      if (!result) {
+        return socket.emit('social:error', { message: 'Could not join room' })
+      }
+
+      // 5. Standard room:joined flow (replicated from roomHandlers.ts room:join)
+      socket.join(friendRoomCode)
+      socket.emit('room:joined', {
+        roomCode: friendRoomCode,
+        room: rooms.getRoomInfo(result.room),
+        myPlayerIndex: result.seatIndex,
+      })
+      io.to(friendRoomCode).emit('room:updated', { room: rooms.getRoomInfo(result.room) })
+
+      // 6. Notify presence for the joining user
+      presence.notifyStatusChange(userId)
+
+      // 7. Notify presence for ALL existing players in the room so their friends see updated canJoin
+      for (const p of result.room.players) {
+        if (p.userId && p.userId !== userId) {
+          presence.notifyStatusChange(p.userId)
+        }
+      }
+    } catch (err) {
+      console.error('[Social] join_friend error:', err)
+      socket.emit('social:error', { message: 'Failed to join room' })
     }
   })
 }

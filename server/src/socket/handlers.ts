@@ -12,5 +12,5 @@ export function registerHandlers(socket: Socket, io: Server, rooms: RoomManager,
   registerGameHandlers(socket, io, rooms, presence)
   registerChatHandlers(socket, io, rooms)
   registerWebRTCHandlers(socket, io, rooms)
-  registerSocialHandlers(socket, io, rooms)
+  registerSocialHandlers(socket, io, rooms, presence)
 }

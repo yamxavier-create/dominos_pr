@@ -118,10 +118,11 @@ router.get('/friends', async (req: Request, res: Response) => {
       const friend = f.requesterId === userId ? f.target : f.requester
       const roomCode = roomManagerRef?.getRoomCodeByUserId(friend.id)
       const room = roomCode ? roomManagerRef?.getRoom(roomCode) : undefined
+      const canJoin = !!(room && room.status === 'waiting' && room.players.length < 4)
       const status = presenceRef?.getStatus(friend.id) ?? 'offline'
       return {
         ...friend,
-        roomCode: room && room.status === 'waiting' && room.players.length < 4 ? roomCode : null,
+        canJoin,
         status,
       }
     })
