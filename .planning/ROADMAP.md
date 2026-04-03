@@ -153,5 +153,5 @@ Phases execute in numeric order: 16 -> 17 -> 18 -> 19
 | 15. Background Music | v1.2 | 0/1 | Deferred | - |
 | 16. Auth & Profile | 2/2 | Complete    | 2026-04-02 | - |
 | 17. Friends System | 2/2 | Complete    | 2026-04-03 | - |
-| 18. Presence | 2/2 | Complete   | 2026-04-03 | - |
+| 18. Presence | 2/2 | Complete    | 2026-04-03 | - |
 | 19. Social Integration | v1.3 | 0/2 | Not started | - |
