@@ -5,6 +5,6 @@ export default defineConfig({
   earlyAccess: true,
   schema: path.join(__dirname, 'prisma', 'schema.prisma'),
   datasource: {
-    url: process.env.DATABASE_URL || 'postgresql://yamirx@localhost:5432/dominos_pr',
+    url: process.env.DIRECT_URL || process.env.DATABASE_URL || 'postgresql://yamirx@localhost:5432/dominos_pr',
   },
 })
