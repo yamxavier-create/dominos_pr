@@ -212,15 +212,15 @@ export function useSocket() {
 
     // Social events -- real-time friend updates
     socket.on('social:friend_request_received', (data: { requestId: string; from: { id: string; username: string; displayName: string; avatarUrl: string | null } }) => {
-      useSocialStore.getState().addRequest({ requestId: data.requestId, user: data.from, direction: 'incoming' })
+      useSocialStore.getState().addRequest({ requestId: data.requestId, user: { ...data.from, status: 'online' }, direction: 'incoming' })
     })
 
     socket.on('social:friend_request_sent', (data: { requestId: string; to: { id: string; username: string; displayName: string; avatarUrl: string | null } }) => {
-      useSocialStore.getState().addRequest({ requestId: data.requestId, user: data.to, direction: 'outgoing' })
+      useSocialStore.getState().addRequest({ requestId: data.requestId, user: { ...data.to, status: 'online' }, direction: 'outgoing' })
     })
 
     socket.on('social:friend_accepted', (data: { friendshipId: string; friend: { id: string; username: string; displayName: string; avatarUrl: string | null } }) => {
-      useSocialStore.getState().addFriend(data.friend)
+      useSocialStore.getState().addFriend({ ...data.friend, status: 'online' })
       // Remove the request that was accepted (could be incoming or outgoing)
       const requests = useSocialStore.getState().requests
       const matchingReq = requests.find(r => r.user.id === data.friend.id)
@@ -235,6 +235,13 @@ export function useSocket() {
 
     socket.on('social:friend_removed', (data: { userId: string }) => {
       useSocialStore.getState().removeFriend(data.userId)
+    })
+
+    socket.on('social:game_invite', (data: { roomCode: string; from: { id: string; displayName: string }; playerCount: number; gameMode: string }) => {
+      useSocialStore.getState().setGameInvite({
+        ...data,
+        timestamp: Date.now(),
+      })
     })
 
     socket.on('social:error', (data: { message: string }) => {
@@ -270,6 +277,7 @@ export function useSocket() {
       socket.off('social:friend_accepted')
       socket.off('social:friend_rejected')
       socket.off('social:friend_removed')
+      socket.off('social:game_invite')
       socket.off('social:error')
     }
   }, [])
