@@ -175,17 +175,14 @@ export function MainMenu() {
       {isAuthenticated && user ? (
         <div className="w-full flex flex-col gap-3">
           <ProfileSection />
-          <button
-            onClick={() => setShowSocial(true)}
-            className="font-body text-green-400/70 hover:text-green-400 text-sm transition-colors relative self-start"
-          >
+          <OutlineBtn onClick={() => setShowSocial(true)}>
             Amigos
             {incomingRequestCount > 0 && (
               <span className="ml-1.5 inline-flex items-center justify-center bg-green-500 text-white text-[10px] font-bold rounded-full w-4 h-4">
                 {incomingRequestCount}
               </span>
             )}
-          </button>
+          </OutlineBtn>
         </div>
       ) : (
         <button
