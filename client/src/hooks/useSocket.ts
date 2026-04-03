@@ -5,6 +5,7 @@ import { useGameStore } from '../store/gameStore'
 import { useRoomStore } from '../store/roomStore'
 import { useUIStore, ChatMessage, ActiveReaction } from '../store/uiStore'
 import { useCallStore } from '../store/callStore'
+import { useSocialStore } from '../store/socialStore'
 import { signalHandlerRef, peerJoinedCallRef, resetForNewGameRef } from './useWebRTC'
 import { playSfx, preloadSfx } from '../audio/sfx'
 import { ClientGameState, RoundEndPayload, GameEndPayload, PassPayload, RematchVoteUpdate, RematchCancelled, BoneyardDrawPayload } from '../types/game'
@@ -209,6 +210,37 @@ export function useSocket() {
       console.log(`Player ${playerName} (${playerIndex}) reconnected`)
     })
 
+    // Social events -- real-time friend updates
+    socket.on('social:friend_request_received', (data: { requestId: string; from: { id: string; username: string; displayName: string; avatarUrl: string | null } }) => {
+      useSocialStore.getState().addRequest({ requestId: data.requestId, user: data.from, direction: 'incoming' })
+    })
+
+    socket.on('social:friend_request_sent', (data: { requestId: string; to: { id: string; username: string; displayName: string; avatarUrl: string | null } }) => {
+      useSocialStore.getState().addRequest({ requestId: data.requestId, user: data.to, direction: 'outgoing' })
+    })
+
+    socket.on('social:friend_accepted', (data: { friendshipId: string; friend: { id: string; username: string; displayName: string; avatarUrl: string | null } }) => {
+      useSocialStore.getState().addFriend(data.friend)
+      // Remove the request that was accepted (could be incoming or outgoing)
+      const requests = useSocialStore.getState().requests
+      const matchingReq = requests.find(r => r.user.id === data.friend.id)
+      if (matchingReq) {
+        useSocialStore.getState().removeRequest(matchingReq.requestId)
+      }
+    })
+
+    socket.on('social:friend_rejected', (data: { requestId: string }) => {
+      useSocialStore.getState().removeRequest(data.requestId)
+    })
+
+    socket.on('social:friend_removed', (data: { userId: string }) => {
+      useSocialStore.getState().removeFriend(data.userId)
+    })
+
+    socket.on('social:error', (data: { message: string }) => {
+      console.warn('[Social] Error:', data.message)
+    })
+
     return () => {
       socket.off('connect')
       socket.off('room:created')
@@ -233,6 +265,12 @@ export function useSocket() {
       socket.off('chat:history')
       socket.off('connection:player_disconnected')
       socket.off('connection:player_reconnected')
+      socket.off('social:friend_request_received')
+      socket.off('social:friend_request_sent')
+      socket.off('social:friend_accepted')
+      socket.off('social:friend_rejected')
+      socket.off('social:friend_removed')
+      socket.off('social:error')
     }
   }, [])
 }
