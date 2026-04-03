@@ -245,8 +245,8 @@ export function useSocket() {
     })
 
     // Presence events -- real-time status updates
-    socket.on('presence:friend_status_changed', (data: { userId: string; status: PresenceStatus }) => {
-      useSocialStore.getState().updateFriendStatus(data.userId, data.status)
+    socket.on('presence:friend_status_changed', (data: { userId: string; status: PresenceStatus; canJoin?: boolean }) => {
+      useSocialStore.getState().updateFriendStatus(data.userId, data.status, data.canJoin)
     })
 
     socket.on('presence:friend_online', (data: { userId: string; displayName: string }) => {

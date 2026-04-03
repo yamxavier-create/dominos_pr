@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
 import { useAuthStore } from '../../store/authStore'
 import { useSocialStore, Friend, PresenceStatus } from '../../store/socialStore'
-import { useGameActions } from '../../hooks/useGameActions'
 import { socket } from '../../socket'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -10,8 +9,6 @@ export function FriendsList() {
   const token = useAuthStore((s) => s.token)
   const friends = useSocialStore((s) => s.friends)
   const setFriends = useSocialStore((s) => s.setFriends)
-  const { joinRoom } = useGameActions()
-  const playerName = useAuthStore((s) => s.user?.displayName || '')
 
   const statusConfig: Record<PresenceStatus, { color: string; label: string }> = {
     online: { color: 'bg-green-500', label: 'En linea' },
@@ -42,10 +39,8 @@ export function FriendsList() {
     socket.emit('social:friend_remove', { friendUserId })
   }
 
-  const handleJoinRoom = (roomCode: string) => {
-    if (playerName) {
-      joinRoom(roomCode, playerName)
-    }
+  const handleJoinFriend = (friendUserId: string) => {
+    socket.emit('social:join_friend', { friendUserId })
   }
 
   if (friends.length === 0) {
@@ -92,9 +87,9 @@ export function FriendsList() {
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {friend.roomCode && (
+            {friend.canJoin && (
               <button
-                onClick={() => handleJoinRoom(friend.roomCode!)}
+                onClick={() => handleJoinFriend(friend.id)}
                 className="font-body text-xs font-bold px-3 py-1.5 rounded-lg transition-all hover:opacity-90 active:scale-95 text-white"
                 style={{ background: 'linear-gradient(135deg, #22C55E, #16a34a)' }}
               >

@@ -7,7 +7,7 @@ export interface Friend {
   username: string
   displayName: string
   avatarUrl: string | null
-  roomCode?: string | null
+  canJoin?: boolean
   status: PresenceStatus
 }
 
@@ -54,7 +54,7 @@ interface SocialState {
   addRequest: (request: FriendRequest) => void
   removeRequest: (requestId: string) => void
   setGameInvite: (invite: GameInvite | null) => void
-  updateFriendStatus: (userId: string, status: PresenceStatus) => void
+  updateFriendStatus: (userId: string, status: PresenceStatus, canJoin?: boolean) => void
   addPresenceNotification: (notification: PresenceNotification) => void
   removePresenceNotification: (id: string) => void
   setLoading: (loading: boolean) => void
@@ -103,10 +103,10 @@ export const useSocialStore = create<SocialState>((set) => ({
 
   setGameInvite: (invite) => set({ gameInvite: invite }),
 
-  updateFriendStatus: (userId, status) =>
+  updateFriendStatus: (userId, status, canJoin) =>
     set((state) => ({
       friends: state.friends.map((f) =>
-        f.id === userId ? { ...f, status } : f
+        f.id === userId ? { ...f, status, canJoin: canJoin ?? false } : f
       ),
     })),
 
