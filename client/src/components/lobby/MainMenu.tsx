@@ -265,6 +265,15 @@ export function MainMenu() {
       <div className="flex flex-col gap-2.5 sm:gap-3 w-full">
         <GreenBtn onClick={() => setView('create')}>Crear Sala</GreenBtn>
         <OutlineBtn onClick={() => setView('join')}>Unirse a Sala</OutlineBtn>
+        {isAuthenticated && (
+          <button
+            onClick={() => navigate('/stats')}
+            className="w-full font-body text-sm py-2.5 rounded-xl text-white/50 hover:text-white/70 transition-all hover:bg-white/5"
+            style={{ border: '1px solid rgba(255,255,255,0.08)' }}
+          >
+            📊 Estadísticas y Ranking
+          </button>
+        )}
       </div>
 
       <div className="flex flex-col items-center gap-1">

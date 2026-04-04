@@ -101,7 +101,10 @@ export function ChatPanel() {
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-3 py-2">
           {chatMessages.length === 0 && (
-            <p className="text-gray-500 text-sm text-center mt-8">No hay mensajes aun</p>
+            <div className="text-center mt-8">
+              <p className="text-2xl mb-1">💬</p>
+              <p className="font-body text-white/30 text-xs">Envía un mensaje a tus oponentes</p>
+            </div>
           )}
           {chatMessages.map(msg => (
             <MessageBubble key={msg.id} msg={msg} myIndex={myIndex ?? -1} />

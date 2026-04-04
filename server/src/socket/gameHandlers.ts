@@ -1,4 +1,5 @@
 import { Socket, Server } from 'socket.io'
+import prisma from '../db/prisma'
 import { RoomManager } from '../game/RoomManager'
 import {
   ServerGameState,
@@ -27,6 +28,53 @@ import {
   handPipSum,
   calculateBlockedResult200,
 } from '../game/GameEngine'
+
+/**
+ * Persist game result to database and update player stats.
+ */
+async function persistGameResult(game: ServerGameState, winningTeam: number) {
+  try {
+    const gameHistory = await prisma.gameHistory.create({
+      data: {
+        roomCode: game.roomCode,
+        gameMode: game.gameMode,
+        winningTeam,
+        totalRounds: game.handNumber,
+        scoreTeam0: game.scores.team0,
+        scoreTeam1: game.scores.team1,
+        playerCount: game.players.length,
+        startedAt: new Date(Date.now() - game.handNumber * 60000), // approximate
+        participants: {
+          create: game.players.map((p) => ({
+            userId: p.userId || null,
+            playerName: p.name,
+            playerIndex: p.index,
+            team: p.index % 2,
+            won: (p.index % 2) === winningTeam,
+          })),
+        },
+      },
+    })
+
+    // Update UserStats for authenticated players
+    for (const p of game.players) {
+      if (!p.userId) continue
+      const won = (p.index % 2) === winningTeam
+      await prisma.userStats.upsert({
+        where: { userId: p.userId },
+        create: { userId: p.userId, gamesPlayed: 1, gamesWon: won ? 1 : 0 },
+        update: {
+          gamesPlayed: { increment: 1 },
+          ...(won ? { gamesWon: { increment: 1 } } : {}),
+        },
+      })
+    }
+
+    console.log(`[Game] Persisted game ${gameHistory.id} — team ${winningTeam} won`)
+  } catch (err) {
+    console.error('[Game] Failed to persist game result:', err)
+  }
+}
 
 /**
  * Sync game player socket IDs from room players.
@@ -240,6 +288,7 @@ function handleBlockedGame(io: Server, game: ServerGameState): boolean {
       finalScores: updatedScores,
       totalRounds: game.handNumber,
     })
+    persistGameResult(game, winTeam)
   }
 
   return true
@@ -254,6 +303,7 @@ function handleGameEnd(io: Server, game: ServerGameState): boolean {
     finalScores: game.scores,
     totalRounds: game.handNumber,
   })
+  persistGameResult(game, winTeam)
   return true
 }
 
@@ -441,6 +491,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
           finalScores: updatedScores,
           totalRounds: game.handNumber,
         })
+        persistGameResult(game, winningTeam)
       }
       return
     }

@@ -10,6 +10,7 @@ import { buildClientGameState } from './game/GameEngine'
 import { checkRematchCancellation } from './socket/gameHandlers'
 import authRoutes from './auth/authRoutes'
 import socialRoutes, { setRoomManager, setPresenceManager } from './social/socialRoutes'
+import statsRoutes from './stats/statsRoutes'
 import { PresenceManager } from './presence/PresenceManager'
 import { authMiddleware, getSocketUser } from './socket/authMiddleware'
 
@@ -26,6 +27,9 @@ app.use('/api/auth', authRoutes)
 
 // Social REST API (friends, search, requests)
 app.use('/api/social', socialRoutes)
+
+// Stats REST API (history, leaderboard)
+app.use('/api/stats', statsRoutes)
 
 const io = new Server(httpServer, {
   cors: config.NODE_ENV !== 'production'

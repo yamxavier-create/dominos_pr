@@ -9,8 +9,10 @@ import { AuthPage } from './pages/AuthPage'
 import { PrivacyPage } from './pages/PrivacyPage'
 import { TermsPage } from './pages/TermsPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
+import { StatsPage } from './pages/StatsPage'
 import { GameInviteToast } from './components/social/GameInviteToast'
 import { PresenceToast } from './components/social/PresenceToast'
+import { ConnectionStatus } from './components/ui/ConnectionStatus'
 
 function AppRoutes() {
   useSocket()
@@ -19,6 +21,7 @@ function AppRoutes() {
 
   return (
     <>
+      <ConnectionStatus />
       <GameInviteToast />
       <PresenceToast />
       <Routes>
@@ -26,6 +29,7 @@ function AppRoutes() {
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/lobby" element={<LobbyPage />} />
         <Route path="/game" element={<GamePage />} />
+        <Route path="/stats" element={<StatsPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />

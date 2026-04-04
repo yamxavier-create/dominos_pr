@@ -21,7 +21,8 @@ model User {
   stats            UserStats?
   sentRequests     Friendship[] @relation("FriendRequester")
   receivedRequests Friendship[] @relation("FriendTarget")
-  passwordResets   PasswordReset[]
+  passwordResets    PasswordReset[]
+  gameParticipants  GameParticipant[]
 }
 
 model Session {
@@ -59,6 +60,39 @@ model Friendship {
 
   @@unique([requesterId, targetId])
   @@index([targetId])
+}
+
+model GameHistory {
+  id           String   @id @default(cuid())
+  roomCode     String
+  gameMode     String
+  winningTeam  Int
+  totalRounds  Int
+  scoreTeam0   Int
+  scoreTeam1   Int
+  playerCount  Int      @default(4)
+  startedAt    DateTime
+  endedAt      DateTime @default(now())
+
+  participants GameParticipant[]
+
+  @@index([endedAt])
+}
+
+model GameParticipant {
+  id            String  @id @default(cuid())
+  gameHistoryId String
+  userId        String?
+  playerName    String
+  playerIndex   Int
+  team          Int
+  won           Boolean
+
+  gameHistory GameHistory @relation(fields: [gameHistoryId], references: [id], onDelete: Cascade)
+  user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([gameHistoryId])
 }
 
 model PasswordReset {

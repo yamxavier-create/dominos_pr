@@ -44,9 +44,11 @@ export function FriendsList() {
 
   if (friends.length === 0) {
     return (
-      <p className="font-body text-white/40 text-sm text-center py-4">
-        Agrega amigos para jugar juntos
-      </p>
+      <div className="text-center py-6">
+        <p className="text-2xl mb-2">👥</p>
+        <p className="font-body text-white/40 text-sm">Aún no tienes amigos</p>
+        <p className="font-body text-white/25 text-xs mt-1">Busca jugadores y envíales solicitud</p>
+      </div>
     )
   }
 
