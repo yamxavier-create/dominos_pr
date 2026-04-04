@@ -201,7 +201,7 @@ export function GameTable() {
         <div />
 
         {/* Top opponent */}
-        <div className="flex flex-col items-center justify-start pt-0.5 gap-0.5 relative overflow-hidden" data-seat="top">
+        <div className={`flex flex-col items-center justify-start relative ${isLandscape ? 'pt-0.5 gap-0.5 overflow-hidden' : 'pt-1 gap-1'}`} data-seat="top">
           {topPlayer && (
             <>
               <PlayerSeat
@@ -303,7 +303,7 @@ export function GameTable() {
         <div />
 
         {/* My hand (bottom) */}
-        <div className="flex flex-col items-center justify-end gap-0 relative overflow-hidden" data-seat="bottom" style={{ paddingBottom: 'max(2px, env(safe-area-inset-bottom))' }}>
+        <div className={`flex flex-col items-center justify-end relative ${isLandscape ? 'gap-0 overflow-hidden' : 'gap-1'}`} data-seat="bottom" style={{ paddingBottom: isLandscape ? 'max(2px, env(safe-area-inset-bottom))' : 'max(8px, env(safe-area-inset-bottom))' }}>
           {myPlayer && !isLandscape && (
             <PlayerSeat
               player={myPlayer}
@@ -314,10 +314,10 @@ export function GameTable() {
             />
           )}
           {!isLandscape && <AvatarReaction reactions={getReactions(myPlayerIndex)} position="bottom" />}
-          {getPaso(myPlayerIndex) && (
+          {!isLandscape && getPaso(myPlayerIndex) && (
             <PasoChip show playerName={myPlayer?.name ?? ''} bonusPoints={getPaso(myPlayerIndex)!.passBonusAwarded} />
           )}
-          {getFloatingMessages(myPlayerIndex).map(msg => (
+          {!isLandscape && getFloatingMessages(myPlayerIndex).map(msg => (
             <FloatingChatBubble key={msg.id} message={msg} />
           ))}
           {showEndChooser && (
