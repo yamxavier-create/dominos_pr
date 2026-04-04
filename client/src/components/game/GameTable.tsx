@@ -164,7 +164,7 @@ export function GameTable() {
   }
 
   return (
-    <div className="flex flex-col overflow-hidden select-none felt-table" style={{ height: '100dvh', minHeight: isLandscape ? 0 : '-webkit-fill-available' }}>
+    <div className="flex flex-col overflow-hidden select-none game-room-bg" style={{ height: '100dvh', minHeight: isLandscape ? 0 : '-webkit-fill-available' }}>
       {/* Score bar */}
       <ScorePanel
         scores={scores}
@@ -251,7 +251,7 @@ export function GameTable() {
         </div>
 
         {/* Board center */}
-        <div className="relative overflow-hidden w-full h-full" data-board>
+        <div className="relative overflow-hidden w-full h-full table-surface" data-board>
           <GameBoard board={board} />
           <TurnIndicator
             playerName={currentPlayerName}
