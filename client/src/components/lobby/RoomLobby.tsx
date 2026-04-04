@@ -10,6 +10,16 @@ const teamColors = ['#22C55E', '#F97316', '#22C55E', '#F97316']
 const seatLabels = ['Host', 'Jugador 2', 'Jugador 3', 'Jugador 4']
 const teamLabels = ['A', 'B', 'A', 'B']
 
+function WaitingDots() {
+  return (
+    <span className="waiting-dots inline-flex gap-0.5">
+      <span className="inline-block w-1 h-1 rounded-full bg-white/40" />
+      <span className="inline-block w-1 h-1 rounded-full bg-white/40" />
+      <span className="inline-block w-1 h-1 rounded-full bg-white/40" />
+    </span>
+  )
+}
+
 export function RoomLobby() {
   const room = useRoomStore(s => s.room)
   const roomCode = useRoomStore(s => s.roomCode)
@@ -76,21 +86,20 @@ export function RoomLobby() {
   }
 
   return (
-    <div className="flex flex-col gap-5 w-full max-w-sm">
+    <div className="menu-card menu-reveal flex flex-col gap-5 w-full max-w-sm">
       {/* Room code card */}
-      <div
-        className="text-center rounded-2xl p-6"
-        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.10)' }}
-      >
-        <p className="font-body text-white/40 text-xs uppercase tracking-widest mb-2">Código de Sala</p>
-        <p className="font-header text-4xl text-gold tracking-wider">{room.roomCode}</p>
-        <p className="font-body text-white/40 text-xs mt-2">
+      <div className="text-center py-5">
+        <p className="font-body text-white/40 text-[10px] uppercase tracking-[0.25em] mb-3">Código de Sala</p>
+        <p className="font-header text-5xl text-gold tracking-widest room-code-glow">{room.roomCode}</p>
+        <p className="font-body text-white/40 text-xs mt-3">
           Modo: <span style={{ color: '#22C55E' }}>{room.gameMode === 'modo200' ? 'Modo 200 (20 pts)' : 'Modo 500'}</span>
         </p>
       </div>
 
+      <div className="gold-divider" />
+
       {/* Players grid */}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2.5">
         {[0, 1, 2, 3].map(seatIndex => {
           const player = room.players.find(p => p.index === seatIndex)
           const isMe = seatIndex === myPlayerIndex
@@ -103,30 +112,34 @@ export function RoomLobby() {
             <div
               key={seatIndex}
               onClick={() => handleSeatClick(seatIndex)}
-              className={`rounded-xl p-3 transition-all ${isHost && player ? 'cursor-pointer' : ''}`}
+              className={`p-3.5 transition-all ${player ? 'seat-card' : 'seat-card-empty'} ${isHost && player ? 'cursor-pointer' : ''}`}
               style={{
-                background: isSelected
-                  ? 'rgba(255,255,255,0.12)'
-                  : player ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.02)',
-                border: isSelected
-                  ? '1.5px solid #facc15'
-                  : isSwapTarget
-                  ? '1.5px dashed rgba(250,204,21,0.5)'
-                  : isMe
-                  ? `1.5px solid ${color}`
-                  : player
-                  ? '1px solid rgba(255,255,255,0.10)'
-                  : '1px dashed rgba(255,255,255,0.08)',
+                ...(isSelected ? {
+                  background: 'rgba(234,179,8,0.08)',
+                  borderColor: '#facc15',
+                  borderStyle: 'solid',
+                  borderWidth: '1.5px',
+                } : isSwapTarget ? {
+                  borderColor: 'rgba(250,204,21,0.4)',
+                  borderStyle: 'dashed',
+                  borderWidth: '1.5px',
+                } : isMe ? {
+                  borderColor: `${color}44`,
+                  borderStyle: 'solid',
+                  borderWidth: '1.5px',
+                  boxShadow: `0 0 12px ${color}15`,
+                } : {}),
               }}
             >
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 {/* Team avatar */}
                 <div
-                  className="w-7 h-7 rounded-full flex items-center justify-center font-header text-sm shrink-0"
+                  className="w-8 h-8 rounded-full flex items-center justify-center font-header text-sm shrink-0"
                   style={{
-                    background: player ? `${color}22` : 'rgba(255,255,255,0.04)',
-                    border: `1.5px solid ${player ? color : 'rgba(255,255,255,0.12)'}`,
-                    color: player ? color : 'rgba(255,255,255,0.25)',
+                    background: player ? `${color}18` : 'rgba(255,255,255,0.03)',
+                    border: `1.5px solid ${player ? `${color}66` : 'rgba(255,255,255,0.10)'}`,
+                    color: player ? color : 'rgba(255,255,255,0.20)',
+                    boxShadow: player ? `0 0 8px ${color}20` : 'none',
                   }}
                 >
                   {label}
@@ -137,10 +150,12 @@ export function RoomLobby() {
                       <p className="font-body text-white text-sm truncate font-semibold">
                         {player.name}{isMe && <span className="text-xs ml-1" style={{ color }}>  (tú)</span>}
                       </p>
-                      <p className="font-body text-white/35 text-xs">{seatLabels[seatIndex]}</p>
+                      <p className="font-body text-white/30 text-[11px]">{seatLabels[seatIndex]}</p>
                     </>
                   ) : (
-                    <p className="font-body text-white/25 text-sm italic">Esperando...</p>
+                    <p className="font-body text-white/20 text-sm italic">
+                      Esperando <WaitingDots />
+                    </p>
                   )}
                 </div>
                 {player && (
@@ -222,8 +237,7 @@ export function RoomLobby() {
         <div className="flex flex-col gap-2">
           <button
             onClick={() => setShowInvite(!showInvite)}
-            className="w-full font-body text-sm py-2.5 rounded-xl text-white/70 hover:text-white transition-all hover:bg-white/5"
-            style={{ border: '1px solid rgba(255,255,255,0.12)' }}
+            className="w-full font-body text-sm py-2.5 rounded-xl text-white/70 hover:text-white transition-all btn-outline-shine"
           >
             {showInvite ? 'Cerrar' : 'Invitar Amigos'}
           </button>
@@ -259,6 +273,8 @@ export function RoomLobby() {
         </div>
       )}
 
+      <div className="gold-divider" />
+
       {/* Start / waiting */}
       {isHost ? (
         <div className="flex flex-col gap-2">
@@ -274,17 +290,13 @@ export function RoomLobby() {
           <button
             onClick={startGame}
             disabled={!canStart}
-            className="w-full font-body font-bold py-3.5 rounded-2xl text-white text-base transition-all hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ background: 'linear-gradient(135deg, #22C55E, #16a34a)' }}
+            className="w-full font-body font-bold py-3.5 rounded-2xl text-white text-base active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed btn-glow"
           >
             {canStart ? '¡Iniciar Partida!' : `${playerCount} jugadores`}
           </button>
         </div>
       ) : (
-        <div
-          className="text-center rounded-xl py-4"
-          style={{ background: 'rgba(255,255,255,0.03)' }}
-        >
+        <div className="text-center py-3">
           <p className="font-body text-white/40 text-sm">
             {canStart ? 'Esperando que el host inicie...' : `${playerCount} jugadores conectados`}
           </p>

@@ -15,8 +15,7 @@ const GreenBtn = ({ children, onClick, disabled }: { children: React.ReactNode; 
   <button
     onClick={onClick}
     disabled={disabled}
-    className="w-full font-body font-bold py-3 sm:py-4 rounded-2xl text-white text-base sm:text-lg transition-all hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
-    style={{ background: 'linear-gradient(135deg, #22C55E, #16a34a)' }}
+    className="w-full font-body font-bold py-3 sm:py-4 rounded-2xl text-white text-base sm:text-lg active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed btn-glow"
   >
     {children}
   </button>
@@ -25,12 +24,40 @@ const GreenBtn = ({ children, onClick, disabled }: { children: React.ReactNode; 
 const OutlineBtn = ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
   <button
     onClick={onClick}
-    className="w-full font-body font-bold py-3 sm:py-4 rounded-2xl text-white text-base sm:text-lg transition-all hover:bg-white/10 active:scale-95"
-    style={{ border: '1.5px solid rgba(255,255,255,0.20)' }}
+    className="w-full font-body font-bold py-3 sm:py-4 rounded-2xl text-white text-base sm:text-lg active:scale-95 btn-outline-shine"
   >
     {children}
   </button>
 )
+
+/* Decorative SVG domino tile — replaces the emoji for a polished look */
+function DominoLogo() {
+  return (
+    <svg width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg"
+      style={{ filter: 'drop-shadow(0 0 24px rgba(34,197,94,0.35))' }}
+    >
+      {/* Tile body — rotated 12deg for dynamism */}
+      <g transform="rotate(-12 36 36)">
+        <rect x="14" y="4" width="44" height="64" rx="6" fill="#FFFBF0" stroke="#8899aa" strokeWidth="1.5" />
+        {/* Center divider */}
+        <line x1="18" y1="36" x2="54" y2="36" stroke="#bbb" strokeWidth="1" />
+        {/* Top pips: 6 */}
+        <circle cx="24" cy="14" r="3.5" fill="#1a1a2e" />
+        <circle cx="24" cy="22" r="3.5" fill="#1a1a2e" />
+        <circle cx="24" cy="30" r="3.5" fill="#1a1a2e" />
+        <circle cx="48" cy="14" r="3.5" fill="#1a1a2e" />
+        <circle cx="48" cy="22" r="3.5" fill="#1a1a2e" />
+        <circle cx="48" cy="30" r="3.5" fill="#1a1a2e" />
+        {/* Bottom pips: 5 */}
+        <circle cx="24" cy="44" r="3.5" fill="#1a1a2e" />
+        <circle cx="24" cy="58" r="3.5" fill="#1a1a2e" />
+        <circle cx="48" cy="44" r="3.5" fill="#1a1a2e" />
+        <circle cx="48" cy="58" r="3.5" fill="#1a1a2e" />
+        <circle cx="36" cy="51" r="3.5" fill="#1a1a2e" />
+      </g>
+    </svg>
+  )
+}
 
 export function MainMenu() {
   const [view, setView] = useState<View>('home')
@@ -67,7 +94,7 @@ export function MainMenu() {
 
   if (view === 'create') {
     return (
-      <div className="flex flex-col gap-4 sm:gap-5 w-full max-w-xs sm:max-w-sm md:max-w-md">
+      <div className="menu-card menu-reveal flex flex-col gap-4 sm:gap-5 w-full max-w-xs sm:max-w-sm md:max-w-md">
         <button
           onClick={() => { setView('home'); clearError() }}
           className="font-body text-white/40 hover:text-white/70 text-sm self-start transition-colors"
@@ -76,9 +103,11 @@ export function MainMenu() {
         </button>
 
         <div className="text-center">
-          <h2 className="font-header text-3xl sm:text-4xl text-gold">Crear Sala</h2>
+          <h2 className="font-header text-3xl sm:text-4xl text-gold tracking-wide">Crear Sala</h2>
           <p className="font-body text-white/50 text-xs sm:text-sm mt-1">Elige el modo de juego</p>
         </div>
+
+        <div className="gold-divider" />
 
         <Input
           label="Tu nombre"
@@ -99,8 +128,9 @@ export function MainMenu() {
                 onClick={() => setSelectedMode(mode)}
                 className="flex-1 rounded-2xl p-4 text-center transition-all"
                 style={{
-                  background: active ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.04)',
-                  border: `1.5px solid ${active ? '#22C55E' : 'rgba(255,255,255,0.12)'}`,
+                  background: active ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.03)',
+                  border: `1.5px solid ${active ? '#22C55E' : 'rgba(255,255,255,0.10)'}`,
+                  boxShadow: active ? '0 0 16px rgba(34,197,94,0.15), inset 0 1px 0 rgba(255,255,255,0.05)' : 'inset 0 1px 0 rgba(255,255,255,0.03)',
                 }}
               >
                 <p className="font-header text-2xl text-gold">{mode === 'modo200' ? 'M·200' : 'M·500'}</p>
@@ -126,7 +156,7 @@ export function MainMenu() {
 
   if (view === 'join') {
     return (
-      <div className="flex flex-col gap-4 sm:gap-5 w-full max-w-xs sm:max-w-sm md:max-w-md">
+      <div className="menu-card menu-reveal flex flex-col gap-4 sm:gap-5 w-full max-w-xs sm:max-w-sm md:max-w-md">
         <button
           onClick={() => { setView('home'); clearError() }}
           className="font-body text-white/40 hover:text-white/70 text-sm self-start transition-colors"
@@ -135,9 +165,11 @@ export function MainMenu() {
         </button>
 
         <div className="text-center">
-          <h2 className="font-header text-3xl sm:text-4xl text-gold">Unirse a Sala</h2>
+          <h2 className="font-header text-3xl sm:text-4xl text-gold tracking-wide">Unirse a Sala</h2>
           <p className="font-body text-white/50 text-xs sm:text-sm mt-1">Ingresa el código de sala</p>
         </div>
+
+        <div className="gold-divider" />
 
         <Input
           label="Tu nombre"
@@ -174,7 +206,7 @@ export function MainMenu() {
   }
 
   return (
-    <div className="flex flex-col items-center gap-6 sm:gap-10 w-full max-w-xs sm:max-w-sm md:max-w-md">
+    <div className="menu-card menu-reveal flex flex-col items-center gap-6 sm:gap-8 w-full max-w-xs sm:max-w-sm md:max-w-md">
       {/* Top bar: profile pill + social icon */}
       {isAuthenticated && user ? (
         <div className="w-full flex items-center justify-between">
@@ -211,28 +243,31 @@ export function MainMenu() {
       )}
 
       {/* Logo */}
-      <div className="text-center">
-        <div className="text-6xl sm:text-7xl md:text-8xl mb-3 sm:mb-4" style={{ filter: 'drop-shadow(0 0 20px rgba(34,197,94,0.4))' }}>🁣</div>
+      <div className="text-center flex flex-col items-center">
+        <DominoLogo />
         <h1
-          className="font-header leading-none text-[3.5rem] sm:text-[4.5rem] md:text-[5.5rem]"
+          className="font-header leading-none text-[3.5rem] sm:text-[4.5rem] md:text-[5.5rem] mt-3"
           style={{
             color: '#EAB308',
-            textShadow: '0 0 30px rgba(234,179,8,0.4), 0 2px 8px rgba(0,0,0,0.6)',
+            textShadow: '0 0 40px rgba(234,179,8,0.3), 0 2px 8px rgba(0,0,0,0.6)',
+            letterSpacing: '0.04em',
           }}
         >
           Dominó PR
         </h1>
-        <p className="font-body mt-1.5 sm:mt-2 text-sm sm:text-base" style={{ color: '#22C55E' }}>
-          Doble Seis Puertorriqueño
+        <p className="font-body mt-1.5 sm:mt-2 text-sm sm:text-base tracking-widest uppercase" style={{ color: '#22C55E', letterSpacing: '0.2em' }}>
+          Doble Seis
         </p>
       </div>
+
+      <div className="gold-divider w-full" />
 
       <div className="flex flex-col gap-2.5 sm:gap-3 w-full">
         <GreenBtn onClick={() => setView('create')}>Crear Sala</GreenBtn>
         <OutlineBtn onClick={() => setView('join')}>Unirse a Sala</OutlineBtn>
       </div>
 
-      <p className="font-body text-white/20 text-[10px] sm:text-xs text-center">
+      <p className="font-body text-white/25 text-[10px] sm:text-xs text-center tracking-wider">
         4 jugadores · Equipos · En línea
       </p>
     </div>
