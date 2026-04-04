@@ -13,6 +13,7 @@ interface PlayerSeatProps {
   isSpeaking?: boolean
   isCameraOff?: boolean
   isLocalPlayer?: boolean
+  compact?: boolean
 }
 
 export function PlayerSeat({
@@ -25,9 +26,10 @@ export function PlayerSeat({
   isSpeaking,
   isCameraOff,
   isLocalPlayer,
+  compact,
 }: PlayerSeatProps) {
   const isSide = position === 'left' || position === 'right'
-  const avatarSize = isSide ? 40 : 80
+  const avatarSize = isSide ? 40 : compact ? 44 : 80
   const initials = player.name.slice(0, 2).toUpperCase()
 
   // Only subscribe to call state for the local player to avoid unnecessary re-renders
@@ -61,6 +63,40 @@ export function PlayerSeat({
         </p>
         {!player.connected && (
           <span className="text-accent text-[10px]">{'\u26A1'}</span>
+        )}
+      </div>
+    )
+  }
+
+  // Compact (landscape): inline like side seats but horizontal
+  if (compact) {
+    return (
+      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-black/30 backdrop-blur-sm transition-all duration-300">
+        <div className="relative shrink-0">
+          <AvatarVideo
+            stream={stream ?? null}
+            initials={initials}
+            teamColor={teamColor}
+            isCurrentTurn={isCurrentTurn}
+            isSpeaking={isSpeaking ?? false}
+            isCameraOff={isCameraOff ?? true}
+            size={avatarSize}
+          />
+          <span
+            className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center font-bold font-body bg-surface border border-white/20"
+            style={{ color: teamColor, fontSize: 9 }}
+          >
+            {player.tileCount}
+          </span>
+        </div>
+        <p className="font-body font-bold text-white text-[10px] leading-tight truncate max-w-16">
+          {player.name}
+        </p>
+        {!player.connected && (
+          <span className="text-accent text-[10px]">{'\u26A1'}</span>
+        )}
+        {isLocalPlayer && inCall && (
+          <CallControls className="ml-1" />
         )}
       </div>
     )

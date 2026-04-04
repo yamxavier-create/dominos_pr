@@ -9,9 +9,10 @@ interface ScorePanelProps {
   handNumber: number
   onClick?: () => void
   isOpen?: boolean
+  compact?: boolean
 }
 
-export function ScorePanel({ scores, players, myPlayerIndex, gameMode, targetScore, handNumber, onClick, isOpen }: ScorePanelProps) {
+export function ScorePanel({ scores, players, myPlayerIndex, gameMode, targetScore, handNumber, onClick, isOpen, compact }: ScorePanelProps) {
   const is2Player = players.length === 2
 
   const teamA = is2Player ? [players[0]].filter(Boolean) : [players[0], players[2]].filter(Boolean)
@@ -27,6 +28,37 @@ export function ScorePanel({ scores, players, myPlayerIndex, gameMode, targetSco
 
   const pctA = Math.min((scores.team0 / targetScore) * 100, 100)
   const pctB = Math.min((scores.team1 / targetScore) * 100, 100)
+
+  if (compact) {
+    return (
+      <div
+        className={`backdrop-blur-md bg-black/40 border-b border-white/10 px-3 py-1 flex items-center gap-2${onClick ? ' cursor-pointer' : ''}`}
+        onClick={onClick}
+      >
+        <span
+          className="font-header text-xs px-1.5 py-0.5 rounded-full shrink-0"
+          style={{ background: 'linear-gradient(135deg, #22C55E, #16a34a)', color: '#fff' }}
+        >
+          {gameMode === 'modo200' ? 'M·200' : 'M·500'}
+        </span>
+        <span className="font-body text-white/40 text-[10px] shrink-0">#{handNumber}</span>
+        <span className="font-body text-xs font-semibold" style={{ color: '#22C55E' }}>{teamALabel}</span>
+        <span className="font-header text-base text-white shrink-0 leading-none">{scores.team0}</span>
+        <span className="text-white/20 font-body text-[10px] shrink-0">vs</span>
+        <span className="font-header text-base text-white shrink-0 leading-none">{scores.team1}</span>
+        <span className="font-body text-xs font-semibold" style={{ color: '#F97316' }}>{teamBLabel}</span>
+        <span className="font-body text-white/30 text-[10px] shrink-0">/{targetScore}</span>
+        {onClick && (
+          <svg
+            className={`w-3 h-3 text-white/40 shrink-0 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div

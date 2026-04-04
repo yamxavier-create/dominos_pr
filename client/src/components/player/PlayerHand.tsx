@@ -12,10 +12,13 @@ interface PlayerHandProps {
   validPlayIds: Set<string>
   isMyTurn: boolean
   forcedFirstTileId: string | null
+  compact?: boolean
 }
 
 const HAND_W = 34
 const HAND_H = 68
+const HAND_W_COMPACT = 26
+const HAND_H_COMPACT = 52
 const DRAG_THRESHOLD = 10
 const DROP_RADIUS = 80 // px proximity to snap to an end tile
 const MAX_PER_ROW = 7
@@ -69,7 +72,9 @@ function detectNearEnd(px: number, py: number): 'left' | 'right' | null {
   return bestEnd
 }
 
-export function PlayerHand({ tiles, validPlayIds, isMyTurn, forcedFirstTileId }: PlayerHandProps) {
+export function PlayerHand({ tiles, validPlayIds, isMyTurn, forcedFirstTileId, compact }: PlayerHandProps) {
+  const handW = compact ? HAND_W_COMPACT : HAND_W
+  const handH = compact ? HAND_H_COMPACT : HAND_H
   const selectedTileId = useUIStore(s => s.selectedTileId)
   const { selectTile } = useGameActions()
 
@@ -186,7 +191,7 @@ export function PlayerHand({ tiles, validPlayIds, isMyTurn, forcedFirstTileId }:
           orientation="vertical"
           isPlayable={isPlayable && !isSelected}
           isSelected={isSelected}
-          style={{ width: HAND_W, height: HAND_H }}
+          style={{ width: handW, height: handH }}
         />
         {isForced && (
           <span className="absolute -top-1 -right-1 bg-gold text-bg text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center">
@@ -215,17 +220,17 @@ export function PlayerHand({ tiles, validPlayIds, isMyTurn, forcedFirstTileId }:
         <div
           className="drag-ghost fixed"
           style={{
-            left: dragPos.x - HAND_W / 2,
-            top: dragPos.y - HAND_H / 2 - 30,
-            width: HAND_W * 1.3,
-            height: HAND_H * 1.3,
+            left: dragPos.x - handW / 2,
+            top: dragPos.y - handH / 2 - 30,
+            width: handW * 1.3,
+            height: handH * 1.3,
           }}
         >
           <DominoTile
             pip1={dragTile.low}
             pip2={dragTile.high}
             orientation="vertical"
-            style={{ width: HAND_W * 1.3, height: HAND_H * 1.3 }}
+            style={{ width: handW * 1.3, height: handH * 1.3 }}
           />
         </div>
       )}

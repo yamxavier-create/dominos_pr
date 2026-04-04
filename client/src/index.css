@@ -286,3 +286,11 @@ body {
   background:
     radial-gradient(ellipse at center, #173022 0%, #0A1A0F 80%, #060E08 100%);
 }
+
+/* ─── Landscape safe-area handling ─── */
+@media (orientation: landscape) {
+  .felt-table {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}

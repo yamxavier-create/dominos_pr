@@ -22,6 +22,7 @@ import { FloatingChatBubble } from '../chat/FloatingChatBubble'
 import { AvatarReaction } from '../player/AvatarReaction'
 import { RoundEndModal } from './RoundEndModal'
 import { GameEndModal } from './GameEndModal'
+import { useIsLandscape } from '../../hooks/useIsLandscape'
 
 function teamInfo(playerIndex: number, myPlayerIndex: number, playerCount: number, players: { name: string }[]) {
   if (playerCount === 2) {
@@ -106,6 +107,7 @@ export function GameTable() {
     if (showRoundEnd) setShowScoreHistory(false)
   }, [showRoundEnd, setShowScoreHistory])
 
+  const isLandscape = useIsLandscape()
   const handleScoreBarClick = () => setShowScoreHistory(!showScoreHistory)
 
   if (!gameState) {
@@ -173,6 +175,7 @@ export function GameTable() {
         handNumber={handNumber}
         onClick={handleScoreBarClick}
         isOpen={showScoreHistory}
+        compact={isLandscape}
       />
 
       {/* Score history panel */}
@@ -197,7 +200,7 @@ export function GameTable() {
         <div />
 
         {/* Top opponent */}
-        <div className="flex flex-col items-center justify-start pt-1 gap-1 relative" data-seat="top">
+        <div className="flex flex-col items-center justify-start pt-1 gap-0.5 relative" data-seat="top">
           {topPlayer && (
             <>
               <PlayerSeat
@@ -206,9 +209,10 @@ export function GameTable() {
                 position={getPosition(topIndex, myPlayerIndex, playerCount)}
                 {...teamInfo(topIndex, myPlayerIndex, playerCount, players)}
                 {...seatCallProps(topIndex)}
+                compact={isLandscape}
               />
               <AvatarReaction reactions={getReactions(topIndex)} position="top" />
-              <OpponentHand player={topPlayer} position="top" />
+              <OpponentHand player={topPlayer} position="top" compact={isLandscape} />
               {getPaso(topIndex) && (
                 <PasoChip show playerName={topPlayer.name} bonusPoints={getPaso(topIndex)!.passBonusAwarded} />
               )}
@@ -232,9 +236,10 @@ export function GameTable() {
                 position={getPosition(leftIndex, myPlayerIndex, playerCount)}
                 {...teamInfo(leftIndex, myPlayerIndex, playerCount, players)}
                 {...seatCallProps(leftIndex)}
+                compact={isLandscape}
               />
               <AvatarReaction reactions={getReactions(leftIndex)} position="left" />
-              <OpponentHand player={leftPlayer} position="left" />
+              <OpponentHand player={leftPlayer} position="left" compact={isLandscape} />
               {getPaso(leftIndex) && (
                 <PasoChip show playerName={leftPlayer.name} bonusPoints={getPaso(leftIndex)!.passBonusAwarded} />
               )}
@@ -279,9 +284,10 @@ export function GameTable() {
                 position={getPosition(rightIndex, myPlayerIndex, playerCount)}
                 {...teamInfo(rightIndex, myPlayerIndex, playerCount, players)}
                 {...seatCallProps(rightIndex)}
+                compact={isLandscape}
               />
               <AvatarReaction reactions={getReactions(rightIndex)} position="right" />
-              <OpponentHand player={rightPlayer} position="right" />
+              <OpponentHand player={rightPlayer} position="right" compact={isLandscape} />
               {getPaso(rightIndex) && (
                 <PasoChip show playerName={rightPlayer.name} bonusPoints={getPaso(rightIndex)!.passBonusAwarded} />
               )}
@@ -296,7 +302,7 @@ export function GameTable() {
         <div />
 
         {/* My hand (bottom) */}
-        <div className="flex flex-col items-center justify-end gap-1 relative" data-seat="bottom" style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}>
+        <div className="flex flex-col items-center justify-end gap-0.5 relative" data-seat="bottom" style={{ paddingBottom: 'max(4px, env(safe-area-inset-bottom))' }}>
           {myPlayer && (
             <PlayerSeat
               player={myPlayer}
@@ -304,6 +310,7 @@ export function GameTable() {
               position="bottom"
               {...teamInfo(myPlayerIndex, myPlayerIndex, playerCount, players)}
               {...seatCallProps(myPlayerIndex)}
+              compact={isLandscape}
             />
           )}
           <AvatarReaction reactions={getReactions(myPlayerIndex)} position="bottom" />
@@ -338,6 +345,7 @@ export function GameTable() {
             validPlayIds={validPlayIds}
             isMyTurn={isMyTurn}
             forcedFirstTileId={forcedFirstTileId}
+            compact={isLandscape}
           />
         </div>
 
