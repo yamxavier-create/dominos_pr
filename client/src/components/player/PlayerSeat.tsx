@@ -16,6 +16,31 @@ interface PlayerSeatProps {
   compact?: boolean
 }
 
+function AvatarWithBadge({ player, initials, teamColor, isCurrentTurn, stream, isSpeaking, isCameraOff, size }: {
+  player: ClientPlayer; initials: string; teamColor: string; isCurrentTurn: boolean
+  stream: MediaStream | null; isSpeaking: boolean; isCameraOff: boolean; size: number
+}) {
+  return (
+    <div className="relative shrink-0">
+      <AvatarVideo
+        stream={stream}
+        initials={initials}
+        teamColor={teamColor}
+        isCurrentTurn={isCurrentTurn}
+        isSpeaking={isSpeaking}
+        isCameraOff={isCameraOff}
+        size={size}
+      />
+      <span
+        className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center font-bold font-body bg-surface border border-white/20"
+        style={{ color: teamColor, fontSize: 9 }}
+      >
+        {player.tileCount}
+      </span>
+    </div>
+  )
+}
+
 export function PlayerSeat({
   player,
   isCurrentTurn,
@@ -32,32 +57,26 @@ export function PlayerSeat({
   const avatarSize = isSide ? 40 : compact ? 44 : 80
   const initials = player.name.slice(0, 2).toUpperCase()
 
-  // Only subscribe to call state for the local player to avoid unnecessary re-renders
   const inCall = useCallStore(s =>
     isLocalPlayer ? (s.myAudioEnabled || s.myVideoEnabled) : false
   )
 
-  // Side positions: compact avatar-only layout for narrow Android screens
+  const avatarProps = {
+    player,
+    initials,
+    teamColor,
+    isCurrentTurn,
+    stream: stream ?? null,
+    isSpeaking: isSpeaking ?? false,
+    isCameraOff: isCameraOff ?? true,
+    size: avatarSize,
+  }
+
+  // Side positions: compact vertical layout
   if (isSide) {
     return (
       <div className="flex flex-col items-center py-0.5">
-        <div className="relative shrink-0">
-          <AvatarVideo
-            stream={stream ?? null}
-            initials={initials}
-            teamColor={teamColor}
-            isCurrentTurn={isCurrentTurn}
-            isSpeaking={isSpeaking ?? false}
-            isCameraOff={isCameraOff ?? true}
-            size={avatarSize}
-          />
-          <span
-            className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center font-bold font-body bg-surface border border-white/20"
-            style={{ color: teamColor, fontSize: 9 }}
-          >
-            {player.tileCount}
-          </span>
-        </div>
+        <AvatarWithBadge {...avatarProps} />
         <p className="font-body font-bold text-white text-[10px] leading-tight truncate max-w-[44px] mt-0.5 text-center">
           {player.name}
         </p>
@@ -68,27 +87,11 @@ export function PlayerSeat({
     )
   }
 
-  // Compact (landscape): inline like side seats but horizontal
+  // Compact (landscape): inline horizontal layout
   if (compact) {
     return (
       <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-black/30 backdrop-blur-sm transition-all duration-300">
-        <div className="relative shrink-0">
-          <AvatarVideo
-            stream={stream ?? null}
-            initials={initials}
-            teamColor={teamColor}
-            isCurrentTurn={isCurrentTurn}
-            isSpeaking={isSpeaking ?? false}
-            isCameraOff={isCameraOff ?? true}
-            size={avatarSize}
-          />
-          <span
-            className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center font-bold font-body bg-surface border border-white/20"
-            style={{ color: teamColor, fontSize: 9 }}
-          >
-            {player.tileCount}
-          </span>
-        </div>
+        <AvatarWithBadge {...avatarProps} />
         <p className="font-body font-bold text-white text-[10px] leading-tight truncate max-w-16">
           {player.name}
         </p>
@@ -102,30 +105,10 @@ export function PlayerSeat({
     )
   }
 
-  // Top/bottom: full layout with name + team label
+  // Default (portrait top/bottom): full layout
   return (
     <div className="flex items-center gap-1.5 px-2 py-1 rounded-xl bg-black/30 backdrop-blur-sm flex-row transition-all duration-300">
-      {/* Avatar circle with tile-count badge */}
-      <div className="relative shrink-0">
-        <AvatarVideo
-          stream={stream ?? null}
-          initials={initials}
-          teamColor={teamColor}
-          isCurrentTurn={isCurrentTurn}
-          isSpeaking={isSpeaking ?? false}
-          isCameraOff={isCameraOff ?? true}
-          size={avatarSize}
-        />
-        {/* Tile count badge */}
-        <span
-          className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center font-bold font-body bg-surface border border-white/20"
-          style={{ color: teamColor, fontSize: 9 }}
-        >
-          {player.tileCount}
-        </span>
-      </div>
-
-      {/* Player info */}
+      <AvatarWithBadge {...avatarProps} />
       <div>
         <p className="font-body font-bold text-white leading-tight truncate text-xs max-w-20">
           {player.name}
@@ -134,13 +117,9 @@ export function PlayerSeat({
           {teamLabel}
         </p>
       </div>
-
-      {/* Disconnected indicator */}
       {!player.connected && (
         <span className="text-accent text-xs">{'\u26A1'}</span>
       )}
-
-      {/* Inline call controls for local player */}
       {isLocalPlayer && inCall && (
         <CallControls className="mt-1" />
       )}

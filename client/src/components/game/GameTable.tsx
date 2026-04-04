@@ -237,7 +237,6 @@ export function GameTable() {
                 position={getPosition(leftIndex, myPlayerIndex, playerCount)}
                 {...teamInfo(leftIndex, myPlayerIndex, playerCount, players)}
                 {...seatCallProps(leftIndex)}
-                compact={isLandscape}
               />
               <AvatarReaction reactions={getReactions(leftIndex)} position="left" />
               <OpponentHand player={leftPlayer} position="left" compact={isLandscape} />
@@ -285,7 +284,6 @@ export function GameTable() {
                 position={getPosition(rightIndex, myPlayerIndex, playerCount)}
                 {...teamInfo(rightIndex, myPlayerIndex, playerCount, players)}
                 {...seatCallProps(rightIndex)}
-                compact={isLandscape}
               />
               <AvatarReaction reactions={getReactions(rightIndex)} position="right" />
               <OpponentHand player={rightPlayer} position="right" compact={isLandscape} />
