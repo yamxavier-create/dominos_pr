@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { GameMode } from '../../types/game'
 import { Input } from '../ui/Input'
 import { useRoomStore } from '../../store/roomStore'
@@ -267,9 +267,16 @@ export function MainMenu() {
         <OutlineBtn onClick={() => setView('join')}>Unirse a Sala</OutlineBtn>
       </div>
 
-      <p className="font-body text-white/25 text-[10px] sm:text-xs text-center tracking-wider">
-        4 jugadores · Equipos · En línea
-      </p>
+      <div className="flex flex-col items-center gap-1">
+        <p className="font-body text-white/25 text-[10px] sm:text-xs text-center tracking-wider">
+          4 jugadores · Equipos · En línea
+        </p>
+        <div className="flex gap-3 font-body text-white/20 text-[10px]">
+          <Link to="/privacy" className="hover:text-white/40 transition-colors">Privacidad</Link>
+          <span>·</span>
+          <Link to="/terms" className="hover:text-white/40 transition-colors">Términos</Link>
+        </div>
+      </div>
     </div>
   )
 }
