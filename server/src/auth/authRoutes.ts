@@ -1,8 +1,10 @@
 import { Router, Request, Response } from 'express'
+import crypto from 'crypto'
 import prisma from '../db/prisma'
 import { hashPassword, comparePassword } from './passwordUtils'
 import { signToken, verifyToken } from './jwt'
 import { verifyGoogleToken } from './google'
+import { sendPasswordResetEmail } from './emailService'
 
 const router = Router()
 
@@ -240,6 +242,88 @@ router.patch('/profile', async (req: Request, res: Response) => {
     res.json({ user })
   } catch (err) {
     console.error('[Auth] Profile update error:', err)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// POST /api/auth/request-reset
+router.post('/request-reset', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body
+    if (!email || typeof email !== 'string') {
+      res.status(400).json({ error: 'Email is required' })
+      return
+    }
+
+    // Always return success to prevent email enumeration
+    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } })
+    if (!user) {
+      res.json({ ok: true })
+      return
+    }
+
+    // Invalidate any existing reset tokens for this user
+    await prisma.passwordReset.updateMany({
+      where: { userId: user.id, used: false },
+      data: { used: true },
+    })
+
+    // Create new reset token (1 hour expiry)
+    const token = crypto.randomBytes(32).toString('hex')
+    await prisma.passwordReset.create({
+      data: {
+        userId: user.id,
+        token,
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      },
+    })
+
+    await sendPasswordResetEmail(email, token)
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('[Auth] Password reset request error:', err)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// POST /api/auth/reset-password
+router.post('/reset-password', async (req: Request, res: Response) => {
+  try {
+    const { token, password } = req.body
+    if (!token || !password) {
+      res.status(400).json({ error: 'Token and password are required' })
+      return
+    }
+    if (password.length < 6) {
+      res.status(400).json({ error: 'Password must be at least 6 characters' })
+      return
+    }
+
+    const resetRecord = await prisma.passwordReset.findUnique({ where: { token } })
+    if (!resetRecord || resetRecord.used || resetRecord.expiresAt < new Date()) {
+      res.status(400).json({ error: 'Invalid or expired reset link' })
+      return
+    }
+
+    // Mark token as used
+    await prisma.passwordReset.update({
+      where: { id: resetRecord.id },
+      data: { used: true },
+    })
+
+    // Update password
+    const passwordHash = await hashPassword(password)
+    await prisma.user.update({
+      where: { id: resetRecord.userId },
+      data: { passwordHash },
+    })
+
+    // Invalidate all existing sessions (force re-login)
+    await prisma.session.deleteMany({ where: { userId: resetRecord.userId } })
+
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('[Auth] Password reset error:', err)
     res.status(500).json({ error: 'Internal server error' })
   }
 })

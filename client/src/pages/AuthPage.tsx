@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { LoginForm } from '../components/auth/LoginForm'
 import { RegisterForm } from '../components/auth/RegisterForm'
 import { GoogleLoginButton } from '../components/auth/GoogleLoginButton'
+import { ForgotPasswordForm } from '../components/auth/ForgotPasswordForm'
 import { useAuth } from '../hooks/useAuth'
 
-type AuthView = 'login' | 'register'
+type AuthView = 'login' | 'register' | 'forgot'
 
 export function AuthPage() {
   const [view, setView] = useState<AuthView>('login')
@@ -61,10 +62,13 @@ export function AuthPage() {
         </div>
 
         {/* Auth Form */}
-        {view === 'login' ? (
+        {view === 'forgot' ? (
+          <ForgotPasswordForm onBack={() => { setView('login'); setError(null) }} />
+        ) : view === 'login' ? (
           <LoginForm
             onLogin={handleLogin}
             onSwitchToRegister={() => { setView('register'); setError(null) }}
+            onForgotPassword={() => { setView('forgot'); setError(null) }}
             error={error}
           />
         ) : (
@@ -75,15 +79,18 @@ export function AuthPage() {
           />
         )}
 
-        {/* Divider */}
-        <div className="flex items-center gap-3">
-          <div className="flex-1 h-px bg-white/10" />
-          <span className="font-body text-white/30 text-xs">o</span>
-          <div className="flex-1 h-px bg-white/10" />
-        </div>
+        {/* Divider + Google (hide on forgot view) */}
+        {view !== 'forgot' && (
+          <>
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-white/10" />
+              <span className="font-body text-white/30 text-xs">o</span>
+              <div className="flex-1 h-px bg-white/10" />
+            </div>
 
-        {/* Google Login */}
-        <GoogleLoginButton onGoogleLogin={handleGoogleLogin} />
+            <GoogleLoginButton onGoogleLogin={handleGoogleLogin} />
+          </>
+        )}
 
         {/* Guest option */}
         <button

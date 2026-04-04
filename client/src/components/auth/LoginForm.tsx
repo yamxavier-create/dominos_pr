@@ -4,10 +4,11 @@ import { Input } from '../ui/Input'
 interface LoginFormProps {
   onLogin: (username: string, password: string) => Promise<void>
   onSwitchToRegister: () => void
+  onForgotPassword?: () => void
   error: string | null
 }
 
-export function LoginForm({ onLogin, onSwitchToRegister, error }: LoginFormProps) {
+export function LoginForm({ onLogin, onSwitchToRegister, onForgotPassword, error }: LoginFormProps) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -62,12 +63,19 @@ export function LoginForm({ onLogin, onSwitchToRegister, error }: LoginFormProps
         {loading ? 'Entrando...' : 'Entrar'}
       </button>
 
-      <p className="font-body text-white/40 text-sm text-center">
-        ¿No tienes cuenta?{' '}
-        <button onClick={onSwitchToRegister} className="text-green-400 hover:text-green-300 transition-colors">
-          Regístrate
-        </button>
-      </p>
+      <div className="flex flex-col items-center gap-2">
+        <p className="font-body text-white/40 text-sm">
+          ¿No tienes cuenta?{' '}
+          <button onClick={onSwitchToRegister} className="text-green-400 hover:text-green-300 transition-colors">
+            Regístrate
+          </button>
+        </p>
+        {onForgotPassword && (
+          <button onClick={onForgotPassword} className="font-body text-white/30 hover:text-white/50 text-xs transition-colors">
+            ¿Olvidaste tu contraseña?
+          </button>
+        )}
+      </div>
     </div>
   )
 }
