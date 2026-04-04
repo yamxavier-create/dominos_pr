@@ -17,8 +17,8 @@ interface PlayerHandProps {
 
 const HAND_W = 34
 const HAND_H = 68
-const HAND_W_COMPACT = 26
-const HAND_H_COMPACT = 52
+const HAND_W_COMPACT = 24
+const HAND_H_COMPACT = 48
 const DRAG_THRESHOLD = 10
 const DROP_RADIUS = 80 // px proximity to snap to an end tile
 const MAX_PER_ROW = 7
@@ -204,9 +204,9 @@ export function PlayerHand({ tiles, validPlayIds, isMyTurn, forcedFirstTileId, c
 
   return (
     <>
-      <div className="w-full flex flex-col items-center gap-1 px-3 py-1">
+      <div className={`w-full flex flex-col items-center px-3 ${compact ? 'gap-0 py-0' : 'gap-1 py-1'}`}>
         {rows.map((row, ri) => (
-          <div key={ri} className="flex items-center justify-center gap-1.5">
+          <div key={ri} className={`flex items-center justify-center ${compact ? 'gap-1' : 'gap-1.5'}`}>
             {row.map(renderTile)}
           </div>
         ))}

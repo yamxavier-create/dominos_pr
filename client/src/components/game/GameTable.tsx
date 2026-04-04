@@ -164,7 +164,7 @@ export function GameTable() {
   }
 
   return (
-    <div className="flex flex-col overflow-hidden select-none felt-table" style={{ height: '100dvh', minHeight: '-webkit-fill-available' }}>
+    <div className="flex flex-col overflow-hidden select-none felt-table" style={{ height: '100dvh', minHeight: isLandscape ? 0 : '-webkit-fill-available' }}>
       {/* Score bar */}
       <ScorePanel
         scores={scores}
@@ -192,15 +192,16 @@ export function GameTable() {
         className="flex-1 overflow-hidden"
         style={{
           display: 'grid',
-          gridTemplateRows: 'auto 1fr auto',
+          gridTemplateRows: isLandscape ? 'minmax(0, auto) 1fr minmax(0, auto)' : 'auto 1fr auto',
           gridTemplateColumns: 'minmax(52px, auto) 1fr minmax(52px, auto)',
+          minHeight: 0,
         }}
       >
         {/* Top-left corner */}
         <div />
 
         {/* Top opponent */}
-        <div className="flex flex-col items-center justify-start pt-1 gap-0.5 relative" data-seat="top">
+        <div className="flex flex-col items-center justify-start pt-0.5 gap-0.5 relative overflow-hidden" data-seat="top">
           {topPlayer && (
             <>
               <PlayerSeat
@@ -302,18 +303,17 @@ export function GameTable() {
         <div />
 
         {/* My hand (bottom) */}
-        <div className="flex flex-col items-center justify-end gap-0.5 relative" data-seat="bottom" style={{ paddingBottom: 'max(4px, env(safe-area-inset-bottom))' }}>
-          {myPlayer && (
+        <div className="flex flex-col items-center justify-end gap-0 relative overflow-hidden" data-seat="bottom" style={{ paddingBottom: 'max(2px, env(safe-area-inset-bottom))' }}>
+          {myPlayer && !isLandscape && (
             <PlayerSeat
               player={myPlayer}
               isCurrentTurn={isMyTurn}
               position="bottom"
               {...teamInfo(myPlayerIndex, myPlayerIndex, playerCount, players)}
               {...seatCallProps(myPlayerIndex)}
-              compact={isLandscape}
             />
           )}
-          <AvatarReaction reactions={getReactions(myPlayerIndex)} position="bottom" />
+          {!isLandscape && <AvatarReaction reactions={getReactions(myPlayerIndex)} position="bottom" />}
           {getPaso(myPlayerIndex) && (
             <PasoChip show playerName={myPlayer?.name ?? ''} bonusPoints={getPaso(myPlayerIndex)!.passBonusAwarded} />
           )}
@@ -321,11 +321,11 @@ export function GameTable() {
             <FloatingChatBubble key={msg.id} message={msg} />
           ))}
           {showEndChooser && (
-            <div className="flex gap-3 mb-1">
+            <div className={`flex gap-3 ${isLandscape ? 'mb-0' : 'mb-1'}`}>
               <button
                 onClick={() => playTileOnEnd('left')}
                 onTouchEnd={(e) => { e.preventDefault(); playTileOnEnd('left') }}
-                className="px-4 py-1.5 rounded-full bg-gold/90 text-bg font-bold text-sm font-body shadow-lg active:scale-95 transition-transform"
+                className={`rounded-full bg-gold/90 text-bg font-bold font-body shadow-lg active:scale-95 transition-transform ${isLandscape ? 'px-3 py-0.5 text-xs' : 'px-4 py-1.5 text-sm'}`}
                 style={{ touchAction: 'manipulation' }}
               >
                 ← Izq ({board.leftEnd})
@@ -333,7 +333,7 @@ export function GameTable() {
               <button
                 onClick={() => playTileOnEnd('right')}
                 onTouchEnd={(e) => { e.preventDefault(); playTileOnEnd('right') }}
-                className="px-4 py-1.5 rounded-full bg-gold/90 text-bg font-bold text-sm font-body shadow-lg active:scale-95 transition-transform"
+                className={`rounded-full bg-gold/90 text-bg font-bold font-body shadow-lg active:scale-95 transition-transform ${isLandscape ? 'px-3 py-0.5 text-xs' : 'px-4 py-1.5 text-sm'}`}
                 style={{ touchAction: 'manipulation' }}
               >
                 Der ({board.rightEnd}) →
