@@ -5,6 +5,7 @@ import { socket } from '../../socket'
 import { useCallStore } from '../../store/callStore'
 import { useAuthStore } from '../../store/authStore'
 import { useSocialStore, Friend } from '../../store/socialStore'
+import { API_BASE } from '../../apiBase'
 
 const teamColors = ['#22C55E', '#F97316', '#22C55E', '#F97316']
 const seatLabels = ['Host', 'Jugador 2', 'Jugador 3', 'Jugador 4']
@@ -39,7 +40,7 @@ export function RoomLobby() {
   // Fetch friends when invite panel opens
   useEffect(() => {
     if (!showInvite || !token) return
-    fetch(`${(import.meta.env.VITE_API_URL || '')}/api/social/friends`, {
+    fetch(`${API_BASE}/api/social/friends`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.ok ? r.json() : Promise.reject())

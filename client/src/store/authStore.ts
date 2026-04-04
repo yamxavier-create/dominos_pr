@@ -1,4 +1,6 @@
 import { create } from 'zustand'
+import { Capacitor } from '@capacitor/core'
+import { Preferences } from '@capacitor/preferences'
 
 export interface AuthUser {
   id: string
@@ -21,6 +23,33 @@ interface AuthState {
   updateUser: (partial: Partial<AuthUser>) => void
 }
 
+// Unified token storage — Capacitor Preferences on native, localStorage on web
+const isNative = Capacitor.isNativePlatform()
+
+export async function getStoredToken(): Promise<string | null> {
+  if (isNative) {
+    const { value } = await Preferences.get({ key: 'auth_token' })
+    return value
+  }
+  return localStorage.getItem('auth_token')
+}
+
+async function storeToken(token: string) {
+  if (isNative) {
+    await Preferences.set({ key: 'auth_token', value: token })
+  } else {
+    localStorage.setItem('auth_token', token)
+  }
+}
+
+async function removeToken() {
+  if (isNative) {
+    await Preferences.remove({ key: 'auth_token' })
+  } else {
+    localStorage.removeItem('auth_token')
+  }
+}
+
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   token: null,
@@ -28,12 +57,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   loading: true,
 
   setAuth: (user, token) => {
-    localStorage.setItem('auth_token', token)
+    storeToken(token)
     set({ user, token, isAuthenticated: true, loading: false })
   },
 
   logout: () => {
-    localStorage.removeItem('auth_token')
+    removeToken()
     set({ user: null, token: null, isAuthenticated: false, loading: false })
   },
 

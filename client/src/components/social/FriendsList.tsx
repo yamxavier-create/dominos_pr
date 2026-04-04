@@ -2,8 +2,7 @@ import { useEffect } from 'react'
 import { useAuthStore } from '../../store/authStore'
 import { useSocialStore, Friend, PresenceStatus } from '../../store/socialStore'
 import { socket } from '../../socket'
-
-const API_BASE = import.meta.env.VITE_API_URL || ''
+import { API_BASE } from '../../apiBase'
 
 export function FriendsList() {
   const token = useAuthStore((s) => s.token)
