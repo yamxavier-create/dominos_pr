@@ -6,9 +6,10 @@ interface ScoreHistoryPanelProps {
   myPlayerIndex: number
   playerCount?: number
   playerNames?: string[]
+  gameMode?: string
 }
 
-export function ScoreHistoryPanel({ isOpen, entries, myPlayerIndex, playerCount = 4, playerNames }: ScoreHistoryPanelProps) {
+export function ScoreHistoryPanel({ isOpen, entries, myPlayerIndex, playerCount = 4, playerNames, gameMode }: ScoreHistoryPanelProps) {
   const is2Player = playerCount === 2
   const myTeam = myPlayerIndex % 2 === 0 ? 0 : 1
 
@@ -51,19 +52,19 @@ export function ScoreHistoryPanel({ isOpen, entries, myPlayerIndex, playerCount 
                 <span className="text-white/50 flex-1 font-header text-sm">
                   {entry.data.scores.team0} | {entry.data.scores.team1}
                 </span>
-                {entry.data.isCapicu && (
+                {entry.data.reason === 'blocked' && (
+                  <span className="bg-amber-600 text-white font-bold text-[10px] px-1.5 py-0.5 rounded-full shrink-0">
+                    Trancado
+                  </span>
+                )}
+                {gameMode !== 'modo200' && entry.data.isCapicu && (
                   <span className="bg-gold text-bg font-bold text-[10px] px-1.5 py-0.5 rounded-full shrink-0">
                     Capicú
                   </span>
                 )}
-                {entry.data.isChuchazo && (
+                {gameMode !== 'modo200' && entry.data.isChuchazo && (
                   <span className="bg-accent text-white font-bold text-[10px] px-1.5 py-0.5 rounded-full shrink-0">
                     Chuchazo
-                  </span>
-                )}
-                {entry.data.reason === 'blocked' && !entry.data.isCapicu && !entry.data.isChuchazo && (
-                  <span className="bg-amber-600 text-white font-bold text-[10px] px-1.5 py-0.5 rounded-full shrink-0">
-                    Trancado
                   </span>
                 )}
               </div>

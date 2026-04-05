@@ -185,6 +185,7 @@ export function GameTable() {
         myPlayerIndex={myPlayerIndex}
         playerCount={playerCount}
         playerNames={players.map(p => p.name)}
+        gameMode={gameMode}
       />
 
       {/* Main table area */}

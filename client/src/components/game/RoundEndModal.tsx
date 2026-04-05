@@ -70,8 +70,15 @@ export function RoundEndModal() {
           )}
         </div>
 
-        {/* Special bonus badges */}
-        {(roundEndData.isCapicu || roundEndData.isChuchazo) && (
+        {/* Special badges */}
+        {roundEndData.reason === 'blocked' && (
+          <div className="flex justify-center px-6 py-2">
+            <span className="bg-white/10 text-white/70 font-bold text-sm px-3 py-1 rounded-full border border-white/20">
+              ¡Trancado!
+            </span>
+          </div>
+        )}
+        {!isModo200 && (roundEndData.isCapicu || roundEndData.isChuchazo) && (
           <div className="flex justify-center gap-2 px-6 py-2">
             {roundEndData.isCapicu && (
               <span className="bg-gold text-bg font-bold text-sm px-3 py-1 rounded-full">
