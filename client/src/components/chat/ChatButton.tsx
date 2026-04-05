@@ -24,7 +24,7 @@ export function ChatButton() {
   const [pos, setPos] = useState<{ x: number; y: number }>(() => {
     const saved = loadPosition()
     if (saved) return saved
-    return { x: window.innerWidth - 60, y: window.innerHeight * 0.35 }
+    return { x: 12, y: window.innerHeight * 0.65 }
   })
 
   const draggingRef = useRef(false)

@@ -321,22 +321,22 @@ export function GameTable() {
             <FloatingChatBubble key={msg.id} message={msg} />
           ))}
           {showEndChooser && (
-            <div className={`flex gap-3 ${isLandscape ? 'mb-0' : 'mb-1'}`}>
+            <div className="flex gap-2 mb-1">
               <button
                 onClick={() => playTileOnEnd('left')}
                 onTouchEnd={(e) => { e.preventDefault(); playTileOnEnd('left') }}
-                className={`rounded-full bg-gold/90 text-bg font-bold font-body shadow-lg active:scale-95 transition-transform ${isLandscape ? 'px-3 py-0.5 text-xs' : 'px-4 py-1.5 text-sm'}`}
+                className="flex items-center gap-1 rounded-full bg-surface border border-gold/40 text-gold font-bold font-body shadow-lg active:scale-90 transition-transform px-3 py-1.5 text-sm"
                 style={{ touchAction: 'manipulation' }}
               >
-                ← Izq ({board.leftEnd})
+                ◀ <span className="font-header text-lg">{board.leftEnd}</span>
               </button>
               <button
                 onClick={() => playTileOnEnd('right')}
                 onTouchEnd={(e) => { e.preventDefault(); playTileOnEnd('right') }}
-                className={`rounded-full bg-gold/90 text-bg font-bold font-body shadow-lg active:scale-95 transition-transform ${isLandscape ? 'px-3 py-0.5 text-xs' : 'px-4 py-1.5 text-sm'}`}
+                className="flex items-center gap-1 rounded-full bg-surface border border-gold/40 text-gold font-bold font-body shadow-lg active:scale-90 transition-transform px-3 py-1.5 text-sm"
                 style={{ touchAction: 'manipulation' }}
               >
-                Der ({board.rightEnd}) →
+                <span className="font-header text-lg">{board.rightEnd}</span> ▶
               </button>
             </div>
           )}

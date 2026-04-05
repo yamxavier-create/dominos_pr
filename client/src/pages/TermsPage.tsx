@@ -4,7 +4,7 @@ export function TermsPage() {
   const navigate = useNavigate()
 
   return (
-    <div className="min-h-screen felt-table overflow-y-auto">
+    <div className="fixed inset-0 felt-table overflow-y-auto z-50">
       <div className="max-w-2xl mx-auto px-5 py-8 text-white/80 font-body text-sm leading-relaxed" style={{ paddingTop: 'max(32px, env(safe-area-inset-top))' }}>
         <button
           onClick={() => navigate(-1)}

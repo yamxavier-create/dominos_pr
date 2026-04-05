@@ -148,10 +148,10 @@ export function RoomLobby() {
                 <div className="flex-1 min-w-0">
                   {player ? (
                     <>
-                      <p className="font-body text-white text-sm truncate font-semibold">
+                      <p className="font-body text-white text-xs font-semibold leading-tight break-words">
                         {player.name}
-                        {isMe && <span className="text-xs ml-1" style={{ color }}>  (tú)</span>}
-                        {player.isBot && <span className="text-xs ml-1 text-white/30">🤖</span>}
+                        {isMe && <span className="text-[10px] ml-1" style={{ color }}>(tú)</span>}
+                        {player.isBot && <span className="text-[10px] ml-1 text-white/30">🤖</span>}
                       </p>
                       <p className="font-body text-white/30 text-[11px]">
                         {player.isBot ? 'Bot' : seatLabels[seatIndex]}
