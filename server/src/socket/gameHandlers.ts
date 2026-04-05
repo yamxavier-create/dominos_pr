@@ -176,6 +176,7 @@ function executeBotPlay(io: Server, game: ServerGameState, rooms: RoomManager) {
       isCapicu: capicuTriggered,
       isChuchazo: chuchazoTriggered,
       scores: updatedScores,
+      passPointsThisHand: game.passPointsThisHand,
       nextStarterIndex: player.index,
     })
 
@@ -344,6 +345,7 @@ function processAutoPassCascade(
         const updatedScores = applyPassBonus200(game.scores, idx, game.gamePassCount)
         game.scores = updatedScores
         game.gamePassCount++
+        game.passPointsThisHand += passBonusAwarded
 
         if (scoresReachedTarget(game.scores, game.targetScore)) {
           game.currentPlayerIndex = idx
@@ -449,6 +451,7 @@ function handleBlockedGame(io: Server, game: ServerGameState): boolean {
     isCapicu: false,
     isChuchazo: false,
     scores: updatedScores,
+    passPointsThisHand: game.passPointsThisHand,
     nextStarterIndex: nextStarter,
   })
 
@@ -544,6 +547,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
       gameWinnerIndex: starterIdx,
       boneyard,
       awaitingBoneyardDraw: false,
+      passPointsThisHand: 0,
     }
 
     room.game = game
@@ -660,6 +664,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
         isCapicu: capicuTriggered,
         isChuchazo: chuchazoTriggered,
         scores: updatedScores,
+        passPointsThisHand: game.passPointsThisHand,
         nextStarterIndex: player.index,
       })
 
@@ -714,6 +719,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     game.board = { tiles: [], leftEnd: null, rightEnd: null }
     game.consecutivePasses = 0
     game.handPassCount = 0
+    game.passPointsThisHand = 0
     game.boneyard = boneyard
     game.awaitingBoneyardDraw = false
     // gamePassCount intentionally NOT reset — it tracks total passes for the entire game (Modo 200 bonus)
@@ -781,6 +787,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     game.board = { tiles: [], leftEnd: null, rightEnd: null }
     game.consecutivePasses = 0
     game.handPassCount = 0
+    game.passPointsThisHand = 0
     game.gamePassCount = 0
     game.boneyard = boneyard
     game.firstPlayMade = false
@@ -845,6 +852,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
         game.board = { tiles: [], leftEnd: null, rightEnd: null }
         game.consecutivePasses = 0
         game.handPassCount = 0
+    game.passPointsThisHand = 0
         game.gamePassCount = 0
         game.boneyard = boneyard
         game.firstPlayMade = false

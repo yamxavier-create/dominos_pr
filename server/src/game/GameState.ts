@@ -67,6 +67,7 @@ export interface ServerGameState {
   gameWinnerIndex: number   // player who won the last game (starts the next one)
   boneyard: Tile[]          // tiles remaining in draw pile. Empty [] in 4-player; 14 tiles in 2-player
   awaitingBoneyardDraw: boolean  // true when current player must draw before playing (2-player only)
+  passPointsThisHand: number    // accumulated pass bonus points this hand (Modo 200)
 }
 
 // ─── Room ─────────────────────────────────────────────────────────────────────

@@ -97,12 +97,17 @@ export function RoundEndModal() {
         <div className="px-6 py-3 border-t border-white/10">
           <div className="flex justify-between items-center text-sm font-body mb-1">
             <span className="text-white/60">
-              {isModo200 && roundEndData.rawPipCount !== undefined
-                ? `Fichas (${roundEndData.rawPipCount} → pts)`
-                : 'Puntos de fichas'}
+              {roundEndData.reason === 'blocked' ? 'Trancado' : 'Fichas'}
+              {isModo200 && roundEndData.rawPipCount !== undefined && ` (${roundEndData.rawPipCount} pips)`}
             </span>
             <span className="text-white font-bold">+{roundEndData.pointsFromPips}</span>
           </div>
+          {isModo200 && (roundEndData.passPointsThisHand ?? 0) > 0 && (
+            <div className="flex justify-between items-center text-sm font-body mb-1">
+              <span className="text-white/60">Pases</span>
+              <span className="text-white font-bold">+{roundEndData.passPointsThisHand}</span>
+            </div>
+          )}
           {roundEndData.bonusPoints > 0 && (
             <div className="flex justify-between items-center text-sm font-body mb-1">
               <span className="text-gold">Bonificación</span>
@@ -111,7 +116,7 @@ export function RoundEndModal() {
           )}
           <div className="flex justify-between items-center font-body border-t border-white/10 pt-1.5 mt-1.5">
             <span className="text-white font-semibold">Total ganado</span>
-            <span className="font-header text-2xl text-white leading-none">+{roundEndData.totalPointsScored}</span>
+            <span className="font-header text-2xl text-white leading-none">+{roundEndData.totalPointsScored + (roundEndData.passPointsThisHand ?? 0)}</span>
           </div>
         </div>
 

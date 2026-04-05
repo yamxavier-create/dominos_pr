@@ -90,6 +90,7 @@ export interface RoundEndPayload {
   isCapicu: boolean
   isChuchazo: boolean
   scores: TeamScores
+  passPointsThisHand?: number
   nextStarterIndex: number
 }
 
