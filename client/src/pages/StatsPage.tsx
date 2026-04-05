@@ -88,7 +88,7 @@ export function StatsPage() {
 
   return (
     <div className="min-h-screen felt-table overflow-y-auto">
-      <div className="max-w-md mx-auto px-4 py-6">
+      <div className="max-w-md mx-auto px-4 py-6" style={{ paddingTop: 'max(24px, env(safe-area-inset-top))' }}>
         <button
           onClick={() => navigate('/')}
           className="font-body text-white/40 hover:text-white/70 text-sm mb-4 transition-colors"

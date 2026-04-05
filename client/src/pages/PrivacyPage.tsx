@@ -5,7 +5,7 @@ export function PrivacyPage() {
 
   return (
     <div className="min-h-screen felt-table overflow-y-auto">
-      <div className="max-w-2xl mx-auto px-5 py-8 text-white/80 font-body text-sm leading-relaxed">
+      <div className="max-w-2xl mx-auto px-5 py-8 text-white/80 font-body text-sm leading-relaxed" style={{ paddingTop: 'max(32px, env(safe-area-inset-top))' }}>
         <button
           onClick={() => navigate(-1)}
           className="text-white/40 hover:text-white/70 text-sm mb-6 transition-colors"
