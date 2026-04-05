@@ -149,10 +149,29 @@ export function RoomLobby() {
                   {player ? (
                     <>
                       <p className="font-body text-white text-sm truncate font-semibold">
-                        {player.name}{isMe && <span className="text-xs ml-1" style={{ color }}>  (tú)</span>}
+                        {player.name}
+                        {isMe && <span className="text-xs ml-1" style={{ color }}>  (tú)</span>}
+                        {player.isBot && <span className="text-xs ml-1 text-white/30">🤖</span>}
                       </p>
-                      <p className="font-body text-white/30 text-[11px]">{seatLabels[seatIndex]}</p>
+                      <p className="font-body text-white/30 text-[11px]">
+                        {player.isBot ? 'Bot' : seatLabels[seatIndex]}
+                        {isHost && player.isBot && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); socket.emit('room:remove_bot', { seatIndex }) }}
+                            className="ml-2 text-accent/60 hover:text-accent text-[10px] transition-colors"
+                          >
+                            quitar
+                          </button>
+                        )}
+                      </p>
                     </>
+                  ) : isHost ? (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); socket.emit('room:add_bot') }}
+                      className="font-body text-primary/50 hover:text-primary text-sm transition-colors"
+                    >
+                      + Añadir Bot
+                    </button>
                   ) : (
                     <p className="font-body text-white/20 text-sm italic">
                       Esperando <WaitingDots />

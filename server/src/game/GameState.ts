@@ -38,6 +38,7 @@ export interface PlayerState {
   tiles: Tile[]
   connected: boolean
   userId?: string  // Set for authenticated users, undefined for guests
+  isBot?: boolean  // True for AI players
 }
 
 export interface TeamScores {
@@ -76,6 +77,7 @@ export interface RoomPlayer {
   seatIndex: number
   connected: boolean
   userId?: string  // Set for authenticated users, undefined for guests
+  isBot?: boolean  // True for AI players
 }
 
 export interface Room {

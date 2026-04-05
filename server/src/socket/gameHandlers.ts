@@ -1,6 +1,7 @@
 import { Socket, Server } from 'socket.io'
 import prisma from '../db/prisma'
 import { RoomManager } from '../game/RoomManager'
+import { chooseBotPlay, isBotSocketId, BOT_THINK_DELAY, BOT_DRAW_DELAY } from '../game/BotPlayer'
 import {
   ServerGameState,
   BoardState,
@@ -77,6 +78,165 @@ async function persistGameResult(game: ServerGameState, winningTeam: number) {
 }
 
 /**
+ * Schedule a bot to play its turn after a delay.
+ * This is the main entry point for bot auto-play.
+ */
+function scheduleBotTurn(io: Server, game: ServerGameState, rooms: RoomManager) {
+  if (game.phase !== 'playing') return
+  const currentPlayer = game.players[game.currentPlayerIndex]
+  if (!currentPlayer?.isBot) return
+
+  const delay = game.awaitingBoneyardDraw ? BOT_DRAW_DELAY : BOT_THINK_DELAY
+
+  setTimeout(() => {
+    // Re-check state — game may have ended or player changed
+    if (game.phase !== 'playing') return
+    if (game.players[game.currentPlayerIndex]?.socketId !== currentPlayer.socketId) return
+
+    if (game.awaitingBoneyardDraw) {
+      executeBotBoneyardDraw(io, game, rooms)
+    } else {
+      executeBotPlay(io, game, rooms)
+    }
+  }, delay)
+}
+
+function executeBotPlay(io: Server, game: ServerGameState, rooms: RoomManager) {
+  const player = game.players[game.currentPlayerIndex]
+  if (!player?.isBot) return
+
+  const play = chooseBotPlay(player.tiles, game.board, game.firstPlayMade, game.forcedFirstTileId)
+  if (!play) {
+    // No valid plays — auto-pass cascade handles this already
+    // But if we get here with no valid plays and no boneyard, cascade should have run
+    return
+  }
+
+  const { tileId, targetEnd } = play
+  const tileIdx = player.tiles.findIndex(t => t.id === tileId)
+  if (tileIdx === -1) return
+
+  const tile = player.tiles[tileIdx]
+
+  // Detect special moves
+  const capicuTriggered = game.firstPlayMade && player.tiles.length === 1 && isCapicu(tile, game.board)
+  const chuchazoTriggered = player.tiles.length === 1 && isChuchazo(tile)
+
+  // Apply tile to board
+  game.board = applyTileToBoard(game.board, tile, targetEnd, player.index)
+  player.tiles.splice(tileIdx, 1)
+  game.consecutivePasses = 0
+  game.firstPlayMade = true
+  game.forcedFirstTileId = ''
+
+  // Check if bot won the hand (played out)
+  if (player.tiles.length === 0) {
+    const winningTeam = player.index % 2 as 0 | 1
+    let pointsScored: number
+    let blockBonusPoints = 0
+
+    if (game.gameMode === 'modo200') {
+      pointsScored = calculatePlayOutPoints(game.players, player.index)
+    } else {
+      pointsScored = calculatePlayOutPoints(game.players, player.index)
+      blockBonusPoints = calculateMode500Bonuses(game.handNumber, capicuTriggered, chuchazoTriggered)
+    }
+
+    const { updatedScores, gameOver } = applyScore(game.scores, winningTeam, pointsScored + blockBonusPoints, game.targetScore)
+    game.scores = updatedScores
+    game.phase = 'round_end'
+
+    broadcastState(io, game)
+
+    io.to(game.roomCode).emit('game:round_ended', {
+      reason: 'played_out',
+      winnerIndex: player.index,
+      winningTeam,
+      pointsFromPips: pointsScored,
+      bonusPoints: blockBonusPoints,
+      totalPointsScored: pointsScored + blockBonusPoints,
+      remainingTiles: game.players.map(p => ({
+        playerIndex: p.index,
+        playerName: p.name,
+        tiles: p.tiles,
+        pipSum: handPipSum(p.tiles),
+      })),
+      isCapicu: capicuTriggered,
+      isChuchazo: chuchazoTriggered,
+      scores: updatedScores,
+      nextStarterIndex: player.index,
+    })
+
+    if (gameOver) {
+      game.phase = 'game_end'
+      const winTeam = updatedScores.team0 >= game.targetScore ? 0 : 1
+      io.to(game.roomCode).emit('game:game_ended', {
+        winningTeam: winTeam,
+        finalScores: updatedScores,
+        totalRounds: game.handNumber,
+      })
+      persistGameResult(game, winTeam)
+    }
+    return
+  }
+
+  // Process auto-pass cascade for next player(s)
+  const nextIdx = nextPlayerIndex(player.index, game.players.length)
+  const ended = processAutoPassCascade(io, game, nextIdx, player.index)
+  broadcastState(io, game)
+
+  // If game didn't end and next player is a bot, schedule their turn
+  if (!ended && game.phase === 'playing') {
+    scheduleBotTurn(io, game, rooms)
+  }
+}
+
+function executeBotBoneyardDraw(io: Server, game: ServerGameState, rooms: RoomManager) {
+  const player = game.players[game.currentPlayerIndex]
+  if (!player?.isBot || !game.awaitingBoneyardDraw) return
+
+  if (game.boneyard.length === 0) {
+    game.awaitingBoneyardDraw = false
+    return
+  }
+
+  // Draw a tile
+  const drawnTile = game.boneyard.pop()!
+  player.tiles.push(drawnTile)
+  game.awaitingBoneyardDraw = false
+
+  // Broadcast draw to human players (they see null tile for opponent)
+  io.to(game.roomCode).emit('game:boneyard_draw', {
+    playerIndex: player.index,
+    tile: null,
+    boneyardCount: game.boneyard.length,
+  })
+
+  // Check if bot now has valid plays
+  const validPlays = getValidPlays(player.tiles, game.board, game.firstPlayMade, game.forcedFirstTileId)
+  if (validPlays.length > 0) {
+    broadcastState(io, game)
+    // Bot can play now
+    scheduleBotTurn(io, game, rooms)
+  } else if (game.boneyard.length > 0) {
+    // Must draw again
+    game.awaitingBoneyardDraw = true
+    broadcastState(io, game)
+    scheduleBotTurn(io, game, rooms)
+  } else {
+    // No valid plays and boneyard empty — auto-pass
+    const nextIdx = nextPlayerIndex(player.index, game.players.length)
+    game.consecutivePasses++
+    io.to(game.roomCode).emit('game:player_passed', { playerIndex: player.index })
+    const ended = processAutoPassCascade(io, game, nextIdx, player.index)
+    broadcastState(io, game)
+    if (!ended && game.phase === 'playing') {
+      scheduleBotTurn(io, game, rooms)
+    }
+  }
+}
+
+/**
  * Sync game player socket IDs from room players.
  * Handles cases where sockets reconnected and got new IDs during the game.
  */
@@ -95,7 +255,7 @@ function syncPlayerSocketIds(game: ServerGameState, rooms: RoomManager) {
 function broadcastState(io: Server, game: ServerGameState, rooms?: RoomManager) {
   if (rooms) syncPlayerSocketIds(game, rooms)
   for (const player of game.players) {
-    if (!player.connected) continue
+    if (!player.connected || isBotSocketId(player.socketId)) continue
     const clientState = buildClientGameState(game, player.index)
     io.to(player.socketId).emit('game:state_snapshot', {
       gameState: clientState,
@@ -110,7 +270,7 @@ function broadcastStateWithAction(
   lastAction: object
 ) {
   for (const player of game.players) {
-    if (!player.connected) continue
+    if (!player.connected || isBotSocketId(player.socketId)) continue
     const clientState = buildClientGameState(game, player.index)
     io.to(player.socketId).emit('game:state_snapshot', {
       gameState: clientState,
@@ -357,6 +517,8 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
         name: rp.name,
         tiles: hands[i],
         connected: rp.connected,
+        userId: rp.userId,
+        isBot: rp.isBot || false,
       })),
       board: { tiles: [], leftEnd: null, rightEnd: null },
       currentPlayerIndex: starterIdx,
@@ -377,8 +539,9 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     room.rematchVotes = []
     room.chatHistory = []
 
-    // Send personalised game state to each player
+    // Send personalised game state to each human player
     for (const player of game.players) {
+      if (isBotSocketId(player.socketId)) continue
       const clientState = buildClientGameState(game, player.index)
       io.to(player.socketId).emit('game:started', { gameState: clientState })
     }
@@ -387,6 +550,9 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     for (const rp of room.players) {
       if (rp.userId) presence.notifyStatusChange(rp.userId)
     }
+
+    // If first player is a bot, schedule their turn
+    scheduleBotTurn(io, game, rooms)
   })
 
   socket.on('game:play_tile', ({ roomCode, tileId, targetEnd }: {
@@ -509,6 +675,11 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
       tile,
       targetEnd,
     })
+
+    // If next player is a bot, schedule their turn
+    if (!ended && game.phase === 'playing') {
+      scheduleBotTurn(io, game, rooms)
+    }
   })
 
   socket.on('game:next_hand', ({ roomCode }: { roomCode: string }) => {
@@ -564,12 +735,16 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     // Sync socket IDs and send updated state
     syncPlayerSocketIds(game, rooms)
     for (const player of game.players) {
+      if (isBotSocketId(player.socketId)) continue
       const clientState = buildClientGameState(game, player.index)
       io.to(player.socketId).emit('game:state_snapshot', {
         gameState: clientState,
         lastAction: null,
       })
     }
+
+    // If starter is a bot, schedule their turn
+    scheduleBotTurn(io, game, rooms)
   })
 
   socket.on('game:next_game', ({ roomCode }: { roomCode: string }) => {
@@ -613,11 +788,15 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     // Sync socket IDs from room (handles reconnections during game)
     syncPlayerSocketIds(game, rooms)
 
-    // Send personalised game state to each player
+    // Send personalised game state to each human player
     for (const player of game.players) {
+      if (isBotSocketId(player.socketId)) continue
       const clientState = buildClientGameState(game, player.index)
       io.to(player.socketId).emit('game:started', { gameState: clientState })
     }
+
+    // If starter is a bot, schedule their turn
+    scheduleBotTurn(io, game, rooms)
   })
 
   socket.on('game:rematch_vote', ({ roomCode }: { roomCode: string }) => {
@@ -731,6 +910,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     const ended = processAutoPassCascade(io, game, player.index, player.index)
     if (!ended) {
       broadcastState(io, game)
+      scheduleBotTurn(io, game, rooms)
     }
   })
 }
