@@ -341,9 +341,10 @@ export function GameBoard({ board }: GameBoardProps) {
   // Compute bounding box of all tiles to determine if scaling is needed
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
   board.tiles.forEach((bt, idx) => {
-    const { pos } = layout[idx]
-    const corner = layout[idx].corner
-    const { w, h } = tileDisplaySize(bt, corner)
+    const item = layout[idx]
+    if (!item) return // guard against layout/tiles mismatch
+    const { pos } = item
+    const { w, h } = tileDisplaySize(bt, item.corner)
     minX = Math.min(minX, pos.x - w / 2)
     minY = Math.min(minY, pos.y - h / 2)
     maxX = Math.max(maxX, pos.x + w / 2)
@@ -354,20 +355,26 @@ export function GameBoard({ board }: GameBoardProps) {
   //   rendered position = center + (original - center) * scale
   // So: rightExtent * scale <= dims.w / 2  (right side)
   //     leftExtent  * scale <= dims.w / 2  (left side)
-  const BADGE_MARGIN = 16
+  const BADGE_MARGIN = 20
+  // Extra inset to account for table-surface border/margin
+  const BORDER_INSET = 10
+  const availW = (dims.w / 2) - BORDER_INSET
+  const availH = (dims.h / 2) - BORDER_INSET
   const cx = dims.w / 2
   const cy = dims.h / 2
   const rightExtent = maxX - cx + BADGE_MARGIN
   const leftExtent  = cx - minX + BADGE_MARGIN
   const bottomExtent = maxY - cy + BADGE_MARGIN
   const topExtent    = cy - minY + BADGE_MARGIN
-  const scale = Math.min(
+  const rawScale = Math.min(
     1,
-    rightExtent  > 0 ? (dims.w / 2) / rightExtent  : 1,
-    leftExtent   > 0 ? (dims.w / 2) / leftExtent   : 1,
-    bottomExtent > 0 ? (dims.h / 2) / bottomExtent : 1,
-    topExtent    > 0 ? (dims.h / 2) / topExtent    : 1,
+    rightExtent  > 0 ? availW / rightExtent  : 1,
+    leftExtent   > 0 ? availW / leftExtent   : 1,
+    bottomExtent > 0 ? availH / bottomExtent : 1,
+    topExtent    > 0 ? availH / topExtent    : 1,
   )
+  // Guard against NaN or invalid values
+  const scale = Number.isFinite(rawScale) ? Math.max(0.15, rawScale) : 1
 
 
   return (
@@ -382,8 +389,9 @@ export function GameBoard({ board }: GameBoardProps) {
       >
         {/* Tiles */}
         {board.tiles.map((bt, idx) => {
-          const { pos, flipped, corner } = layout[idx]
-          if (!pos) return null
+          const item = layout[idx]
+          if (!item) return null
+          const { pos, flipped, corner } = item
           const { w, h } = tileDisplaySize(bt, corner)
           const isFlying = bt.tile.id === flyingTileId
           // Mark the end tiles so drag-drop and fly animation can find them
