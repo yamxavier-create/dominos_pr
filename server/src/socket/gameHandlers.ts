@@ -31,6 +31,16 @@ import {
 } from '../game/GameEngine'
 
 /**
+ * Modo 200 pip-to-point conversion table:
+ * 0–14 pips = 1 pt, 15–24 = 2 pt, 25–34 = 3 pt, 35–44 = 4 pt, etc.
+ */
+function pipsToModo200Points(pips: number): number {
+  if (pips <= 0) return 0
+  if (pips <= 14) return 1
+  return Math.floor((pips - 15) / 10) + 2
+}
+
+/**
  * Persist game result to database and update player stats.
  */
 async function persistGameResult(game: ServerGameState, winningTeam: number) {
@@ -135,10 +145,11 @@ function executeBotPlay(io: Server, game: ServerGameState, rooms: RoomManager) {
     let pointsScored: number
     let blockBonusPoints = 0
 
+    const rawPips = calculatePlayOutPoints(game.players, player.index)
     if (game.gameMode === 'modo200') {
-      pointsScored = calculatePlayOutPoints(game.players, player.index)
+      pointsScored = pipsToModo200Points(rawPips)
     } else {
-      pointsScored = calculatePlayOutPoints(game.players, player.index)
+      pointsScored = rawPips
       blockBonusPoints = calculateMode500Bonuses(game.handNumber, capicuTriggered, chuchazoTriggered)
     }
 
@@ -152,6 +163,7 @@ function executeBotPlay(io: Server, game: ServerGameState, rooms: RoomManager) {
       reason: 'played_out',
       winnerIndex: player.index,
       winningTeam,
+      rawPipCount: rawPips,
       pointsFromPips: pointsScored,
       bonusPoints: blockBonusPoints,
       totalPointsScored: pointsScored + blockBonusPoints,
@@ -396,7 +408,7 @@ function handleBlockedGame(io: Server, game: ServerGameState): boolean {
     winnerIndex = result.winnerIndex
     winningTeam = result.winningTeam
     rawPips = result.pointsScored
-    pointsScored = Math.round(rawPips / 10)
+    pointsScored = pipsToModo200Points(rawPips)
   } else {
     const result = calculateBlockedResult(game.players)
     winningTeam = result.winningTeam
@@ -603,7 +615,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     if (player.tiles.length === 0) {
       const winningTeam = playerTeam(player.index)
       const rawPips = calculatePlayOutPoints(game.players, player.index)
-      const pipsFromOthers = game.gameMode === 'modo200' ? Math.round(rawPips / 10) : rawPips
+      const pipsFromOthers = game.gameMode === 'modo200' ? pipsToModo200Points(rawPips) : rawPips
 
       let bonusPoints = 0
       if (game.gameMode === 'modo500') {
