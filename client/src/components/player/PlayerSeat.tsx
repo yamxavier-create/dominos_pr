@@ -54,7 +54,7 @@ export function PlayerSeat({
   compact,
 }: PlayerSeatProps) {
   const isSide = position === 'left' || position === 'right'
-  const avatarSize = isSide ? 40 : compact ? 44 : 80
+  const avatarSize = isSide ? 56 : compact ? 48 : 80
   const initials = player.name.slice(0, 2).toUpperCase()
 
   const inCall = useCallStore(s =>

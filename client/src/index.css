@@ -430,12 +430,12 @@ body {
 .table-surface {
   background: radial-gradient(ellipse at center, #173022 0%, #0A1A0F 80%, #060E08 100%);
   border-radius: 16px;
-  border: 4px solid #5C3A1E;
+  border: 3px solid #5C3A1E;
   box-shadow:
     inset 0 2px 8px rgba(0,0,0,0.3),
     0 8px 32px rgba(0,0,0,0.6),
     0 2px 8px rgba(0,0,0,0.4);
-  margin: 4px;
+  margin: 2px;
 }
 
 /* ─── Landscape safe-area handling ─── */

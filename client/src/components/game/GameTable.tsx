@@ -302,11 +302,12 @@ export function GameTable() {
 
         {/* My hand (bottom) */}
         <div className={`flex flex-col items-center justify-end relative ${isLandscape ? 'gap-0 overflow-hidden' : 'gap-1'}`} data-seat="bottom" style={{ paddingBottom: isLandscape ? 'max(2px, env(safe-area-inset-bottom))' : 'max(8px, env(safe-area-inset-bottom))' }}>
-          {myPlayer && !isLandscape && (
+          {myPlayer && (
             <PlayerSeat
               player={myPlayer}
               isCurrentTurn={isMyTurn}
               position="bottom"
+              compact={isLandscape}
               {...teamInfo(myPlayerIndex, myPlayerIndex, playerCount, players)}
               {...seatCallProps(myPlayerIndex)}
             />
