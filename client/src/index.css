@@ -205,10 +205,7 @@ body {
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
 }
-.game-room-bg {
-  padding-top: env(safe-area-inset-top);
-  /* bottom safe-area handled inline by PlayerHand container */
-}
+/* game-room-bg: NO padding here — safe-area-inset-top is on .game-glass-panel (ScorePanel) */
 
 /* Chat panel slide in from right */
 @keyframes slide-in-right {
@@ -517,6 +514,7 @@ body {
 
 /* Horizontal glass bar for score panel */
 .game-glass-panel {
+  padding-top: env(safe-area-inset-top);
   background: linear-gradient(
     180deg,
     rgba(15, 35, 24, 0.8) 0%,
