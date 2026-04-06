@@ -164,7 +164,7 @@ export function GameTable() {
   }
 
   return (
-    <div className="flex flex-col overflow-hidden select-none game-room-bg" style={{ height: '100dvh', minHeight: isLandscape ? 0 : '-webkit-fill-available' }}>
+    <div className="fixed inset-0 flex flex-col overflow-hidden select-none game-room-bg">
       {/* Score bar */}
       <ScorePanel
         scores={scores}
