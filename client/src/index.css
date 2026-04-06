@@ -28,6 +28,7 @@ html {
   height: -webkit-fill-available;
   overflow: hidden;
   background: #060E08;
+  color-scheme: dark;
 }
 
 body, #root {
@@ -197,7 +198,18 @@ body {
   animation: chat-bubble-anim 4s ease-in-out forwards;
 }
 
-/* Felt table background */
+/* Felt table background — safe area handled below */
+
+/* ─── PWA standalone safe-area: top + bottom ─── */
+.felt-table {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.game-room-bg {
+  padding-top: env(safe-area-inset-top);
+  /* bottom safe-area handled inline by PlayerHand container */
+}
+
 /* Chat panel slide in from right */
 @keyframes slide-in-right {
   from { transform: translateX(100%); }

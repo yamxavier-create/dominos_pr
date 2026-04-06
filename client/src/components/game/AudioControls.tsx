@@ -22,7 +22,7 @@ export function AudioControls() {
   }
 
   return (
-    <div className="fixed bottom-20 left-4 z-30">
+    <div className="fixed z-30" style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom))', left: 'calc(1rem + env(safe-area-inset-left))' }}>
       <button
         onClick={handleToggle}
         className="game-btn-circle rounded-full w-10 h-10 flex items-center justify-center
