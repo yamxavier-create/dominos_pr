@@ -87,12 +87,12 @@ export function RoomLobby() {
   }
 
   return (
-    <div className="menu-card menu-reveal flex flex-col gap-5 w-full max-w-sm">
+    <div className="menu-card menu-reveal flex flex-col gap-3 w-full max-w-sm">
       {/* Room code card */}
-      <div className="text-center py-5">
-        <p className="font-body text-white/40 text-[10px] uppercase tracking-[0.25em] mb-3">Código de Sala</p>
-        <p className="font-header text-5xl text-gold tracking-widest room-code-glow">{room.roomCode}</p>
-        <p className="font-body text-white/40 text-xs mt-3">
+      <div className="text-center py-3">
+        <p className="font-body text-white/40 text-[10px] uppercase tracking-[0.25em] mb-1">Código de Sala</p>
+        <p className="font-header text-4xl text-gold tracking-widest room-code-glow">{room.roomCode}</p>
+        <p className="font-body text-white/40 text-xs mt-1">
           Modo: <span style={{ color: '#22C55E' }}>{room.gameMode === 'modo200' ? 'Modo 200 (20 pts)' : 'Modo 500'}</span>
         </p>
       </div>
