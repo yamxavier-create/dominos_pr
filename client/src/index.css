@@ -46,10 +46,10 @@ body {
   overscroll-behavior: none;
 }
 
-/* Standalone PWA: safe area for home indicator */
+/* Standalone PWA: prevent any safe-area gaps */
 @media all and (display-mode: standalone) {
-  .game-room-bg {
-    padding-bottom: env(safe-area-inset-bottom);
+  .felt-table, .game-room-bg {
+    min-height: 100dvh;
   }
 }
 
