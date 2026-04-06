@@ -157,7 +157,12 @@ function executeBotPlay(io: Server, game: ServerGameState, rooms: RoomManager) {
     game.scores = updatedScores
     game.phase = 'round_end'
 
-    broadcastState(io, game)
+    broadcastStateWithAction(io, game, {
+      type: 'play_tile',
+      playerIndex: player.index,
+      tile,
+      targetEnd,
+    })
 
     io.to(game.roomCode).emit('game:round_ended', {
       reason: 'played_out',
@@ -196,7 +201,12 @@ function executeBotPlay(io: Server, game: ServerGameState, rooms: RoomManager) {
   // Process auto-pass cascade for next player(s)
   const nextIdx = nextPlayerIndex(player.index, game.players.length)
   const ended = processAutoPassCascade(io, game, nextIdx, player.index)
-  broadcastState(io, game)
+  broadcastStateWithAction(io, game, {
+    type: 'play_tile',
+    playerIndex: player.index,
+    tile,
+    targetEnd,
+  })
 
   // If game didn't end and next player is a bot, schedule their turn
   if (!ended && game.phase === 'playing') {
