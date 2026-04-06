@@ -78,5 +78,5 @@ export function chooseBotPlay(
 }
 
 /** Delay before bot acts (ms) — feels more natural */
-export const BOT_THINK_DELAY = 1200
-export const BOT_DRAW_DELAY = 800
+export const BOT_THINK_DELAY = 2500
+export const BOT_DRAW_DELAY = 1500

@@ -4,7 +4,7 @@ import { BoardTileItem, TILE_H_W, TILE_H_H, TILE_V_W, TILE_V_H } from './BoardTi
 import { useGameStore } from '../../store/gameStore'
 import { useUIStore } from '../../store/uiStore'
 
-const GAP = 4
+const GAP = 1
 const SNAKE_CAP = 620  // max snake row width (~7 tiles per row at 80px)
 
 interface TilePos { x: number; y: number }
