@@ -40,7 +40,12 @@ html, body, #root {
 }
 
 html {
-  background: linear-gradient(180deg, #0F1A14 0%, #0A1A0F 40%, #060E08 100%) fixed;
+  background:
+    repeating-linear-gradient(90deg, rgba(15,35,24,0.25) 0px, rgba(15,35,24,0.25) 1px, transparent 1px, transparent 24px),
+    repeating-linear-gradient(45deg, transparent 0px, transparent 40px, rgba(234,179,8,0.015) 40px, rgba(234,179,8,0.015) 41px),
+    repeating-linear-gradient(-45deg, transparent 0px, transparent 40px, rgba(234,179,8,0.015) 40px, rgba(234,179,8,0.015) 41px),
+    radial-gradient(ellipse at 50% 40%, rgba(23,48,34,0.4) 0%, transparent 60%),
+    linear-gradient(180deg, #0F1A14 0%, #0A1A0F 40%, #060E08 100%);
   color-scheme: dark;
 }
 
