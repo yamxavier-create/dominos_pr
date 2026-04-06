@@ -317,7 +317,13 @@ body {
     0 1px 0 rgba(255,255,255,0.04) inset,
     0 24px 48px rgba(0, 0, 0, 0.5),
     0 4px 12px rgba(0, 0, 0, 0.3);
-  padding: 2rem 1.5rem;
+  padding: 1.25rem 1.25rem;
+}
+
+@media (min-height: 700px) {
+  .menu-card {
+    padding: 2rem 1.5rem;
+  }
 }
 
 /* Gold ornamental divider */

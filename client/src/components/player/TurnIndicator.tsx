@@ -7,8 +7,8 @@ export function TurnIndicator({ playerName, isMyTurn }: TurnIndicatorProps) {
   return (
     <div
       className={`
-        absolute bottom-2 left-1/2 -translate-x-1/2 z-20
-        px-4 py-1.5 rounded-full font-body text-sm font-bold
+        absolute top-2 right-2 z-20
+        px-3 py-1 rounded-full font-body text-xs font-bold
         transition-all duration-300 pointer-events-none whitespace-nowrap
         ${isMyTurn
           ? 'bg-gold text-bg shadow-lg shadow-gold/50 bounce-slow'

@@ -206,7 +206,7 @@ export function MainMenu() {
   }
 
   return (
-    <div className="menu-card menu-reveal flex flex-col items-center gap-6 sm:gap-8 w-full max-w-xs sm:max-w-sm md:max-w-md">
+    <div className="menu-card menu-reveal flex flex-col items-center gap-4 sm:gap-6 w-full max-w-xs sm:max-w-sm md:max-w-md">
       {/* Top bar: profile pill + social icon */}
       {isAuthenticated && user ? (
         <div className="w-full flex items-center justify-between">
@@ -246,7 +246,7 @@ export function MainMenu() {
       <div className="text-center flex flex-col items-center">
         <DominoLogo />
         <h1
-          className="font-header leading-none text-[3.5rem] sm:text-[4.5rem] md:text-[5.5rem] mt-3"
+          className="font-header leading-none text-[2.8rem] sm:text-[4.5rem] md:text-[5.5rem] mt-2"
           style={{
             color: '#EAB308',
             textShadow: '0 0 40px rgba(234,179,8,0.3), 0 2px 8px rgba(0,0,0,0.6)',
