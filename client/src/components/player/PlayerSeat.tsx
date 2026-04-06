@@ -32,7 +32,7 @@ function AvatarWithBadge({ player, initials, teamColor, isCurrentTurn, stream, i
         size={size}
       />
       <span
-        className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center font-bold font-body bg-surface border border-white/20"
+        className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center font-bold font-body bg-surface border border-gold/20 shadow-sm"
         style={{ color: teamColor, fontSize: 9 }}
       >
         {player.tileCount}
@@ -90,7 +90,7 @@ export function PlayerSeat({
   // Compact (landscape): inline horizontal layout
   if (compact) {
     return (
-      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-black/30 backdrop-blur-sm transition-all duration-300">
+      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg game-glass-card transition-all duration-300">
         <AvatarWithBadge {...avatarProps} />
         <p className="font-body font-bold text-white text-[10px] leading-tight truncate max-w-16">
           {player.name}
@@ -107,7 +107,7 @@ export function PlayerSeat({
 
   // Default (portrait top/bottom): full layout
   return (
-    <div className="flex items-center gap-1.5 px-2 py-1 rounded-xl bg-black/30 backdrop-blur-sm flex-row transition-all duration-300">
+    <div className="flex items-center gap-1.5 px-2 py-1 rounded-xl game-glass-card flex-row transition-all duration-300">
       <AvatarWithBadge {...avatarProps} />
       <div>
         <p className="font-body font-bold text-white leading-tight truncate text-xs max-w-20">

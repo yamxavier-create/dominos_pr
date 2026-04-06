@@ -27,7 +27,7 @@ export function ScorePanel({ scores, players, myPlayerIndex, gameMode, targetSco
 
   return (
     <div
-      className={`backdrop-blur-md bg-black/40 border-b border-white/10 flex items-center ${compact ? 'px-3 py-1 gap-2' : 'px-3 py-2 gap-3'}${onClick ? ' cursor-pointer' : ''}`}
+      className={`game-glass-panel flex items-center ${compact ? 'px-3 py-1 gap-2' : 'px-3 py-2 gap-3'}${onClick ? ' cursor-pointer' : ''}`}
       onClick={onClick}
     >
       {/* Mode pill */}
@@ -95,7 +95,7 @@ function TeamScore({ label, score, pct, color, gradient }: {
         <span className="font-body text-xs font-semibold truncate" style={{ color }}>{label}</span>
         <span className="font-header text-xl text-white ml-2 shrink-0 leading-none">{score}</span>
       </div>
-      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+      <div className="h-2 bg-white/5 rounded-full overflow-hidden border border-white/5">
         <div
           className="h-full rounded-full transition-all duration-500"
           style={{ width: `${pct}%`, background: gradient }}
