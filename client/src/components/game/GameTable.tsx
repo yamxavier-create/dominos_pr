@@ -188,11 +188,6 @@ export function GameTable() {
         gameMode={gameMode}
       />
 
-      {/* Join call */}
-      <div className="flex justify-center py-1">
-        <JoinCallButton />
-      </div>
-
       {/* Main table area */}
       <div
         className="flex-1 overflow-hidden"
@@ -355,7 +350,9 @@ export function GameTable() {
         </div>
 
         {/* Bottom-right corner */}
-        <div />
+        <div className="flex items-end justify-center pb-2">
+          <JoinCallButton />
+        </div>
       </div>
 
       {/* Remote audio elements — always rendered when in call to prevent audio loss */}
