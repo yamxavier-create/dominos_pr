@@ -13,7 +13,7 @@ export function MenuPage() {
   }
 
   return (
-    <div className="min-h-screen felt-table flex items-center justify-center p-4">
+    <div className="fixed inset-0 felt-table flex items-start justify-center pt-12 px-4 pb-4 overflow-y-auto">
       <MainMenu />
       <AudioControls />
     </div>
