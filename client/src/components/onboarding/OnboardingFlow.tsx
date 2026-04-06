@@ -78,8 +78,8 @@ export function OnboardingFlow({ onComplete }: OnboardingProps) {
   const isLast = current === screens.length - 1
 
   return (
-    <div className="min-h-screen felt-table flex items-center justify-center p-6">
-      <div className="menu-card flex flex-col items-center gap-6 w-full max-w-xs sm:max-w-sm text-center">
+    <div className="fixed inset-0 felt-table flex items-start justify-center pt-12 px-4 pb-4 overflow-y-auto">
+      <div className="menu-card flex flex-col items-center gap-4 w-full max-w-xs sm:max-w-sm text-center">
         {/* Skip button */}
         <button
           onClick={handleSkip}
