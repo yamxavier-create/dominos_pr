@@ -45,8 +45,8 @@ export function AuthPage() {
   }
 
   return (
-    <div className="fixed inset-0 felt-table flex flex-col items-center justify-center px-6 py-8 overflow-y-auto" style={{ overscrollBehavior: 'none' }}>
-      <div className="w-full max-w-sm flex flex-col gap-6 m-auto">
+    <div className="fixed inset-0 felt-table grid place-items-center px-6 overflow-y-auto" style={{ overscrollBehavior: 'none' }}>
+      <div className="w-full max-w-sm flex flex-col gap-6">
         {/* Logo */}
         <div className="text-center mb-2">
           <div className="text-5xl mb-2" style={{ filter: 'drop-shadow(0 0 20px rgba(34,197,94,0.4))' }}>🁣</div>
