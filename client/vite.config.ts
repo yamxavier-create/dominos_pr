@@ -12,7 +12,7 @@ export default defineConfig({
         short_name: 'Domino PR',
         description: 'Domino puertorriqueno online con amigos',
         theme_color: '#0A1A0F',
-        background_color: '#0A1A0F',
+        background_color: '#060E08',
         display: 'standalone',
         orientation: 'any',
         scope: '/',
