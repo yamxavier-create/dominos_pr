@@ -25,13 +25,13 @@ export function JoinCallButton({ className }: JoinCallButtonProps) {
     <button
       onClick={handleJoin}
       disabled={joining}
-      className={`fixed top-12 right-3 z-30 rounded-full shadow-lg px-3 py-1.5
-        bg-green-600 hover:bg-green-700 text-white font-body text-xs
+      className={`rounded-full px-3 py-1.5
+        btn-glow text-white font-body text-xs font-bold
         disabled:opacity-50 disabled:cursor-not-allowed
-        transition-colors duration-200
+        transition-all duration-200
         ${className ?? ''}`}
     >
-      {joining ? 'Conectando...' : '\uD83D\uDCF7 Unirse a llamada'}
+      {joining ? 'Conectando...' : '📹 Llamada'}
     </button>
   )
 }

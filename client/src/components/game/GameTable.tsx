@@ -188,6 +188,11 @@ export function GameTable() {
         gameMode={gameMode}
       />
 
+      {/* Join call */}
+      <div className="flex justify-center py-1">
+        <JoinCallButton />
+      </div>
+
       {/* Main table area */}
       <div
         className="flex-1 overflow-hidden"
@@ -362,9 +367,8 @@ export function GameTable() {
         </>
       )}
 
-      {/* SFX toggle + Join call button */}
+      {/* SFX toggle */}
       <AudioControls />
-      <JoinCallButton />
 
       {/* Overlays */}
       <RoundEndModal />
