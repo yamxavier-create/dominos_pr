@@ -31,7 +31,8 @@ html, body, #root {
 }
 
 body {
-  background-color: var(--color-bg);
+  background: radial-gradient(ellipse at center, #173022 0%, #0A1A0F 80%, #060E08 100%);
+  background-color: #060E08;
   color: #fff;
   font-family: 'Nunito', sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -40,6 +41,13 @@ body {
 /* Prevent pull-to-refresh / overscroll */
 body {
   overscroll-behavior: none;
+}
+
+/* Standalone PWA: extend padding for home indicator safe area */
+@media all and (display-mode: standalone) {
+  .felt-table, .game-room-bg {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 }
 
 /* ─── Scrollbar hiding ─── */
