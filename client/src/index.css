@@ -46,9 +46,9 @@ body {
   overscroll-behavior: none;
 }
 
-/* Standalone PWA: extend padding for home indicator safe area */
+/* Standalone PWA: safe area for home indicator */
 @media all and (display-mode: standalone) {
-  .felt-table, .game-room-bg {
+  .game-room-bg {
     padding-bottom: env(safe-area-inset-bottom);
   }
 }

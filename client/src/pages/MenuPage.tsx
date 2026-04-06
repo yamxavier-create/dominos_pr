@@ -13,8 +13,10 @@ export function MenuPage() {
   }
 
   return (
-    <div className="fixed inset-0 felt-table flex items-start justify-center pt-12 px-4 pb-4 overflow-y-auto">
-      <MainMenu />
+    <div className="fixed inset-0 felt-table flex flex-col items-center justify-center px-4 py-8 overflow-y-auto">
+      <div className="m-auto">
+        <MainMenu />
+      </div>
       <AudioControls />
     </div>
   )
