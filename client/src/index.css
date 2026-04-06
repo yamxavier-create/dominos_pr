@@ -14,6 +14,15 @@
   --color-tile:     #FFFBF0;
   --color-surface:  #0F2318;
   --color-border:   rgba(255,255,255,0.10);
+
+  /* Safe-area top — 0 in browser (chrome handles it), real value in standalone PWA */
+  --safe-top: 0px;
+}
+
+@media (display-mode: standalone) {
+  :root {
+    --safe-top: env(safe-area-inset-top, 0px);
+  }
 }
 
 /* ─── Base Reset ─── */
@@ -255,11 +264,11 @@ body {
 
 /* Emoji reaction pop + float up near avatar */
 @keyframes reaction-pop {
-  0%   { opacity: 0; transform: scale(0) translateY(0); }
-  15%  { opacity: 1; transform: scale(1.4) translateY(-4px); }
-  30%  { opacity: 1; transform: scale(1) translateY(-8px); }
-  70%  { opacity: 1; transform: scale(1.05) translateY(-16px); }
-  100% { opacity: 0; transform: scale(0.8) translateY(-32px); }
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0) translateY(0); }
+  15%  { opacity: 1; transform: translate(-50%, -50%) scale(1.4) translateY(-4px); }
+  30%  { opacity: 1; transform: translate(-50%, -50%) scale(1) translateY(-8px); }
+  70%  { opacity: 1; transform: translate(-50%, -50%) scale(1.05) translateY(-16px); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8) translateY(-32px); }
 }
 
 .reaction-pop {

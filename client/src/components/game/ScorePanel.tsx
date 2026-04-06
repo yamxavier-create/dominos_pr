@@ -28,7 +28,7 @@ export function ScorePanel({ scores, players, myPlayerIndex, gameMode, targetSco
   return (
     <div
       className={`game-glass-panel flex items-center ${compact ? 'px-3 pb-1 gap-2' : 'px-3 pb-2 gap-3'}${onClick ? ' cursor-pointer' : ''}`}
-      style={{ paddingTop: `calc(${compact ? '0.25rem' : '0.5rem'} + env(safe-area-inset-top, 0px))` }}
+      style={{ paddingTop: `calc(${compact ? '0.25rem' : '0.5rem'} + var(--safe-top))` }}
       onClick={onClick}
     >
       {/* Mode pill */}

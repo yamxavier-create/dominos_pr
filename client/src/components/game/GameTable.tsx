@@ -216,7 +216,7 @@ export function GameTable() {
               <AvatarReaction reactions={getReactions(topIndex)} position="top" />
               <OpponentHand player={topPlayer} position="top" compact={isLandscape} />
               {getPaso(topIndex) && (
-                <PasoChip show playerName={topPlayer.name} bonusPoints={getPaso(topIndex)!.passBonusAwarded} />
+                <PasoChip show seat="top" playerName={topPlayer.name} bonusPoints={getPaso(topIndex)!.passBonusAwarded} />
               )}
               {getFloatingMessages(topIndex).map(msg => (
                 <FloatingChatBubble key={msg.id} message={msg} />
@@ -242,7 +242,7 @@ export function GameTable() {
               <AvatarReaction reactions={getReactions(leftIndex)} position="left" />
               <OpponentHand player={leftPlayer} position="left" compact={isLandscape} />
               {getPaso(leftIndex) && (
-                <PasoChip show playerName={leftPlayer.name} bonusPoints={getPaso(leftIndex)!.passBonusAwarded} />
+                <PasoChip show seat="left" playerName={leftPlayer.name} bonusPoints={getPaso(leftIndex)!.passBonusAwarded} />
               )}
               {getFloatingMessages(leftIndex).map(msg => (
                 <FloatingChatBubble key={msg.id} message={msg} />
@@ -289,7 +289,7 @@ export function GameTable() {
               <AvatarReaction reactions={getReactions(rightIndex)} position="right" />
               <OpponentHand player={rightPlayer} position="right" compact={isLandscape} />
               {getPaso(rightIndex) && (
-                <PasoChip show playerName={rightPlayer.name} bonusPoints={getPaso(rightIndex)!.passBonusAwarded} />
+                <PasoChip show seat="right" playerName={rightPlayer.name} bonusPoints={getPaso(rightIndex)!.passBonusAwarded} />
               )}
               {getFloatingMessages(rightIndex).map(msg => (
                 <FloatingChatBubble key={msg.id} message={msg} />
@@ -302,7 +302,7 @@ export function GameTable() {
         <div />
 
         {/* My hand (bottom) */}
-        <div className={`flex flex-col items-center justify-end relative ${isLandscape ? 'gap-0 overflow-hidden' : 'gap-1'}`} data-seat="bottom" style={{ paddingBottom: 'env(safe-area-inset-bottom, 4px)' }}>
+        <div className={`flex flex-col items-center justify-end relative ${isLandscape ? 'gap-0 overflow-hidden' : 'gap-1'}`} data-seat="bottom">
           {myPlayer && (
             <PlayerSeat
               player={myPlayer}
@@ -315,7 +315,7 @@ export function GameTable() {
           )}
           {!isLandscape && <AvatarReaction reactions={getReactions(myPlayerIndex)} position="bottom" />}
           {!isLandscape && getPaso(myPlayerIndex) && (
-            <PasoChip show playerName={myPlayer?.name ?? ''} bonusPoints={getPaso(myPlayerIndex)!.passBonusAwarded} />
+            <PasoChip show seat="bottom" playerName={myPlayer?.name ?? ''} bonusPoints={getPaso(myPlayerIndex)!.passBonusAwarded} />
           )}
           {!isLandscape && getFloatingMessages(myPlayerIndex).map(msg => (
             <FloatingChatBubble key={msg.id} message={msg} />
