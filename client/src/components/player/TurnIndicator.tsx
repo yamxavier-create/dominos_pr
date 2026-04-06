@@ -11,8 +11,8 @@ export function TurnIndicator({ playerName, isMyTurn }: TurnIndicatorProps) {
         px-3 py-1 rounded-full font-body text-xs font-bold
         transition-all duration-300 pointer-events-none whitespace-nowrap
         ${isMyTurn
-          ? 'bg-gold text-bg shadow-lg shadow-gold/50 bounce-slow'
-          : 'bg-surface/80 text-white/70 border border-border'
+          ? 'bg-gradient-to-r from-gold to-amber-500 text-bg shadow-lg shadow-gold/40 border border-gold/30 bounce-slow'
+          : 'game-glass-card text-white/60 border border-gold/8'
         }
       `}
     >

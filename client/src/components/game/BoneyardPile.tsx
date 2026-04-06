@@ -29,7 +29,7 @@ export function BoneyardPile({ count, awaitingDraw, isMyTurn, onDraw, currentPla
     return (
       <div
         className="absolute inset-x-0 bottom-0 z-20 flex flex-col items-center pb-2 pt-3"
-        style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85) 90%, transparent)' }}
+        style={{ background: 'linear-gradient(to top, rgba(10,26,15,0.92) 85%, rgba(10,26,15,0.4) 95%, transparent)' }}
       >
         <p className="text-white/70 text-xs font-body mb-2">
           {isMyTurn ? 'Toca una ficha para jalar' : `${currentPlayerName} está jalando...`}
@@ -93,7 +93,7 @@ export function BoneyardPile({ count, awaitingDraw, isMyTurn, onDraw, currentPla
           </div>
         ))}
         <div
-          className="absolute bg-black/60 text-white/80 text-xs font-bold px-1.5 py-0.5 rounded-full"
+          className="absolute bg-surface/80 text-white/70 text-xs font-bold px-1.5 py-0.5 rounded-full border border-gold/15 backdrop-blur-sm"
           style={{ bottom: -6, right: -8, minWidth: 20, textAlign: 'center' }}
         >
           {count}

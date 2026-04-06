@@ -84,7 +84,7 @@ export function ChatButton() {
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      className="fixed z-40 w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-500 transition-colors shadow-lg flex items-center justify-center touch-none"
+      className="fixed z-40 w-12 h-12 rounded-full game-btn-circle flex items-center justify-center touch-none"
       style={{ left: pos.x, top: pos.y }}
       aria-label="Toggle chat"
     >
@@ -102,7 +102,7 @@ export function ChatButton() {
       </svg>
 
       {unreadCount > 0 && (
-        <span className="absolute -top-1 -right-1 min-w-5 h-5 flex items-center justify-center rounded-full bg-red-500 text-white text-xs font-bold px-1">
+        <span className="absolute -top-1 -right-1 min-w-5 h-5 flex items-center justify-center rounded-full bg-accent text-white text-xs font-bold px-1 shadow-md">
           {unreadCount > 9 ? '9+' : unreadCount}
         </span>
       )}

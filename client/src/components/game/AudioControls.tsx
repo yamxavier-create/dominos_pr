@@ -25,8 +25,8 @@ export function AudioControls() {
     <div className="fixed bottom-20 left-4 z-30">
       <button
         onClick={handleToggle}
-        className="rounded-full shadow-lg w-10 h-10 flex items-center justify-center
-          bg-black/60 hover:bg-black/80 text-white transition-colors duration-200"
+        className="game-btn-circle rounded-full w-10 h-10 flex items-center justify-center
+          text-white"
         title={allOff ? 'Activar sonido' : 'Silenciar'}
       >
         {allOff ? '\uD83D\uDD07' : '\uD83D\uDD0A'}
