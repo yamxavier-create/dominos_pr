@@ -4,10 +4,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
+const crypto_1 = __importDefault(require("crypto"));
 const prisma_1 = __importDefault(require("../db/prisma"));
 const passwordUtils_1 = require("./passwordUtils");
 const jwt_1 = require("./jwt");
 const google_1 = require("./google");
+const emailService_1 = require("./emailService");
 const router = (0, express_1.Router)();
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
@@ -217,6 +219,79 @@ router.patch('/profile', async (req, res) => {
     }
     catch (err) {
         console.error('[Auth] Profile update error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+// POST /api/auth/request-reset
+router.post('/request-reset', async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email || typeof email !== 'string') {
+            res.status(400).json({ error: 'Email is required' });
+            return;
+        }
+        // Always return success to prevent email enumeration
+        const user = await prisma_1.default.user.findUnique({ where: { email: email.toLowerCase() } });
+        if (!user) {
+            res.json({ ok: true });
+            return;
+        }
+        // Invalidate any existing reset tokens for this user
+        await prisma_1.default.passwordReset.updateMany({
+            where: { userId: user.id, used: false },
+            data: { used: true },
+        });
+        // Create new reset token (1 hour expiry)
+        const token = crypto_1.default.randomBytes(32).toString('hex');
+        await prisma_1.default.passwordReset.create({
+            data: {
+                userId: user.id,
+                token,
+                expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+            },
+        });
+        await (0, emailService_1.sendPasswordResetEmail)(email, token);
+        res.json({ ok: true });
+    }
+    catch (err) {
+        console.error('[Auth] Password reset request error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+// POST /api/auth/reset-password
+router.post('/reset-password', async (req, res) => {
+    try {
+        const { token, password } = req.body;
+        if (!token || !password) {
+            res.status(400).json({ error: 'Token and password are required' });
+            return;
+        }
+        if (password.length < 6) {
+            res.status(400).json({ error: 'Password must be at least 6 characters' });
+            return;
+        }
+        const resetRecord = await prisma_1.default.passwordReset.findUnique({ where: { token } });
+        if (!resetRecord || resetRecord.used || resetRecord.expiresAt < new Date()) {
+            res.status(400).json({ error: 'Invalid or expired reset link' });
+            return;
+        }
+        // Mark token as used
+        await prisma_1.default.passwordReset.update({
+            where: { id: resetRecord.id },
+            data: { used: true },
+        });
+        // Update password
+        const passwordHash = await (0, passwordUtils_1.hashPassword)(password);
+        await prisma_1.default.user.update({
+            where: { id: resetRecord.userId },
+            data: { passwordHash },
+        });
+        // Invalidate all existing sessions (force re-login)
+        await prisma_1.default.session.deleteMany({ where: { userId: resetRecord.userId } });
+        res.json({ ok: true });
+    }
+    catch (err) {
+        console.error('[Auth] Password reset error:', err);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

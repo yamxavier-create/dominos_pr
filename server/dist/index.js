@@ -48,6 +48,7 @@ const GameEngine_1 = require("./game/GameEngine");
 const gameHandlers_1 = require("./socket/gameHandlers");
 const authRoutes_1 = __importDefault(require("./auth/authRoutes"));
 const socialRoutes_1 = __importStar(require("./social/socialRoutes"));
+const statsRoutes_1 = __importDefault(require("./stats/statsRoutes"));
 const PresenceManager_1 = require("./presence/PresenceManager");
 const authMiddleware_1 = require("./socket/authMiddleware");
 const app = (0, express_1.default)();
@@ -60,6 +61,8 @@ app.use(express_1.default.json());
 app.use('/api/auth', authRoutes_1.default);
 // Social REST API (friends, search, requests)
 app.use('/api/social', socialRoutes_1.default);
+// Stats REST API (history, leaderboard)
+app.use('/api/stats', statsRoutes_1.default);
 const io = new socket_io_1.Server(httpServer, {
     cors: config_1.config.NODE_ENV !== 'production'
         ? { origin: config_1.config.CLIENT_ORIGIN, methods: ['GET', 'POST'] }

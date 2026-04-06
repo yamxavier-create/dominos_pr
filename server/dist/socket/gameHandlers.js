@@ -1,8 +1,230 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.checkRematchCancellation = checkRematchCancellation;
 exports.registerGameHandlers = registerGameHandlers;
+const prisma_1 = __importDefault(require("../db/prisma"));
+const BotPlayer_1 = require("../game/BotPlayer");
 const GameEngine_1 = require("../game/GameEngine");
+/**
+ * Modo 200 pip-to-point conversion table:
+ * 0–14 pips = 1 pt, 15–24 = 2 pt, 25–34 = 3 pt, 35–44 = 4 pt, etc.
+ */
+function pipsToModo200Points(pips) {
+    if (pips <= 0)
+        return 0;
+    if (pips <= 14)
+        return 1;
+    return Math.floor((pips - 15) / 10) + 2;
+}
+/**
+ * Persist game result to database and update player stats.
+ */
+async function persistGameResult(game, winningTeam) {
+    try {
+        const gameHistory = await prisma_1.default.gameHistory.create({
+            data: {
+                roomCode: game.roomCode,
+                gameMode: game.gameMode,
+                winningTeam,
+                totalRounds: game.handNumber,
+                scoreTeam0: game.scores.team0,
+                scoreTeam1: game.scores.team1,
+                playerCount: game.players.length,
+                startedAt: new Date(Date.now() - game.handNumber * 60000), // approximate
+                participants: {
+                    create: game.players.map((p) => ({
+                        userId: p.userId || null,
+                        playerName: p.name,
+                        playerIndex: p.index,
+                        team: p.index % 2,
+                        won: (p.index % 2) === winningTeam,
+                    })),
+                },
+            },
+        });
+        // Update UserStats for authenticated players
+        for (const p of game.players) {
+            if (!p.userId)
+                continue;
+            const won = (p.index % 2) === winningTeam;
+            await prisma_1.default.userStats.upsert({
+                where: { userId: p.userId },
+                create: { userId: p.userId, gamesPlayed: 1, gamesWon: won ? 1 : 0 },
+                update: {
+                    gamesPlayed: { increment: 1 },
+                    ...(won ? { gamesWon: { increment: 1 } } : {}),
+                },
+            });
+        }
+        console.log(`[Game] Persisted game ${gameHistory.id} — team ${winningTeam} won`);
+    }
+    catch (err) {
+        console.error('[Game] Failed to persist game result:', err);
+    }
+}
+/**
+ * Schedule a bot to play its turn after a delay.
+ * This is the main entry point for bot auto-play.
+ */
+function scheduleBotTurn(io, game, rooms) {
+    if (game.phase !== 'playing')
+        return;
+    const currentPlayer = game.players[game.currentPlayerIndex];
+    if (!currentPlayer?.isBot)
+        return;
+    const delay = game.awaitingBoneyardDraw ? BotPlayer_1.BOT_DRAW_DELAY : BotPlayer_1.BOT_THINK_DELAY;
+    setTimeout(() => {
+        // Re-check state — game may have ended or player changed
+        if (game.phase !== 'playing')
+            return;
+        if (game.players[game.currentPlayerIndex]?.socketId !== currentPlayer.socketId)
+            return;
+        if (game.awaitingBoneyardDraw) {
+            executeBotBoneyardDraw(io, game, rooms);
+        }
+        else {
+            executeBotPlay(io, game, rooms);
+        }
+    }, delay);
+}
+function executeBotPlay(io, game, rooms) {
+    const player = game.players[game.currentPlayerIndex];
+    if (!player?.isBot)
+        return;
+    const play = (0, BotPlayer_1.chooseBotPlay)(player.tiles, game.board, game.firstPlayMade, game.forcedFirstTileId);
+    if (!play) {
+        // No valid plays — auto-pass cascade handles this already
+        // But if we get here with no valid plays and no boneyard, cascade should have run
+        return;
+    }
+    const { tileId, targetEnd } = play;
+    const tileIdx = player.tiles.findIndex(t => t.id === tileId);
+    if (tileIdx === -1)
+        return;
+    const tile = player.tiles[tileIdx];
+    // Detect special moves
+    const capicuTriggered = game.firstPlayMade && player.tiles.length === 1 && (0, GameEngine_1.isCapicu)(tile, game.board);
+    const chuchazoTriggered = player.tiles.length === 1 && (0, GameEngine_1.isChuchazo)(tile);
+    // Apply tile to board
+    game.board = (0, GameEngine_1.applyTileToBoard)(game.board, tile, targetEnd, player.index);
+    player.tiles.splice(tileIdx, 1);
+    game.consecutivePasses = 0;
+    game.firstPlayMade = true;
+    game.forcedFirstTileId = '';
+    // Check if bot won the hand (played out)
+    if (player.tiles.length === 0) {
+        const winningTeam = player.index % 2;
+        let pointsScored;
+        let blockBonusPoints = 0;
+        const rawPips = (0, GameEngine_1.calculatePlayOutPoints)(game.players, player.index);
+        if (game.gameMode === 'modo200') {
+            pointsScored = pipsToModo200Points(rawPips);
+        }
+        else {
+            pointsScored = rawPips;
+            blockBonusPoints = (0, GameEngine_1.calculateMode500Bonuses)(game.handNumber, capicuTriggered, chuchazoTriggered);
+        }
+        const { updatedScores, gameOver } = (0, GameEngine_1.applyScore)(game.scores, winningTeam, pointsScored + blockBonusPoints, game.targetScore);
+        game.scores = updatedScores;
+        game.phase = 'round_end';
+        broadcastStateWithAction(io, game, {
+            type: 'play_tile',
+            playerIndex: player.index,
+            tile,
+            targetEnd,
+        });
+        io.to(game.roomCode).emit('game:round_ended', {
+            reason: 'played_out',
+            winnerIndex: player.index,
+            winningTeam,
+            rawPipCount: rawPips,
+            pointsFromPips: pointsScored,
+            bonusPoints: blockBonusPoints,
+            totalPointsScored: pointsScored + blockBonusPoints,
+            remainingTiles: game.players.map(p => ({
+                playerIndex: p.index,
+                playerName: p.name,
+                tiles: p.tiles,
+                pipSum: (0, GameEngine_1.handPipSum)(p.tiles),
+            })),
+            isCapicu: capicuTriggered,
+            isChuchazo: chuchazoTriggered,
+            scores: updatedScores,
+            passPointsThisHand: game.passPointsThisHand,
+            nextStarterIndex: player.index,
+        });
+        if (gameOver) {
+            game.phase = 'game_end';
+            const winTeam = updatedScores.team0 >= game.targetScore ? 0 : 1;
+            io.to(game.roomCode).emit('game:game_ended', {
+                winningTeam: winTeam,
+                finalScores: updatedScores,
+                totalRounds: game.handNumber,
+            });
+            persistGameResult(game, winTeam);
+        }
+        return;
+    }
+    // Process auto-pass cascade for next player(s)
+    const nextIdx = (0, GameEngine_1.nextPlayerIndex)(player.index, game.players.length);
+    const ended = processAutoPassCascade(io, game, nextIdx, player.index);
+    broadcastStateWithAction(io, game, {
+        type: 'play_tile',
+        playerIndex: player.index,
+        tile,
+        targetEnd,
+    });
+    // If game didn't end and next player is a bot, schedule their turn
+    if (!ended && game.phase === 'playing') {
+        scheduleBotTurn(io, game, rooms);
+    }
+}
+function executeBotBoneyardDraw(io, game, rooms) {
+    const player = game.players[game.currentPlayerIndex];
+    if (!player?.isBot || !game.awaitingBoneyardDraw)
+        return;
+    if (game.boneyard.length === 0) {
+        game.awaitingBoneyardDraw = false;
+        return;
+    }
+    // Draw a tile
+    const drawnTile = game.boneyard.pop();
+    player.tiles.push(drawnTile);
+    game.awaitingBoneyardDraw = false;
+    // Broadcast draw to human players (they see null tile for opponent)
+    io.to(game.roomCode).emit('game:boneyard_draw', {
+        playerIndex: player.index,
+        tile: null,
+        boneyardCount: game.boneyard.length,
+    });
+    // Check if bot now has valid plays
+    const validPlays = (0, GameEngine_1.getValidPlays)(player.tiles, game.board, game.firstPlayMade, game.forcedFirstTileId);
+    if (validPlays.length > 0) {
+        broadcastState(io, game);
+        // Bot can play now
+        scheduleBotTurn(io, game, rooms);
+    }
+    else if (game.boneyard.length > 0) {
+        // Must draw again
+        game.awaitingBoneyardDraw = true;
+        broadcastState(io, game);
+        scheduleBotTurn(io, game, rooms);
+    }
+    else {
+        // No valid plays and boneyard empty — auto-pass
+        const nextIdx = (0, GameEngine_1.nextPlayerIndex)(player.index, game.players.length);
+        game.consecutivePasses++;
+        io.to(game.roomCode).emit('game:player_passed', { playerIndex: player.index });
+        const ended = processAutoPassCascade(io, game, nextIdx, player.index);
+        broadcastState(io, game);
+        if (!ended && game.phase === 'playing') {
+            scheduleBotTurn(io, game, rooms);
+        }
+    }
+}
 /**
  * Sync game player socket IDs from room players.
  * Handles cases where sockets reconnected and got new IDs during the game.
@@ -23,7 +245,7 @@ function broadcastState(io, game, rooms) {
     if (rooms)
         syncPlayerSocketIds(game, rooms);
     for (const player of game.players) {
-        if (!player.connected)
+        if (!player.connected || (0, BotPlayer_1.isBotSocketId)(player.socketId))
             continue;
         const clientState = (0, GameEngine_1.buildClientGameState)(game, player.index);
         io.to(player.socketId).emit('game:state_snapshot', {
@@ -34,7 +256,7 @@ function broadcastState(io, game, rooms) {
 }
 function broadcastStateWithAction(io, game, lastAction) {
     for (const player of game.players) {
-        if (!player.connected)
+        if (!player.connected || (0, BotPlayer_1.isBotSocketId)(player.socketId))
             continue;
         const clientState = (0, GameEngine_1.buildClientGameState)(game, player.index);
         io.to(player.socketId).emit('game:state_snapshot', {
@@ -81,6 +303,7 @@ function processAutoPassCascade(io, game, startPlayerIndex, tilePlayerIndex) {
                 const updatedScores = (0, GameEngine_1.applyPassBonus200)(game.scores, idx, game.gamePassCount);
                 game.scores = updatedScores;
                 game.gamePassCount++;
+                game.passPointsThisHand += passBonusAwarded;
                 if ((0, GameEngine_1.scoresReachedTarget)(game.scores, game.targetScore)) {
                     game.currentPlayerIndex = idx;
                     game.consecutivePasses++;
@@ -136,7 +359,7 @@ function handleBlockedGame(io, game) {
         winnerIndex = result.winnerIndex;
         winningTeam = result.winningTeam;
         rawPips = result.pointsScored;
-        pointsScored = Math.round(rawPips / 10);
+        pointsScored = pipsToModo200Points(rawPips);
     }
     else {
         const result = (0, GameEngine_1.calculateBlockedResult)(game.players);
@@ -176,6 +399,7 @@ function handleBlockedGame(io, game) {
         isCapicu: false,
         isChuchazo: false,
         scores: updatedScores,
+        passPointsThisHand: game.passPointsThisHand,
         nextStarterIndex: nextStarter,
     });
     if (gameOver) {
@@ -186,6 +410,7 @@ function handleBlockedGame(io, game) {
             finalScores: updatedScores,
             totalRounds: game.handNumber,
         });
+        persistGameResult(game, winTeam);
     }
     return true;
 }
@@ -198,6 +423,7 @@ function handleGameEnd(io, game) {
         finalScores: game.scores,
         totalRounds: game.handNumber,
     });
+    persistGameResult(game, winTeam);
     return true;
 }
 /**
@@ -242,6 +468,8 @@ function registerGameHandlers(socket, io, rooms, presence) {
                 name: rp.name,
                 tiles: hands[i],
                 connected: rp.connected,
+                userId: rp.userId,
+                isBot: rp.isBot || false,
             })),
             board: { tiles: [], leftEnd: null, rightEnd: null },
             currentPlayerIndex: starterIdx,
@@ -255,13 +483,16 @@ function registerGameHandlers(socket, io, rooms, presence) {
             gameWinnerIndex: starterIdx,
             boneyard,
             awaitingBoneyardDraw: false,
+            passPointsThisHand: 0,
         };
         room.game = game;
         room.status = 'in_game';
         room.rematchVotes = [];
         room.chatHistory = [];
-        // Send personalised game state to each player
+        // Send personalised game state to each human player
         for (const player of game.players) {
+            if ((0, BotPlayer_1.isBotSocketId)(player.socketId))
+                continue;
             const clientState = (0, GameEngine_1.buildClientGameState)(game, player.index);
             io.to(player.socketId).emit('game:started', { gameState: clientState });
         }
@@ -270,6 +501,8 @@ function registerGameHandlers(socket, io, rooms, presence) {
             if (rp.userId)
                 presence.notifyStatusChange(rp.userId);
         }
+        // If first player is a bot, schedule their turn
+        scheduleBotTurn(io, game, rooms);
     });
     socket.on('game:play_tile', ({ roomCode, tileId, targetEnd }) => {
         const room = rooms.getRoom(roomCode);
@@ -311,7 +544,7 @@ function registerGameHandlers(socket, io, rooms, presence) {
         if (player.tiles.length === 0) {
             const winningTeam = (0, GameEngine_1.playerTeam)(player.index);
             const rawPips = (0, GameEngine_1.calculatePlayOutPoints)(game.players, player.index);
-            const pipsFromOthers = game.gameMode === 'modo200' ? Math.round(rawPips / 10) : rawPips;
+            const pipsFromOthers = game.gameMode === 'modo200' ? pipsToModo200Points(rawPips) : rawPips;
             let bonusPoints = 0;
             if (game.gameMode === 'modo500') {
                 bonusPoints = (0, GameEngine_1.calculateMode500Bonuses)(game.handNumber, capicuTriggered, chuchazoTriggered);
@@ -348,6 +581,7 @@ function registerGameHandlers(socket, io, rooms, presence) {
                 isCapicu: capicuTriggered,
                 isChuchazo: chuchazoTriggered,
                 scores: updatedScores,
+                passPointsThisHand: game.passPointsThisHand,
                 nextStarterIndex: player.index,
             });
             if (gameOver) {
@@ -356,6 +590,7 @@ function registerGameHandlers(socket, io, rooms, presence) {
                     finalScores: updatedScores,
                     totalRounds: game.handNumber,
                 });
+                persistGameResult(game, winningTeam);
             }
             return;
         }
@@ -371,6 +606,10 @@ function registerGameHandlers(socket, io, rooms, presence) {
             tile,
             targetEnd,
         });
+        // If next player is a bot, schedule their turn
+        if (!ended && game.phase === 'playing') {
+            scheduleBotTurn(io, game, rooms);
+        }
     });
     socket.on('game:next_hand', ({ roomCode }) => {
         const room = rooms.getRoom(roomCode);
@@ -391,6 +630,7 @@ function registerGameHandlers(socket, io, rooms, presence) {
         game.board = { tiles: [], leftEnd: null, rightEnd: null };
         game.consecutivePasses = 0;
         game.handPassCount = 0;
+        game.passPointsThisHand = 0;
         game.boneyard = boneyard;
         game.awaitingBoneyardDraw = false;
         // gamePassCount intentionally NOT reset — it tracks total passes for the entire game (Modo 200 bonus)
@@ -420,12 +660,16 @@ function registerGameHandlers(socket, io, rooms, presence) {
         // Sync socket IDs and send updated state
         syncPlayerSocketIds(game, rooms);
         for (const player of game.players) {
+            if ((0, BotPlayer_1.isBotSocketId)(player.socketId))
+                continue;
             const clientState = (0, GameEngine_1.buildClientGameState)(game, player.index);
             io.to(player.socketId).emit('game:state_snapshot', {
                 gameState: clientState,
                 lastAction: null,
             });
         }
+        // If starter is a bot, schedule their turn
+        scheduleBotTurn(io, game, rooms);
     });
     socket.on('game:next_game', ({ roomCode }) => {
         const room = rooms.getRoom(roomCode);
@@ -448,6 +692,7 @@ function registerGameHandlers(socket, io, rooms, presence) {
         game.board = { tiles: [], leftEnd: null, rightEnd: null };
         game.consecutivePasses = 0;
         game.handPassCount = 0;
+        game.passPointsThisHand = 0;
         game.gamePassCount = 0;
         game.boneyard = boneyard;
         game.firstPlayMade = false;
@@ -463,11 +708,15 @@ function registerGameHandlers(socket, io, rooms, presence) {
         room.chatHistory = [];
         // Sync socket IDs from room (handles reconnections during game)
         syncPlayerSocketIds(game, rooms);
-        // Send personalised game state to each player
+        // Send personalised game state to each human player
         for (const player of game.players) {
+            if ((0, BotPlayer_1.isBotSocketId)(player.socketId))
+                continue;
             const clientState = (0, GameEngine_1.buildClientGameState)(game, player.index);
             io.to(player.socketId).emit('game:started', { gameState: clientState });
         }
+        // If starter is a bot, schedule their turn
+        scheduleBotTurn(io, game, rooms);
     });
     socket.on('game:rematch_vote', ({ roomCode }) => {
         const room = rooms.getRoom(roomCode);
@@ -501,6 +750,7 @@ function registerGameHandlers(socket, io, rooms, presence) {
                 game.board = { tiles: [], leftEnd: null, rightEnd: null };
                 game.consecutivePasses = 0;
                 game.handPassCount = 0;
+                game.passPointsThisHand = 0;
                 game.gamePassCount = 0;
                 game.boneyard = boneyard;
                 game.firstPlayMade = false;
@@ -572,6 +822,7 @@ function registerGameHandlers(socket, io, rooms, presence) {
         const ended = processAutoPassCascade(io, game, player.index, player.index);
         if (!ended) {
             broadcastState(io, game);
+            scheduleBotTurn(io, game, rooms);
         }
     });
 }

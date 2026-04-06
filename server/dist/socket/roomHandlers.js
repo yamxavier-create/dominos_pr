@@ -104,6 +104,30 @@ function registerRoomHandlers(socket, io, rooms, presence) {
             });
         }
     });
+    socket.on('room:add_bot', () => {
+        const roomCode = rooms.getRoomCodeBySocket(socket.id);
+        if (!roomCode)
+            return;
+        const room = rooms.getRoom(roomCode);
+        if (!room || room.hostSocketId !== socket.id)
+            return;
+        const result = rooms.addBot(roomCode);
+        if (!result)
+            return;
+        io.to(roomCode).emit('room:updated', { room: rooms.getRoomInfo(room) });
+    });
+    socket.on('room:remove_bot', ({ seatIndex }) => {
+        const roomCode = rooms.getRoomCodeBySocket(socket.id);
+        if (!roomCode)
+            return;
+        const room = rooms.getRoom(roomCode);
+        if (!room || room.hostSocketId !== socket.id)
+            return;
+        const updated = rooms.removeBot(roomCode, seatIndex);
+        if (!updated)
+            return;
+        io.to(roomCode).emit('room:updated', { room: rooms.getRoomInfo(updated) });
+    });
     socket.on('room:leave', () => {
         const result = rooms.leaveRoom(socket.id);
         if (!result)

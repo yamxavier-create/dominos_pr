@@ -15,7 +15,7 @@ export function LobbyPage() {
   }, [room, navigate])
 
   return (
-    <div className="fixed inset-0 felt-table grid place-items-center px-4 overflow-hidden">
+    <div className="fixed inset-0 felt-table flex items-start justify-center pt-12 px-4 pb-4 overflow-y-auto">
       <RoomLobby />
       <AudioControls />
     </div>

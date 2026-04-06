@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RoomManager = void 0;
+const BotPlayer_1 = require("./BotPlayer");
 const PR_WORDS = ['COQUI', 'PALMA', 'FARO', 'PONCE', 'GALLO', 'CEIBA', 'PLAYA', 'MONTE', 'SALSA', 'BOMBA'];
 function generateRoomCode(existing) {
     let code;
@@ -117,6 +118,35 @@ class RoomManager {
         room.lastActivity = Date.now();
         return { roomCode, room };
     }
+    addBot(roomCode) {
+        const room = this.rooms.get(roomCode);
+        if (!room || room.status !== 'waiting' || room.players.length >= 4)
+            return null;
+        const seatIndex = room.players.length;
+        const botSocketId = (0, BotPlayer_1.generateBotSocketId)(seatIndex);
+        const rp = {
+            socketId: botSocketId,
+            name: (0, BotPlayer_1.generateBotName)(),
+            seatIndex,
+            connected: true,
+            isBot: true,
+        };
+        room.players.push(rp);
+        room.lastActivity = Date.now();
+        return { room, seatIndex };
+    }
+    removeBot(roomCode, seatIndex) {
+        const room = this.rooms.get(roomCode);
+        if (!room || room.status !== 'waiting')
+            return null;
+        const player = room.players.find(p => p.seatIndex === seatIndex && p.isBot);
+        if (!player)
+            return null;
+        room.players = room.players.filter(p => p.seatIndex !== seatIndex);
+        room.players.forEach((p, i) => { p.seatIndex = i; });
+        room.lastActivity = Date.now();
+        return room;
+    }
     getRoom(roomCode) {
         return this.rooms.get(roomCode);
     }
@@ -165,6 +195,7 @@ class RoomManager {
                 name: p.name,
                 connected: p.connected,
                 userId: p.userId,
+                isBot: p.isBot || false,
             })),
             status: room.status,
         };
