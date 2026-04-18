@@ -56,15 +56,27 @@ export function AvatarReaction({ reactions, position }: AvatarReactionProps) {
       {positioned.map(r => (
         <span
           key={r.id}
-          className="reaction-pop fixed text-4xl drop-shadow-lg"
+          className="reaction-pop fixed"
           style={{
             left: r.screenX,
             top: r.screenY,
             transform: 'translate(-50%, -50%)',
             zIndex: 45,
+            width: 56,
+            height: 56,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'radial-gradient(circle, rgba(234,179,8,0.28) 0%, rgba(234,179,8,0.10) 55%, rgba(234,179,8,0) 75%)',
+            borderRadius: '50%',
           }}
         >
-          {r.emoji}
+          <span
+            className="text-4xl"
+            style={{ filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.55))', lineHeight: 1 }}
+          >
+            {r.emoji}
+          </span>
         </span>
       ))}
     </>

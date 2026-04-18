@@ -47,22 +47,28 @@ export function AvatarVideo({
 
   const showVideo = stream !== null && !isCameraOff
 
-  const borderColor = isSpeaking
-    ? '#22C55E'
-    : isCurrentTurn
-      ? teamColor
+  const borderColor = isCurrentTurn
+    ? '#EAB308'
+    : isSpeaking
+      ? '#22C55E'
       : 'rgba(255,255,255,0.15)'
 
-  const boxShadow = isSpeaking ? '0 0 12px rgba(34,197,94,0.6)' : 'none'
+  // When it's the player's turn, the CSS animation drives box-shadow;
+  // don't set it inline or we override the pulse.
+  const inlineShadow = isCurrentTurn
+    ? undefined
+    : isSpeaking
+      ? '0 0 12px rgba(34,197,94,0.6)'
+      : 'none'
 
   return (
     <div
-      className="rounded-full overflow-hidden flex-shrink-0"
+      className={`rounded-full overflow-hidden flex-shrink-0 ${isCurrentTurn ? 'avatar-turn-pulse' : ''}`}
       style={{
         width: size,
         height: size,
         border: `2px solid ${borderColor}`,
-        boxShadow,
+        ...(inlineShadow !== undefined ? { boxShadow: inlineShadow } : {}),
         transition: 'border-color 0.3s, box-shadow 0.3s',
       }}
     >

@@ -39,11 +39,23 @@ export function EmojiBar() {
       )}
       <button
         onClick={toggle}
-        className="w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-sm flex items-center justify-center shadow-lg transition-all duration-200 border border-white/10"
+        className="w-10 h-10 rounded-full flex items-center justify-center active:scale-90 transition-all duration-200"
+        style={{
+          background: 'rgba(0,0,0,0.55)',
+          border: '1px solid rgba(255,255,255,0.12)',
+          backdropFilter: 'blur(8px)',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08)',
+        }}
+        aria-label={emojiBarOpen ? 'Cerrar reacciones' : 'Reacciones'}
       >
-        <span className={`text-lg transition-transform duration-200 ${emojiBarOpen ? 'scale-110' : ''}`}>
-          {emojiBarOpen ? '✕' : '😂'}
-        </span>
+        {emojiBarOpen ? (
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        ) : (
+          <span className="text-lg leading-none" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.5))' }}>😂</span>
+        )}
       </button>
     </div>
   )
