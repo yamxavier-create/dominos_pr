@@ -7,6 +7,7 @@ import { socket } from '../../socket'
 
 export function GameEndModal() {
   const gameEndData = useGameStore(s => s.gameEndData)
+  const gameState = useGameStore(s => s.gameState)
   const showGameEnd = useUIStore(s => s.showGameEnd)
   const rematchVotes = useUIStore(s => s.rematchVotes)
   const rematchPlayerNames = useUIStore(s => s.rematchPlayerNames)
@@ -20,10 +21,12 @@ export function GameEndModal() {
   const [sentRequests, setSentRequests] = useState<Set<string>>(new Set())
 
   const [showRevancha, setShowRevancha] = useState(false)
+  const [peek, setPeek] = useState(false)
 
   useEffect(() => {
     if (!showGameEnd) {
       setShowRevancha(false)
+      setPeek(false)
       return
     }
     const timer = setTimeout(() => setShowRevancha(true), 2500)
@@ -55,7 +58,6 @@ export function GameEndModal() {
 
   if (!showGameEnd || !gameEndData) return null
 
-  const gameState = useGameStore(s => s.gameState)
   const playerCount = gameState?.playerCount ?? 4
   const is2Player = playerCount === 2
 
@@ -86,8 +88,32 @@ export function GameEndModal() {
     ? (weWon ? '¡Ganaste el partido!' : 'Perdiste el partido')
     : (weWon ? 'Nosotros ganamos el partido' : 'Ellos ganaron el partido')
 
+  if (peek) {
+    return (
+      <button
+        onClick={() => setPeek(false)}
+        className="fixed z-50 bottom-6 left-1/2 -translate-x-1/2 px-5 py-3 rounded-full font-body font-bold text-white shadow-xl active:scale-95 transition-transform"
+        style={{
+          background: 'linear-gradient(135deg, #22C55E, #16a34a)',
+          paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))',
+        }}
+      >
+        Ver resumen
+      </button>
+    )
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+      {/* Peek button — hides modal to reveal the final board */}
+      <button
+        onClick={() => setPeek(true)}
+        className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center bg-black/40 border border-white/20 text-white/80 active:scale-95 transition-transform"
+        style={{ backdropFilter: 'blur(8px)' }}
+        aria-label="Ver mesa"
+      >
+        👁
+      </button>
       {/* Animated gradient border wrapper */}
       <div
         className="modal-enter p-0.5 rounded-2xl w-full max-w-sm"

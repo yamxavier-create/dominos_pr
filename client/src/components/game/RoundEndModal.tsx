@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { useGameStore } from '../../store/gameStore'
 import { useUIStore } from '../../store/uiStore'
 import { useRoomStore } from '../../store/roomStore'
@@ -15,6 +16,11 @@ export function RoundEndModal() {
   const myPlayerIndex = useRoomStore(s => s.myPlayerIndex)
   const room = useRoomStore(s => s.room)
   const { startNextHand } = useGameActions()
+
+  const [peek, setPeek] = useState(false)
+  useEffect(() => {
+    if (!showRoundEnd) setPeek(false)
+  }, [showRoundEnd])
 
   if (!showRoundEnd || !roundEndData || gameEndData) return null
 
@@ -40,8 +46,31 @@ export function RoundEndModal() {
     ? 'from-primary/25 to-transparent'
     : 'from-accent/15 to-transparent'
 
+  if (peek) {
+    return (
+      <button
+        onClick={() => setPeek(false)}
+        className="fixed z-40 bottom-6 left-1/2 -translate-x-1/2 px-5 py-3 rounded-full font-body font-bold text-white shadow-xl active:scale-95 transition-transform"
+        style={{
+          background: 'linear-gradient(135deg, #22C55E, #16a34a)',
+          paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))',
+        }}
+      >
+        Ver resumen
+      </button>
+    )
+  }
+
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+      <button
+        onClick={() => setPeek(true)}
+        className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center bg-black/40 border border-white/20 text-white/80 active:scale-95 transition-transform z-10"
+        style={{ backdropFilter: 'blur(8px)' }}
+        aria-label="Ver mesa"
+      >
+        👁
+      </button>
       <div className="modal-enter w-full max-w-sm shadow-2xl overflow-hidden rounded-2xl"
         style={{ background: '#0F2318', border: '1px solid rgba(255,255,255,0.10)' }}
       >
