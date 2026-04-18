@@ -4,6 +4,7 @@ import { useUIStore } from '../../store/uiStore'
 import { useRoomStore } from '../../store/roomStore'
 import { useAuthStore } from '../../store/authStore'
 import { socket } from '../../socket'
+import { GoldCTA, GoldCaption } from '../ui/GoldCTA'
 
 export function GameEndModal() {
   const gameEndData = useGameStore(s => s.gameEndData)
@@ -126,14 +127,24 @@ export function GameEndModal() {
         <div className="rounded-2xl overflow-hidden text-center" style={{ background: '#0F2318' }}>
           {/* Header */}
           <div
-            className="px-6 pt-8 pb-6"
+            className="px-6 pt-8 pb-6 flex flex-col items-center gap-2"
             style={{ background: `linear-gradient(to bottom, ${winTeamColor}25, transparent)` }}
           >
-            <div className="text-6xl mb-3">{weWon ? '🏆' : '🤝'}</div>
-            <h1 className="font-header text-5xl text-gold leading-none">
-              {weWon ? (is2Player ? '¡Ganaste!' : '¡Ganamos!') : (is2Player ? 'Perdiste' : 'Perdimos')}
+            <GoldCaption>Fin de Partida</GoldCaption>
+            <div className="text-6xl mb-1">{weWon ? '🏆' : '🤝'}</div>
+            <h1
+              className="font-header leading-[0.9] text-[3.4rem]"
+              style={{
+                color: weWon ? '#EAB308' : '#FFFFFF',
+                letterSpacing: '0.04em',
+                textShadow: weWon
+                  ? '0 0 50px rgba(234,179,8,0.45), 0 2px 8px rgba(0,0,0,0.5)'
+                  : '0 2px 8px rgba(0,0,0,0.5)',
+              }}
+            >
+              {weWon ? (is2Player ? '¡GANASTE!' : '¡GANAMOS!') : (is2Player ? 'PERDISTE' : 'PERDIMOS')}
             </h1>
-            <p className="font-body text-white/60 mt-2 text-sm">
+            <p className="font-body text-white/60 mt-1 text-sm">
               {winnerText}
             </p>
           </div>
@@ -168,14 +179,13 @@ export function GameEndModal() {
               className="transition-opacity duration-500"
               style={{ opacity: showRevancha ? 1 : 0, pointerEvents: showRevancha ? 'auto' : 'none' }}
             >
-              <button
+              <GoldCTA
                 onClick={handleRematchVote}
                 disabled={hasVoted || allVoted || !!rematchCancelled}
-                className="w-full text-white font-body font-bold py-4 rounded-xl transition-all hover:opacity-90 active:scale-95 text-lg disabled:opacity-60 disabled:cursor-default disabled:active:scale-100"
-                style={{ background: 'linear-gradient(135deg, #22C55E, #16a34a)' }}
+                size="md"
               >
-                {hasVoted ? '✓ Listo' : 'Revancha'}
-              </button>
+                {hasVoted ? '✓ LISTO' : 'REVANCHA'}
+              </GoldCTA>
             </div>
 
             {/* Vote counter and player list */}

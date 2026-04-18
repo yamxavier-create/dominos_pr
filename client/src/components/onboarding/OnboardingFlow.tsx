@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { GoldCTA, GoldCaption, Starburst } from '../ui/GoldCTA'
 
 interface OnboardingProps {
   onComplete: () => void
@@ -77,26 +78,39 @@ export function OnboardingFlow({ onComplete }: OnboardingProps) {
   const screen = screens[current]
   const isLast = current === screens.length - 1
 
+  const stepCaptions = ['Bienvenido', 'Guía Rápida', 'Modos'] as const
+
   return (
     <div className="fixed inset-0 felt-table flex items-center justify-center px-4 py-4 overflow-y-auto">
-      <div className="menu-card flex flex-col items-center gap-4 w-full max-w-xs sm:max-w-sm text-center">
+      <div className="relative flex flex-col items-center gap-5 w-full max-w-xs sm:max-w-sm text-center py-6">
         {/* Skip button */}
         <button
           onClick={handleSkip}
-          className="self-end font-body text-white/30 hover:text-white/50 text-xs transition-colors"
+          className="absolute top-0 right-0 font-body text-white/40 hover:text-white/70 text-xs transition-colors"
         >
           Saltar
         </button>
 
-        {/* Icon */}
-        <div className="flex items-center justify-center h-24">
-          {screen.icon}
+        {/* Caption */}
+        <div className="mt-2">
+          <GoldCaption>{stepCaptions[current] ?? 'Dominó PR'}</GoldCaption>
+        </div>
+
+        {/* Icon with starburst backdrop */}
+        <div className="relative flex items-center justify-center w-full max-w-[240px] aspect-square">
+          <Starburst opacity={0.28} />
+          <div className="relative flex items-center justify-center">{screen.icon}</div>
         </div>
 
         {/* Text */}
         <div>
-          <h2 className="font-header text-2xl sm:text-3xl text-gold mb-2">{screen.title}</h2>
-          <p className="font-body text-white/70 text-sm">{screen.subtitle}</p>
+          <h2
+            className="font-header text-[2.2rem] sm:text-[2.6rem] leading-[0.95] text-white"
+            style={{ letterSpacing: '0.015em', textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}
+          >
+            {screen.title}
+          </h2>
+          <p className="font-body text-white/70 text-sm mt-2">{screen.subtitle}</p>
           <p className="font-body text-white/40 text-xs mt-3 leading-relaxed">{screen.details}</p>
         </div>
 
@@ -105,22 +119,22 @@ export function OnboardingFlow({ onComplete }: OnboardingProps) {
           {screens.map((_, i) => (
             <div
               key={i}
-              className="w-2 h-2 rounded-full transition-all"
+              className="h-2 rounded-full transition-all"
               style={{
                 background: i === current ? '#EAB308' : 'rgba(255,255,255,0.15)',
-                transform: i === current ? 'scale(1.3)' : 'scale(1)',
+                width: i === current ? 24 : 8,
+                boxShadow: i === current ? '0 0 8px rgba(234,179,8,0.5)' : 'none',
               }}
             />
           ))}
         </div>
 
-        {/* Button */}
-        <button
-          onClick={handleNext}
-          className="w-full font-body font-bold py-3 rounded-2xl text-white text-base active:scale-95 btn-glow"
-        >
-          {isLast ? '¡Empezar a Jugar!' : 'Siguiente'}
-        </button>
+        {/* CTA */}
+        <div className="w-full mt-1">
+          <GoldCTA onClick={handleNext} size="md">
+            {isLast ? '¡EMPEZAR!' : 'SIGUIENTE'}
+          </GoldCTA>
+        </div>
       </div>
     </div>
   )

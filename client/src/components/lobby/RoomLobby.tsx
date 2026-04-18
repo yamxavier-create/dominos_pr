@@ -6,6 +6,7 @@ import { useCallStore } from '../../store/callStore'
 import { useAuthStore } from '../../store/authStore'
 import { useSocialStore, Friend } from '../../store/socialStore'
 import { API_BASE } from '../../apiBase'
+import { GoldCTA, GoldCaption, Starburst } from '../ui/GoldCTA'
 
 const teamColors = ['#22C55E', '#F97316', '#22C55E', '#F97316']
 const seatLabels = ['Host', 'Jugador 2', 'Jugador 3', 'Jugador 4']
@@ -87,17 +88,31 @@ export function RoomLobby() {
   }
 
   return (
-    <div className="menu-card menu-reveal flex flex-col gap-3 w-full max-w-sm">
-      {/* Room code card */}
-      <div className="text-center py-3">
-        <p className="font-body text-white/40 text-[10px] uppercase tracking-[0.25em] mb-1">Código de Sala</p>
-        <p className="font-header text-4xl text-gold tracking-widest room-code-glow">{room.roomCode}</p>
-        <p className="font-body text-white/40 text-xs mt-1">
-          Modo: <span style={{ color: '#22C55E' }}>{room.gameMode === 'modo200' ? 'Modo 200 (20 pts)' : 'Modo 500'}</span>
-        </p>
+    <div className="menu-reveal flex flex-col gap-3 w-full max-w-sm">
+      {/* Room code hero */}
+      <div className="relative flex flex-col items-center py-4">
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="w-64 h-64">
+            <Starburst opacity={0.22} />
+          </div>
+        </div>
+        <div className="relative flex flex-col items-center">
+          <GoldCaption>Código de Sala</GoldCaption>
+          <p
+            className="font-header text-[3.2rem] leading-none mt-1.5 room-code-glow"
+            style={{
+              color: '#EAB308',
+              letterSpacing: '0.12em',
+              textShadow: '0 0 40px rgba(234,179,8,0.45), 0 2px 8px rgba(0,0,0,0.5)',
+            }}
+          >
+            {room.roomCode}
+          </p>
+          <p className="font-body text-white/40 text-xs mt-2">
+            Modo: <span style={{ color: '#22C55E' }}>{room.gameMode === 'modo200' ? 'Modo 200 (20 pts)' : 'Modo 500'}</span>
+          </p>
+        </div>
       </div>
-
-      <div className="gold-divider" />
 
       {/* Players grid */}
       <div className="grid grid-cols-2 gap-2.5">
@@ -307,13 +322,9 @@ export function RoomLobby() {
                 : `Esperando jugadores...`}
             </p>
           )}
-          <button
-            onClick={startGame}
-            disabled={!canStart}
-            className="w-full font-body font-bold py-3.5 rounded-2xl text-white text-base active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed btn-glow"
-          >
-            {canStart ? '¡Iniciar Partida!' : `${playerCount} jugadores`}
-          </button>
+          <GoldCTA onClick={startGame} disabled={!canStart} size="md">
+            {canStart ? '¡INICIAR PARTIDA!' : `${playerCount} JUGADORES`}
+          </GoldCTA>
         </div>
       ) : (
         <div className="text-center py-3">

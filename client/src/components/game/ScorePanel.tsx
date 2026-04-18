@@ -46,9 +46,9 @@ export function ScorePanel({ scores, players, myPlayerIndex, gameMode, targetSco
       {compact ? (
         <>
           <span className="font-body text-xs font-semibold" style={{ color: '#22C55E' }}>{teamALabel}</span>
-          <span className="font-header text-base text-white shrink-0 leading-none">{scores.team0}</span>
+          <span className="font-header text-base text-white shrink-0 leading-none" style={{ textShadow: '0 0 12px rgba(234,179,8,0.35)' }}>{scores.team0}</span>
           <span className="text-white/20 font-body text-[10px] shrink-0">vs</span>
-          <span className="font-header text-base text-white shrink-0 leading-none">{scores.team1}</span>
+          <span className="font-header text-base text-white shrink-0 leading-none" style={{ textShadow: '0 0 12px rgba(234,179,8,0.35)' }}>{scores.team1}</span>
           <span className="font-body text-xs font-semibold" style={{ color: '#F97316' }}>{teamBLabel}</span>
         </>
       ) : (
@@ -94,7 +94,7 @@ function TeamScore({ label, score, pct, color, gradient }: {
     <div className="flex-1 min-w-0">
       <div className="flex justify-between items-center mb-1">
         <span className="font-body text-xs font-semibold truncate" style={{ color }}>{label}</span>
-        <span className="font-header text-xl text-white ml-2 shrink-0 leading-none">{score}</span>
+        <span className="font-header text-xl text-white ml-2 shrink-0 leading-none" style={{ textShadow: '0 0 14px rgba(234,179,8,0.4)' }}>{score}</span>
       </div>
       <div className="h-2 bg-white/5 rounded-full overflow-hidden border border-white/5">
         <div

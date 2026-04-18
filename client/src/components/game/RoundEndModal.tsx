@@ -5,6 +5,7 @@ import { useRoomStore } from '../../store/roomStore'
 import { useGameActions } from '../../hooks/useGameActions'
 import { DominoTile } from '../domino/DominoTile'
 import { socket } from '../../socket'
+import { GoldCTA, GoldCaption } from '../ui/GoldCTA'
 
 export function RoundEndModal() {
   const roundEndData = useGameStore(s => s.roundEndData)
@@ -75,25 +76,37 @@ export function RoundEndModal() {
         style={{ background: '#0F2318', border: '1px solid rgba(255,255,255,0.10)' }}
       >
         {/* Header */}
-        <div className={`px-6 pt-6 pb-4 text-center bg-gradient-to-b ${headerGradient}`}>
+        <div className={`px-6 pt-6 pb-4 text-center bg-gradient-to-b ${headerGradient} flex flex-col items-center gap-1.5`}>
+          <GoldCaption>Fin de Mano</GoldCaption>
           {blocked ? (
             <>
-              <div className="text-4xl mb-1">🔒</div>
-              <h2 className="font-header text-3xl text-gold">¡Trancado!</h2>
-              <p className="font-body text-white/60 text-sm mt-1">Nadie puede jugar</p>
+              <div className="text-4xl mb-0.5">🔒</div>
+              <h2
+                className="font-header text-[2rem] sm:text-[2.3rem] leading-[0.95] text-white"
+                style={{ letterSpacing: '0.02em', textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}
+              >
+                ¡Trancado!
+              </h2>
+              <p className="font-body text-white/60 text-sm">Nadie puede jugar</p>
             </>
           ) : weWon ? (
             <>
-              <div className="text-4xl mb-1">🎉</div>
-              <h2 className="font-header text-3xl text-gold">
-                {is2Player ? '¡Ganaste esta mano!' : '¡Ganamos esta mano!'}
+              <div className="text-4xl mb-0.5">🎉</div>
+              <h2
+                className="font-header text-[2rem] sm:text-[2.3rem] leading-[0.95] text-white"
+                style={{ letterSpacing: '0.02em', textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}
+              >
+                {is2Player ? '¡Ganaste!' : '¡Ganamos!'}
               </h2>
             </>
           ) : (
             <>
-              <div className="text-4xl mb-1">😤</div>
-              <h2 className="font-header text-3xl text-accent">
-                {is2Player ? 'Perdiste esta mano' : 'Perdimos esta mano'}
+              <div className="text-4xl mb-0.5">😤</div>
+              <h2
+                className="font-header text-[2rem] sm:text-[2.3rem] leading-[0.95]"
+                style={{ color: '#F97316', letterSpacing: '0.02em', textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}
+              >
+                {is2Player ? 'Perdiste' : 'Perdimos'}
               </h2>
             </>
           )}
@@ -201,13 +214,9 @@ export function RoundEndModal() {
         {/* Next hand button */}
         <div className="px-6 pb-6 pt-3">
           {isHost ? (
-            <button
-              onClick={handleNextHand}
-              className="w-full text-white font-body font-bold py-3 rounded-xl transition-all hover:opacity-90 active:scale-95"
-              style={{ background: 'linear-gradient(135deg, #22C55E, #16a34a)' }}
-            >
-              Siguiente Mano →
-            </button>
+            <GoldCTA onClick={handleNextHand} size="md">
+              SIGUIENTE MANO
+            </GoldCTA>
           ) : (
             <p className="text-center font-body text-white/40 text-sm">Esperando al host...</p>
           )}

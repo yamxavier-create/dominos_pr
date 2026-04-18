@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { MainMenu } from '../components/lobby/MainMenu'
-import { AudioControls } from '../components/game/AudioControls'
 import { OnboardingFlow } from '../components/onboarding/OnboardingFlow'
 
 export function MenuPage() {
@@ -13,9 +12,8 @@ export function MenuPage() {
   }
 
   return (
-    <div className="fixed inset-0 felt-table flex items-center justify-center px-4 py-4 overflow-y-auto">
+    <div className="fixed inset-0 felt-table flex items-start justify-center px-4 pt-3 pb-4 overflow-y-auto">
       <MainMenu />
-      <AudioControls />
     </div>
   )
 }
