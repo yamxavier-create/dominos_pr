@@ -423,6 +423,7 @@ function handleBlockedGame(io: Server, game: ServerGameState): boolean {
     pointsScored = pipsToModo200Points(rawPips)
   } else {
     const result = calculateBlockedResult(game.players)
+    winnerIndex = result.winnerIndex
     winningTeam = result.winningTeam
     rawPips = result.pointsScored
     pointsScored = rawPips

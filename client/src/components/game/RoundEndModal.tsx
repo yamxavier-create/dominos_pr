@@ -66,11 +66,12 @@ export function RoundEndModal() {
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
       <button
         onClick={() => setPeek(true)}
-        className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center bg-black/40 border border-white/20 text-white/80 active:scale-95 transition-transform z-10"
+        className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/50 border border-white/25 text-white/90 text-xs font-body font-bold active:scale-95 transition-transform z-10"
         style={{ backdropFilter: 'blur(8px)' }}
         aria-label="Ver mesa"
       >
-        👁
+        <span>👁</span>
+        <span>Ver mesa</span>
       </button>
       <div className="modal-enter w-full max-w-sm shadow-2xl overflow-hidden rounded-2xl"
         style={{ background: '#0F2318', border: '1px solid rgba(255,255,255,0.10)' }}

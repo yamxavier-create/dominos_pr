@@ -93,6 +93,25 @@ export function registerRoomHandlers(socket: Socket, io: Server, rooms: RoomMana
     rooms.registerSocket(socket.id, roomCode)
     console.log(`[room:rejoin] ${playerName} reconnected to ${roomCode}: ${oldSocketId} → ${socket.id}`)
 
+    // Re-sync state after background/disconnect so the client doesn't show a stale board.
+    if (room.status === 'in_game' && room.game) {
+      socket.emit('room:joined', {
+        roomCode,
+        room: rooms.getRoomInfo(room),
+        myPlayerIndex: rp.seatIndex,
+      })
+      socket.emit('game:state_snapshot', {
+        gameState: buildClientGameState(room.game, rp.seatIndex),
+        lastAction: null,
+      })
+      io.to(roomCode).emit('connection:player_reconnected', {
+        playerIndex: rp.seatIndex,
+        playerName: rp.name,
+      })
+    } else {
+      socket.emit('room:updated', { room: rooms.getRoomInfo(room) })
+    }
+
     // Send chat history on reconnect
     if (room.chatHistory?.length) {
       socket.emit('chat:history', { messages: room.chatHistory })
