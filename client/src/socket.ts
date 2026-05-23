@@ -11,8 +11,11 @@ const SOCKET_URL = Capacitor.isNativePlatform()
 export const socket: Socket = io(SOCKET_URL, {
   autoConnect: false,
   reconnection: true,
-  reconnectionAttempts: 5,
+  reconnectionAttempts: Infinity,
   reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
+  randomizationFactor: 0.5,
+  timeout: 20000,
   transports: ['websocket', 'polling'],
 })
 

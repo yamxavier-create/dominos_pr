@@ -13,7 +13,7 @@ import { ClientGameState, RoundEndPayload, GameEndPayload, PassPayload, RematchV
 export function useSocket() {
   const navigate = useNavigate()
   const { setGameState, setRoundEnd, setGameEnd, setLastTileSequence, addToScoreHistory, clearScoreHistory } = useGameStore()
-  const { setRoom, setMyPlayerIndex, setError, setRoomCode } = useRoomStore()
+  const { setRoom, setMyPlayerIndex, setError, setRoomCode, setPlayerName } = useRoomStore()
   const { addPasoNotification, setShowRoundEnd, setShowGameEnd, setSelectedTile, setRematchVotes, setRematchCancelled, clearRematchState } = useUIStore()
 
   useEffect(() => {
@@ -28,12 +28,35 @@ export function useSocket() {
       }
     })
 
+    // Recover from background: phone calls, app switches, screen lock can suspend
+    // the WebSocket. When the page becomes visible (or network comes back), force
+    // a reconnect if disconnected and re-emit room:rejoin to resync state.
+    const ensureConnected = () => {
+      if (!socket.connected) {
+        socket.connect()
+      } else {
+        const roomCode = useRoomStore.getState().roomCode
+        const playerName = useRoomStore.getState().playerName
+        if (roomCode && playerName) {
+          socket.emit('room:rejoin', { roomCode, playerName })
+        }
+      }
+    }
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') ensureConnected()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('focus', ensureConnected)
+    window.addEventListener('online', ensureConnected)
+
     socket.on('room:created', ({ roomCode, room, myPlayerIndex }: {
       roomCode: string; room: any; myPlayerIndex: number
     }) => {
       setRoom(room)
       setRoomCode(roomCode)
       setMyPlayerIndex(myPlayerIndex)
+      const myName = room?.players?.[myPlayerIndex]?.name
+      if (myName) setPlayerName(myName)
       navigate('/lobby')
     })
 
@@ -43,7 +66,13 @@ export function useSocket() {
       setRoom(room)
       setRoomCode(roomCode)
       setMyPlayerIndex(myPlayerIndex)
-      navigate('/lobby')
+      const myName = room?.players?.[myPlayerIndex]?.name
+      if (myName) setPlayerName(myName)
+      // Don't yank an in-progress game back to /lobby when we re-join after a
+      // disconnect — the server will also send game:state_snapshot to resync.
+      if (window.location.pathname !== '/game') {
+        navigate('/lobby')
+      }
     })
 
     socket.on('room:updated', ({ room }: { room: any }) => {
@@ -135,14 +164,15 @@ export function useSocket() {
 
     socket.on('game:round_ended', (data: RoundEndPayload) => {
       setRoundEnd(data)
-      setShowRoundEnd(true)
       const handNumber = useGameStore.getState().gameState?.handNumber ?? 0
       addToScoreHistory(data, handNumber)
+      // Brief pause so the final tile placement is visible before the modal opens
+      setTimeout(() => setShowRoundEnd(true), 1500)
     })
 
     socket.on('game:game_ended', (data: GameEndPayload) => {
       setGameEnd(data)
-      setShowGameEnd(true)
+      setTimeout(() => setShowGameEnd(true), 1500)
     })
 
     socket.on('game:rematch_vote_update', (data: RematchVoteUpdate) => {
@@ -274,6 +304,9 @@ export function useSocket() {
     })
 
     return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('focus', ensureConnected)
+      window.removeEventListener('online', ensureConnected)
       socket.off('connect')
       socket.off('room:created')
       socket.off('room:joined')

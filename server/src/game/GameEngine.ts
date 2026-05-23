@@ -235,30 +235,39 @@ export function calculatePlayOutPoints(players: PlayerState[], winnerIndex: numb
     .reduce((sum, p) => sum + handPipSum(p.tiles), 0)
 }
 
-/** For a blocked game: determine winning team and points */
+/** For a blocked game: determine winning team, points, and the individual
+ *  player who opens the next hand (winning team's lowest-pip player). */
 export function calculateBlockedResult(players: PlayerState[]): {
   winningTeam: 0 | 1 | null // null = tie (nobody scores)
+  winnerIndex: number | null // player who opens next hand (lowest pips on winning team)
   pointsScored: number
   pipCounts: number[]        // pip sum per player
 } {
   const pipCounts = players.map(p => handPipSum(p.tiles))
 
   if (players.length === 2) {
-    // 2-player: individual pip comparison
     const p0 = pipCounts[0]
     const p1 = pipCounts[1]
-    if (p0 < p1) return { winningTeam: playerTeam(0), pointsScored: p1, pipCounts }
-    if (p1 < p0) return { winningTeam: playerTeam(1), pointsScored: p0, pipCounts }
-    return { winningTeam: null, pointsScored: 0, pipCounts }
+    if (p0 < p1) return { winningTeam: playerTeam(0), winnerIndex: 0, pointsScored: p1, pipCounts }
+    if (p1 < p0) return { winningTeam: playerTeam(1), winnerIndex: 1, pointsScored: p0, pipCounts }
+    return { winningTeam: null, winnerIndex: null, pointsScored: 0, pipCounts }
   }
 
-  // 4-player: team sum comparison
   const teamA = pipCounts[0] + pipCounts[2]
   const teamB = pipCounts[1] + pipCounts[3]
 
-  if (teamA < teamB) return { winningTeam: 0, pointsScored: teamB, pipCounts }
-  if (teamB < teamA) return { winningTeam: 1, pointsScored: teamA, pipCounts }
-  return { winningTeam: null, pointsScored: 0, pipCounts }
+  if (teamA === teamB) {
+    return { winningTeam: null, winnerIndex: null, pointsScored: 0, pipCounts }
+  }
+
+  const winningTeam: 0 | 1 = teamA < teamB ? 0 : 1
+  const losingPips = winningTeam === 0 ? teamB : teamA
+  const teamIndices = winningTeam === 0 ? [0, 2] : [1, 3]
+  const winnerIndex = teamIndices.reduce((best, i) =>
+    pipCounts[i] < pipCounts[best] ? i : best
+  , teamIndices[0])
+
+  return { winningTeam, winnerIndex, pointsScored: losingPips, pipCounts }
 }
 
 /** Modo 200 blocked game: individual player with fewest pips wins */

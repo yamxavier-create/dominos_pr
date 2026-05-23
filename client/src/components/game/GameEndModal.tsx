@@ -109,11 +109,12 @@ export function GameEndModal() {
       {/* Peek button — hides modal to reveal the final board */}
       <button
         onClick={() => setPeek(true)}
-        className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center bg-black/40 border border-white/20 text-white/80 active:scale-95 transition-transform"
+        className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/50 border border-white/25 text-white/90 text-xs font-body font-bold active:scale-95 transition-transform"
         style={{ backdropFilter: 'blur(8px)' }}
         aria-label="Ver mesa"
       >
-        👁
+        <span>👁</span>
+        <span>Ver mesa</span>
       </button>
       {/* Animated gradient border wrapper */}
       <div

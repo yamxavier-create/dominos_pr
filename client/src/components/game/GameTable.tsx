@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { socket } from '../../socket'
 import { useGameStore } from '../../store/gameStore'
 import { useRoomStore } from '../../store/roomStore'
 import { useUIStore } from '../../store/uiStore'
@@ -36,6 +38,71 @@ function teamInfo(playerIndex: number, myPlayerIndex: number, playerCount: numbe
     teamLabel: isTeamA ? 'Equipo A' : 'Equipo B',
     teamColor: isTeamA ? '#22C55E' : '#F97316',
   }
+}
+
+function LeaveGameButton() {
+  const navigate = useNavigate()
+  const [confirming, setConfirming] = useState(false)
+
+  const handleLeave = () => {
+    socket.emit('room:leave')
+    useGameStore.getState().resetGame()
+    useRoomStore.getState().clearRoom()
+    useUIStore.getState().clearChatState()
+    useUIStore.getState().clearRematchState()
+    useUIStore.getState().setShowRoundEnd(false)
+    useUIStore.getState().setShowGameEnd(false)
+    navigate('/')
+  }
+
+  return (
+    <>
+      <button
+        onClick={() => setConfirming(true)}
+        className="fixed z-30 left-3 flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-black/40 border border-white/15 text-white/80 text-xs font-body font-bold active:scale-95 transition-transform"
+        style={{
+          top: 'calc(0.5rem + var(--safe-top))',
+          backdropFilter: 'blur(8px)',
+        }}
+        aria-label="Salir del juego"
+      >
+        <span>←</span>
+        <span>Salir</span>
+      </button>
+
+      {confirming && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+          <div
+            className="modal-enter w-full max-w-xs rounded-2xl overflow-hidden text-center"
+            style={{ background: '#0F2318', border: '1px solid rgba(255,255,255,0.10)' }}
+          >
+            <div className="px-6 pt-6 pb-3">
+              <div className="text-4xl mb-2">🚪</div>
+              <h2 className="font-header text-2xl text-white leading-tight">¿Salir del juego?</h2>
+              <p className="font-body text-white/60 text-sm mt-2">
+                Vas a abandonar la partida y volver al menu principal.
+              </p>
+            </div>
+            <div className="flex gap-2 px-4 pb-5 pt-2">
+              <button
+                onClick={() => setConfirming(false)}
+                className="flex-1 px-4 py-3 rounded-xl font-body font-bold text-white bg-white/10 border border-white/15 active:scale-95 transition-transform"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleLeave}
+                className="flex-1 px-4 py-3 rounded-xl font-body font-bold text-white active:scale-95 transition-transform"
+                style={{ background: 'linear-gradient(135deg, #DC2626, #B91C1C)' }}
+              >
+                Salir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
 }
 
 function RemoteAudio({ stream }: { stream: MediaStream | null }) {
@@ -368,6 +435,7 @@ export function GameTable() {
       <AudioControls />
 
       {/* Overlays */}
+      <LeaveGameButton />
       <RoundEndModal />
       <GameEndModal />
     </div>
