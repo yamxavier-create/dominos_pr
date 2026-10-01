@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Input } from '../ui/Input'
 
 interface RegisterFormProps {
-  onRegister: (username: string, password: string, displayName?: string) => Promise<void>
+  onRegister: (username: string, password: string, displayName?: string, email?: string) => Promise<void>
   onSwitchToLogin: () => void
   error: string | null
 }
@@ -10,6 +10,7 @@ interface RegisterFormProps {
 export function RegisterForm({ onRegister, onSwitchToLogin, error }: RegisterFormProps) {
   const [username, setUsername] = useState('')
   const [displayName, setDisplayName] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -26,10 +27,14 @@ export function RegisterForm({ onRegister, onSwitchToLogin, error }: RegisterFor
       setLocalError('La contraseña debe tener al menos 6 caracteres')
       return
     }
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setLocalError('El email no es válido')
+      return
+    }
 
     setLoading(true)
     try {
-      await onRegister(username.trim(), password, displayName.trim() || undefined)
+      await onRegister(username.trim(), password, displayName.trim() || undefined, email.trim() || undefined)
     } finally {
       setLoading(false)
     }
@@ -59,6 +64,19 @@ export function RegisterForm({ onRegister, onSwitchToLogin, error }: RegisterFor
         onChange={e => setDisplayName(e.target.value)}
         maxLength={20}
       />
+
+      <div className="flex flex-col gap-1">
+        <Input
+          label="Email (opcional)"
+          type="email"
+          placeholder="tu@email.com"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          maxLength={254}
+          autoComplete="email"
+        />
+        <p className="font-body text-white/40 text-xs">Lo usamos solo para recuperar tu contraseña.</p>
+      </div>
 
       <div>
         <label className="font-body text-white/60 text-xs mb-1 block">Contraseña</label>

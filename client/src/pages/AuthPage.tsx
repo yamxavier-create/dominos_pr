@@ -24,10 +24,10 @@ export function AuthPage() {
     }
   }
 
-  const handleRegister = async (username: string, password: string, displayName?: string) => {
+  const handleRegister = async (username: string, password: string, displayName?: string, email?: string) => {
     setError(null)
     try {
-      await register(username, password, displayName)
+      await register(username, password, displayName, email)
       navigate('/')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrar')

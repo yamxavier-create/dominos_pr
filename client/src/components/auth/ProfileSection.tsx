@@ -55,7 +55,7 @@ export function ProfileSection() {
     setSaving(true)
     setError(null)
     try {
-      await updateProfile(trimmed)
+      await updateProfile({ displayName: trimmed })
       setEditing(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al actualizar')

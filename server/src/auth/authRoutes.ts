@@ -8,10 +8,23 @@ import { sendPasswordResetEmail } from './emailService'
 
 const router = Router()
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+// Returns the normalized email, null when empty, or undefined when invalid
+function normalizeEmail(raw: unknown): string | null | undefined {
+  if (raw === undefined || raw === null) return null
+  if (typeof raw !== 'string') return undefined
+  const email = raw.trim().toLowerCase()
+  if (!email) return null
+  if (email.length > 254 || !EMAIL_RE.test(email)) return undefined
+  return email
+}
+
 // POST /api/auth/register
 router.post('/register', async (req: Request, res: Response) => {
   try {
     const { username, password, displayName } = req.body
+    const email = normalizeEmail(req.body.email)
 
     if (!username || !password) {
       res.status(400).json({ error: 'Username and password are required' })
@@ -30,9 +43,19 @@ router.post('/register', async (req: Request, res: Response) => {
       return
     }
 
+    if (email === undefined) {
+      res.status(400).json({ error: 'Invalid email' })
+      return
+    }
+
     const existing = await prisma.user.findUnique({ where: { username: username.toLowerCase() } })
     if (existing) {
       res.status(409).json({ error: 'Username already taken' })
+      return
+    }
+
+    if (email && await prisma.user.findUnique({ where: { email } })) {
+      res.status(409).json({ error: 'Email already in use' })
       return
     }
 
@@ -41,10 +64,11 @@ router.post('/register', async (req: Request, res: Response) => {
       data: {
         username: username.toLowerCase(),
         displayName: displayName || username,
+        email,
         passwordHash,
         stats: { create: {} },
       },
-      select: { id: true, username: true, displayName: true, avatarUrl: true, createdAt: true },
+      select: { id: true, username: true, displayName: true, avatarUrl: true, email: true, createdAt: true },
     })
 
     const { token, jti, expiresAt } = signToken(user.id, user.username)
@@ -69,7 +93,7 @@ router.post('/login', async (req: Request, res: Response) => {
 
     const user = await prisma.user.findUnique({
       where: { username: username.toLowerCase() },
-      select: { id: true, username: true, displayName: true, avatarUrl: true, passwordHash: true },
+      select: { id: true, username: true, displayName: true, avatarUrl: true, email: true, passwordHash: true },
     })
 
     if (!user || !user.passwordHash) {
@@ -222,21 +246,46 @@ router.patch('/profile', async (req: Request, res: Response) => {
     const payload = verifyToken(token)
 
     const { displayName } = req.body
-    if (!displayName || typeof displayName !== 'string') {
-      res.status(400).json({ error: 'Display name is required' })
-      return
+    const data: { displayName?: string; email?: string | null } = {}
+
+    if (displayName !== undefined) {
+      if (typeof displayName !== 'string') {
+        res.status(400).json({ error: 'Display name is required' })
+        return
+      }
+      const sanitized = displayName.trim().slice(0, 20)
+      if (sanitized.length < 1) {
+        res.status(400).json({ error: 'Display name too short' })
+        return
+      }
+      data.displayName = sanitized
     }
 
-    const sanitized = displayName.trim().slice(0, 20)
-    if (sanitized.length < 1) {
-      res.status(400).json({ error: 'Display name too short' })
+    if (req.body.email !== undefined) {
+      const email = normalizeEmail(req.body.email)
+      if (email === undefined) {
+        res.status(400).json({ error: 'Invalid email' })
+        return
+      }
+      if (email) {
+        const owner = await prisma.user.findUnique({ where: { email }, select: { id: true } })
+        if (owner && owner.id !== payload.sub) {
+          res.status(409).json({ error: 'Email already in use' })
+          return
+        }
+      }
+      data.email = email
+    }
+
+    if (Object.keys(data).length === 0) {
+      res.status(400).json({ error: 'Nothing to update' })
       return
     }
 
     const user = await prisma.user.update({
       where: { id: payload.sub },
-      data: { displayName: sanitized },
-      select: { id: true, username: true, displayName: true, avatarUrl: true },
+      data,
+      select: { id: true, username: true, displayName: true, avatarUrl: true, email: true },
     })
 
     res.json({ user })

@@ -43,10 +43,10 @@ export function useAuth() {
     })
   }, [])
 
-  const register = async (username: string, password: string, displayName?: string) => {
+  const register = async (username: string, password: string, displayName?: string, email?: string) => {
     const { token, user } = await apiCall('/register', {
       method: 'POST',
-      body: JSON.stringify({ username, password, displayName }),
+      body: JSON.stringify({ username, password, displayName, email }),
     })
     setAuth(user, token)
     setSocketAuth(token)
@@ -86,15 +86,15 @@ export function useAuth() {
     }
   }
 
-  const updateProfile = async (displayName: string) => {
+  const updateProfile = async (changes: { displayName?: string; email?: string }) => {
     const { user: updatedUser } = await apiCall('/profile', {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ displayName }),
+      body: JSON.stringify(changes),
     })
-    // Update local store with new display name
+    // Update local store with the saved profile fields
     const { updateUser } = useAuthStore.getState()
-    updateUser({ displayName: updatedUser.displayName })
+    updateUser({ displayName: updatedUser.displayName, email: updatedUser.email })
   }
 
   return { register, login, loginWithGoogle, logout: handleLogout, updateProfile, isAuthenticated, user, token }

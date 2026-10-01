@@ -71,7 +71,12 @@ function SettingsDropdown({ onClose }: { onClose: () => void }) {
   const toggleMusic = useUIStore(s => s.toggleMusic)
   const { user } = useAuthStore()
   const { logout } = useAuth()
-  const [editing, setEditing] = useState(false)
+  const [editing, setEditing] = useState<ProfileField | null>(null)
+
+  // The modal lives inside this dropdown, so keep it mounted and hide the menu instead of closing
+  if (editing && user) {
+    return <EditProfileModal field={editing} onClose={() => { setEditing(null); onClose() }} />
+  }
 
   return (
     <>
@@ -83,7 +88,7 @@ function SettingsDropdown({ onClose }: { onClose: () => void }) {
         {user && (
           <div className="px-4 pt-1 pb-2 border-b border-white/10 mb-1">
             <p className="font-body text-white text-sm font-semibold truncate">{user.displayName}</p>
-            <p className="font-body text-white/40 text-[11px]">{user.email}</p>
+            {user.email && <p className="font-body text-white/40 text-[11px] truncate">{user.email}</p>}
           </div>
         )}
 
@@ -96,10 +101,16 @@ function SettingsDropdown({ onClose }: { onClose: () => void }) {
           <>
             <div className="h-px bg-white/10 my-1 mx-2" />
             <button
-              onClick={() => { setEditing(true); onClose() }}
+              onClick={() => setEditing('displayName')}
               className="w-full text-left px-4 py-2 font-body text-white/75 hover:bg-white/5 text-sm rounded-lg"
             >
               Editar nombre
+            </button>
+            <button
+              onClick={() => setEditing('email')}
+              className="w-full text-left px-4 py-2 font-body text-white/75 hover:bg-white/5 text-sm rounded-lg"
+            >
+              {user.email ? 'Cambiar email' : 'Agregar email'}
             </button>
             <button
               onClick={() => { logout(); onClose() }}
@@ -110,8 +121,6 @@ function SettingsDropdown({ onClose }: { onClose: () => void }) {
           </>
         )}
       </div>
-
-      {editing && user && <EditNameModal onClose={() => setEditing(false)} />}
     </>
   )
 }
@@ -133,20 +142,28 @@ function ToggleRow({ label, enabled, onToggle }: { label: string; enabled: boole
   )
 }
 
-function EditNameModal({ onClose }: { onClose: () => void }) {
+type ProfileField = 'displayName' | 'email'
+
+function EditProfileModal({ field, onClose }: { field: ProfileField; onClose: () => void }) {
   const { user } = useAuthStore()
   const { updateProfile } = useAuth()
-  const [name, setName] = useState(user?.displayName ?? '')
+  const isEmail = field === 'email'
+  const current = (isEmail ? user?.email : user?.displayName) ?? ''
+  const [value, setValue] = useState(current)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const save = async () => {
-    const trimmed = name.trim()
-    if (!trimmed || trimmed === user?.displayName) { onClose(); return }
+    const trimmed = value.trim()
+    if (trimmed === current || (!isEmail && !trimmed)) { onClose(); return }
+    if (isEmail && trimmed && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setError('El email no es válido')
+      return
+    }
     setSaving(true)
     setError(null)
     try {
-      await updateProfile(trimmed)
+      await updateProfile({ [field]: trimmed })
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error')
@@ -162,22 +179,25 @@ function EditNameModal({ onClose }: { onClose: () => void }) {
         style={{ background: '#0F2318', border: '1px solid rgba(255,255,255,0.10)' }}
         onClick={e => e.stopPropagation()}
       >
-        <p className="font-body text-white/60 text-xs mb-2 uppercase tracking-wider">Tu nombre</p>
+        <p className="font-body text-white/60 text-xs mb-2 uppercase tracking-wider">{isEmail ? 'Tu email' : 'Tu nombre'}</p>
         <input
-          type="text"
-          value={name}
-          onChange={e => setName(e.target.value)}
+          type={isEmail ? 'email' : 'text'}
+          value={value}
+          onChange={e => setValue(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') onClose() }}
-          maxLength={20}
+          maxLength={isEmail ? 254 : 20}
+          placeholder={isEmail ? 'tu@email.com' : undefined}
+          autoComplete={isEmail ? 'email' : undefined}
           autoFocus
           className="w-full font-body text-white bg-white/5 border border-white/15 rounded-xl px-3 py-2 outline-none focus:border-primary/60"
         />
+        {isEmail && <p className="font-body text-white/40 text-xs mt-2">Lo usamos solo para recuperar tu contraseña.</p>}
         {error && <p className="font-body text-accent text-xs mt-2">{error}</p>}
         <div className="flex gap-2 mt-4">
           <button onClick={onClose} className="flex-1 font-body text-white/60 py-2.5 rounded-xl hover:bg-white/5 text-sm">Cancelar</button>
           <button
             onClick={save}
-            disabled={saving || !name.trim()}
+            disabled={saving || (!isEmail && !value.trim())}
             className="flex-1 font-body text-white font-bold py-2.5 rounded-xl disabled:opacity-50 text-sm"
             style={{ background: 'linear-gradient(135deg, #22C55E, #16a34a)' }}
           >
