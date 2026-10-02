@@ -12,8 +12,7 @@ import { GameBoard } from '../board/GameBoard'
 import { PlayerHand } from '../player/PlayerHand'
 import { OpponentHand } from '../player/OpponentHand'
 import { PlayerSeat } from '../player/PlayerSeat'
-import { JoinCallButton } from './JoinCallButton'
-import { AudioControls } from './AudioControls'
+import { SocialDock, MediaDock } from './GameDock'
 import { TurnIndicator } from '../player/TurnIndicator'
 import { ScorePanel } from './ScorePanel'
 import { ScoreHistoryPanel } from './ScoreHistoryPanel'
@@ -372,8 +371,10 @@ export function GameTable() {
           )}
         </div>
 
-        {/* Bottom-left corner */}
-        <div />
+        {/* Bottom-left corner: chat + reactions */}
+        <div className={`flex items-end justify-center ${compact ? 'pb-1 px-1' : 'pb-2 px-1.5'}`}>
+          <SocialDock size={isDesktop ? 46 : compact ? 34 : 40} />
+        </div>
 
         {/* My hand (bottom) */}
         <div className={`flex flex-col items-center justify-end relative ${compact ? 'gap-0 overflow-hidden' : 'gap-1'}`} data-seat="bottom">
@@ -425,9 +426,9 @@ export function GameTable() {
           />
         </div>
 
-        {/* Bottom-right corner */}
-        <div className="flex items-end justify-center pb-2">
-          <JoinCallButton />
+        {/* Bottom-right corner: call + sound */}
+        <div className={`flex items-end justify-center ${compact ? 'pb-1 px-1' : 'pb-2 px-1.5'}`}>
+          <MediaDock size={isDesktop ? 46 : compact ? 34 : 40} />
         </div>
       </div>
 
@@ -439,9 +440,6 @@ export function GameTable() {
           ))}
         </>
       )}
-
-      {/* SFX toggle */}
-      <AudioControls />
 
       {/* Overlays */}
       <LeaveGameButton />

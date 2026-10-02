@@ -5,9 +5,7 @@ import { useRoomStore } from '../store/roomStore'
 import { useUIStore } from '../store/uiStore'
 import { GameTable } from '../components/game/GameTable'
 import { useWebRTC } from '../hooks/useWebRTC'
-import { ChatButton } from '../components/chat/ChatButton'
 import { ChatPanel } from '../components/chat/ChatPanel'
-import { EmojiBar } from '../components/chat/EmojiBar'
 import { TileFlyAnimation } from '../components/board/TileFlyAnimation'
 
 // Error boundary prevents a crash from showing the raw green background.
@@ -75,8 +73,6 @@ export function GamePage() {
   return (
     <GameErrorBoundary onReset={handleErrorReset}>
       <GameTable />
-      <ChatButton />
-      <EmojiBar />
       <TileFlyAnimation playerCount={playerCount} />
       {chatOpen && <ChatPanel />}
     </GameErrorBoundary>

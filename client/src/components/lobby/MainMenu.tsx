@@ -241,39 +241,33 @@ function SparkleDots() {
 }
 
 /* Three floating dominoes: center upright 6|6, flanked by tilted tiles */
+// A hand of three equal tiles fanned around a pivot below them, like cards held
+// in a hand: same size, symmetric angles, the double six on top
+const FAN = [
+  { pip1: 5, pip2: 3, angle: -16 },
+  { pip1: 5, pip2: 4, angle: 16 },
+  { pip1: 6, pip2: 6, angle: 0 },
+] as const
+
 function FloatingDominoes() {
   return (
-    <div className="relative w-full h-full flex items-center justify-center">
-      <div
-        className="absolute"
-        style={{
-          transform: 'translate(-58%, 8%) rotate(-18deg)',
-          filter: 'drop-shadow(0 10px 18px rgba(0,0,0,0.5))',
-          width: '34%',
-        }}
-      >
-        <DominoTile pip1={5} pip2={3} orientation="vertical" style={{ width: '100%', height: 'auto' }} />
-      </div>
-      <div
-        className="absolute"
-        style={{
-          transform: 'translate(0%, -6%)',
-          filter: 'drop-shadow(0 14px 22px rgba(0,0,0,0.6))',
-          width: '42%',
-        }}
-      >
-        <DominoTile pip1={6} pip2={6} orientation="vertical" style={{ width: '100%', height: 'auto' }} />
-      </div>
-      <div
-        className="absolute"
-        style={{
-          transform: 'translate(58%, 14%) rotate(16deg)',
-          filter: 'drop-shadow(0 10px 18px rgba(0,0,0,0.5))',
-          width: '32%',
-        }}
-      >
-        <DominoTile pip1={5} pip2={4} orientation="vertical" style={{ width: '100%', height: 'auto' }} />
-      </div>
+    <div className="relative w-full h-full">
+      {FAN.map(({ pip1, pip2, angle }) => (
+        <div
+          key={`${pip1}-${pip2}`}
+          className="absolute left-1/2 top-1/2"
+          style={{
+            width: '30%',
+            transform: `translate(-50%, -48%) rotate(${angle}deg)`,
+            transformOrigin: '50% 135%',
+            filter: angle === 0
+              ? 'drop-shadow(0 14px 22px rgba(0,0,0,0.55))'
+              : 'drop-shadow(0 10px 16px rgba(0,0,0,0.45))',
+          }}
+        >
+          <DominoTile pip1={pip1} pip2={pip2} orientation="vertical" style={{ width: '100%', height: 'auto' }} />
+        </div>
+      ))}
     </div>
   )
 }
