@@ -1,25 +1,19 @@
 import { Router, Request, Response } from 'express'
 import prisma from '../db/prisma'
-import { verifyToken } from '../auth/jwt'
+import { verifyBearer } from '../auth/jwt'
 
 const router = Router()
 
-// Helper: extract userId from Bearer token
-function getUserId(req: Request): string | null {
-  const auth = req.headers.authorization
-  if (!auth?.startsWith('Bearer ')) return null
-  try {
-    const payload = verifyToken(auth.slice(7))
-    return payload.sub
-  } catch {
-    return null
-  }
+// Helper: extract userId from Bearer token with a live session
+async function getUserId(req: Request): Promise<string | null> {
+  const payload = await verifyBearer(req.headers.authorization)
+  return payload?.sub ?? null
 }
 
 // GET /api/stats/me — my stats
 router.get('/me', async (req: Request, res: Response) => {
   try {
-    const userId = getUserId(req)
+    const userId = await getUserId(req)
     if (!userId) { res.status(401).json({ error: 'Not authenticated' }); return }
 
     const stats = await prisma.userStats.findUnique({ where: { userId } })
@@ -41,7 +35,7 @@ router.get('/me', async (req: Request, res: Response) => {
 // GET /api/stats/history?limit=20&offset=0 — my game history
 router.get('/history', async (req: Request, res: Response) => {
   try {
-    const userId = getUserId(req)
+    const userId = await getUserId(req)
     if (!userId) { res.status(401).json({ error: 'Not authenticated' }); return }
 
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 50)

@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express'
 import crypto from 'crypto'
 import prisma from '../db/prisma'
 import { hashPassword, comparePassword } from './passwordUtils'
-import { signToken, verifyToken } from './jwt'
+import { signToken, verifyToken, verifySession } from './jwt'
 import { verifyGoogleToken } from './google'
 import { sendPasswordResetEmail } from './emailService'
 
@@ -186,12 +186,8 @@ router.get('/me', async (req: Request, res: Response) => {
       return
     }
 
-    const token = authHeader.slice(7)
-    const payload = verifyToken(token)
-
-    // Check session exists (not revoked)
-    const session = await prisma.session.findUnique({ where: { token: payload.jti } })
-    if (!session || session.expiresAt < new Date()) {
+    const payload = await verifySession(authHeader.slice(7))
+    if (!payload) {
       res.status(401).json({ error: 'Session expired' })
       return
     }
@@ -242,8 +238,11 @@ router.patch('/profile', async (req: Request, res: Response) => {
       return
     }
 
-    const token = authHeader.slice(7)
-    const payload = verifyToken(token)
+    const payload = await verifySession(authHeader.slice(7))
+    if (!payload) {
+      res.status(401).json({ error: 'Session expired' })
+      return
+    }
 
     const { displayName } = req.body
     const data: { displayName?: string; email?: string | null } = {}

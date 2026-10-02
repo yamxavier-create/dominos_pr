@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express'
 import prisma from '../db/prisma'
-import { verifyToken } from '../auth/jwt'
+import { verifySession } from '../auth/jwt'
 import { RoomManager } from '../game/RoomManager'
 import { PresenceManager } from '../presence/PresenceManager'
 
@@ -24,13 +24,12 @@ async function requireAuth(req: Request, res: Response): Promise<string | null> 
     res.status(401).json({ error: 'Authentication required' })
     return null
   }
-  try {
-    const payload = verifyToken(authHeader.slice(7))
-    return payload.sub
-  } catch {
+  const payload = await verifySession(authHeader.slice(7))
+  if (!payload) {
     res.status(401).json({ error: 'Invalid token' })
     return null
   }
+  return payload.sub
 }
 
 const userSelect = { id: true, username: true, displayName: true, avatarUrl: true } as const
