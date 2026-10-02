@@ -272,15 +272,57 @@ function FloatingDominoes() {
   )
 }
 
+/* Line icons for the action cards, same stroke style as the in-game dock */
+const ACTION_ICONS = {
+  create: (
+    <>
+      <rect x="3" y="3" width="18" height="18" rx="4" />
+      <line x1="12" y1="8" x2="12" y2="16" />
+      <line x1="8" y1="12" x2="16" y2="12" />
+    </>
+  ),
+  code: (
+    <>
+      <line x1="4" y1="9" x2="20" y2="9" />
+      <line x1="4" y1="15" x2="20" y2="15" />
+      <line x1="10" y1="3" x2="8" y2="21" />
+      <line x1="16" y1="3" x2="14" y2="21" />
+    </>
+  ),
+  friends: (
+    <>
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </>
+  ),
+} as const
+
 /* Small action card — icon + label + optional badge */
-function ActionCard({ icon, label, badge, onClick }: { icon: string; label: string; badge?: number; onClick: () => void }) {
+function ActionCard({ icon, label, badge, onClick }: { icon: keyof typeof ACTION_ICONS; label: string; badge?: number; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="relative rounded-2xl py-3 px-2 flex flex-col items-center gap-1.5 active:scale-95 transition-transform"
-      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+      className="relative rounded-2xl py-3 px-2 flex flex-col items-center gap-2 active:scale-95 transition-all hover:border-gold/30"
+      style={{
+        background: 'linear-gradient(180deg, rgba(15,35,24,0.85), rgba(8,22,13,0.85))',
+        border: '1px solid rgba(234,179,8,0.16)',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+      }}
     >
-      <span className="text-2xl leading-none">{icon}</span>
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#EAB308"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="w-6 h-6"
+        aria-hidden
+      >
+        {ACTION_ICONS[icon]}
+      </svg>
       <span className="font-body text-white/80 text-xs font-bold tracking-wider">{label}</span>
       {badge !== undefined && badge > 0 && (
         <span
@@ -514,10 +556,10 @@ export function MainMenu() {
 
       {/* 3-button grid */}
       <div className="grid grid-cols-3 gap-2">
-        <ActionCard icon="🔑" label="CREAR" onClick={() => setView('create')} />
-        <ActionCard icon="🎟️" label="CÓDIGO" onClick={() => setView('join')} />
+        <ActionCard icon="create" label="CREAR" onClick={() => setView('create')} />
+        <ActionCard icon="code" label="CÓDIGO" onClick={() => setView('join')} />
         <ActionCard
-          icon="👥"
+          icon="friends"
           label="AMIGOS"
           badge={incomingRequestCount}
           onClick={() => isAuthenticated ? setShowSocial(true) : navigate('/auth')}
