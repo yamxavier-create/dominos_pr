@@ -462,11 +462,13 @@ body {
 
 /* Subtle domino pattern overlay for menu bg */
 /*
- * Full-screen backgrounds fade to the html background color at the bottom edge,
- * so they join the strip iOS leaves below short pages without a visible seam.
+ * Full-screen backgrounds start and end on the html background color, so they
+ * join the flat areas iOS leaves around the page (the status bar on top, the
+ * strip below short pages) without a visible seam.
  */
 .felt-table {
   background:
+    linear-gradient(180deg, #0A1A0F 0%, transparent 140px),
     linear-gradient(180deg, transparent calc(100% - 140px), #0A1A0F 100%),
     radial-gradient(ellipse at center, #173022 0%, #0A1A0F 80%, #060E08 100%);
 }
