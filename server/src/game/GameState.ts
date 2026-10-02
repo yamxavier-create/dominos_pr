@@ -79,6 +79,7 @@ export interface RoomPlayer {
   connected: boolean
   userId?: string  // Set for authenticated users, undefined for guests
   isBot?: boolean  // True for AI players
+  reconnectToken?: string  // Secret sent only to this seat's owner; required to reclaim the seat. Never broadcast.
 }
 
 export interface Room {

@@ -8,9 +8,10 @@ Monorepo npm workspaces: `client/` (React + Vite + Zustand) y `server/` (Express
 npm run dev          # Client (5173) + Server (3001) concurrente
 npm run build        # Build ambos workspaces
 npm run start        # Production server (sirve client/dist/)
+npm test             # Pruebas adversariales del socket layer (server/test/)
 ```
 
-No hay test ni lint scripts. TypeScript strict mode es el check principal.
+No hay lint script. TypeScript strict mode más `npm test` son los checks principales. Los tests apuntan Prisma a una DB inalcanzable (`server/test/env.ts`), así que nunca escriben en la DB local ni en Supabase.
 
 ## Gotchas (no obvios del código)
 

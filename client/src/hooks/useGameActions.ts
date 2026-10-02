@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
 import { socket } from '../socket'
-import { useRoomStore } from '../store/roomStore'
+import { useRoomStore, loadReconnectToken } from '../store/roomStore'
 import { useUIStore } from '../store/uiStore'
 import { useGameStore } from '../store/gameStore'
 import { GameMode } from '../types/game'
@@ -66,7 +66,9 @@ export function useGameActions() {
   }, [])
 
   const joinRoom = useCallback((roomCodeArg: string, playerName: string) => {
-    socket.emit('room:join', { roomCode: roomCodeArg, playerName })
+    // Mid-game joins are reconnections; send the seat's token if we have one
+    const reconnectToken = roomCodeArg ? loadReconnectToken(roomCodeArg) : undefined
+    socket.emit('room:join', { roomCode: roomCodeArg, playerName, reconnectToken })
   }, [])
 
   return { selectTile, playTileOnEnd, startNextHand, startGame, createRoom, joinRoom, drawFromBoneyard }

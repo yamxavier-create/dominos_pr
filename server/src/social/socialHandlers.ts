@@ -376,6 +376,7 @@ export function registerSocialHandlers(socket: Socket, io: Server, rooms?: RoomM
         roomCode: friendRoomCode,
         room: rooms.getRoomInfo(result.room),
         myPlayerIndex: result.seatIndex,
+        reconnectToken: rooms.getReconnectToken(result.room, result.seatIndex),
       })
       io.to(friendRoomCode).emit('room:updated', { room: rooms.getRoomInfo(result.room) })
 

@@ -515,13 +515,19 @@ export function checkRematchCancellation(
 }
 
 import { PresenceManager } from '../presence/PresenceManager'
+import { isNonEmptyString } from './payloadGuard'
 
 export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomManager, presence: PresenceManager) {
 
-  socket.on('game:start', ({ roomCode }: { roomCode: string }) => {
-    const room = rooms.getRoom(roomCode)
+  socket.on('game:start', ({ roomCode }: { roomCode?: unknown }) => {
+    const room = isNonEmptyString(roomCode) ? rooms.getRoom(roomCode) : undefined
     if (!room) return socket.emit('room:error', { code: 'ROOM_NOT_FOUND', message: 'Sala no encontrada' })
     if (room.hostSocketId !== socket.id) return socket.emit('room:error', { code: 'NOT_HOST', message: 'Solo el host puede iniciar' })
+    // Only start from the lobby or after a finished game. A start while a game is
+    // live would wipe scores and handNumber mid-match.
+    if (room.game && room.game.phase !== 'game_end') {
+      return socket.emit('room:error', { code: 'GAME_IN_PROGRESS', message: 'La partida ya está en curso' })
+    }
     if (room.players.length !== 2 && room.players.length !== 4) {
       return socket.emit('room:error', { code: 'NOT_ENOUGH_PLAYERS', message: 'Se necesitan 2 o 4 jugadores' })
     }
@@ -532,7 +538,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     const { playerIndex: starterIdx, tile: forcedTile } = findFirstPlayer(hands)
 
     const game: ServerGameState = {
-      roomCode,
+      roomCode: room.roomCode,
       gameMode: room.gameMode,
       targetScore: room.gameMode === 'modo200' ? 20 : 500,
       phase: 'playing',
@@ -583,10 +589,12 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
   })
 
   socket.on('game:play_tile', ({ roomCode, tileId, targetEnd }: {
-    roomCode: string
-    tileId: string
-    targetEnd: 'left' | 'right'
+    roomCode?: unknown
+    tileId?: unknown
+    targetEnd?: unknown
   }) => {
+    if (!isNonEmptyString(roomCode) || !isNonEmptyString(tileId)) return
+    if (targetEnd !== 'left' && targetEnd !== 'right') return
     const room = rooms.getRoom(roomCode)
     if (!room?.game) return
 
@@ -710,7 +718,8 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     }
   })
 
-  socket.on('game:next_hand', ({ roomCode }: { roomCode: string }) => {
+  socket.on('game:next_hand', ({ roomCode }: { roomCode?: unknown }) => {
+    if (!isNonEmptyString(roomCode)) return
     const room = rooms.getRoom(roomCode)
     if (!room?.game) return
     if (room.hostSocketId !== socket.id) return
@@ -776,7 +785,8 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     scheduleBotTurn(io, game, rooms)
   })
 
-  socket.on('game:next_game', ({ roomCode }: { roomCode: string }) => {
+  socket.on('game:next_game', ({ roomCode }: { roomCode?: unknown }) => {
+    if (!isNonEmptyString(roomCode)) return
     const room = rooms.getRoom(roomCode)
     if (!room?.game) return
     if (room.hostSocketId !== socket.id) return
@@ -829,7 +839,8 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     scheduleBotTurn(io, game, rooms)
   })
 
-  socket.on('game:rematch_vote', ({ roomCode }: { roomCode: string }) => {
+  socket.on('game:rematch_vote', ({ roomCode }: { roomCode?: unknown }) => {
+    if (!isNonEmptyString(roomCode)) return
     const room = rooms.getRoom(roomCode)
     if (!room?.game) return
     if (room.game.phase !== 'game_end') return
@@ -889,7 +900,8 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     }
   })
 
-  socket.on('game:draw_from_boneyard', ({ roomCode }: { roomCode: string }) => {
+  socket.on('game:draw_from_boneyard', ({ roomCode }: { roomCode?: unknown }) => {
+    if (!isNonEmptyString(roomCode)) return
     const room = rooms.getRoom(roomCode)
     if (!room?.game) return
 

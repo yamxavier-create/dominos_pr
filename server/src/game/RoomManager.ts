@@ -1,5 +1,26 @@
+import { randomUUID, timingSafeEqual } from 'crypto'
 import { Room, GameMode, RoomPlayer } from './GameState'
 import { generateBotName, generateBotSocketId } from './BotPlayer'
+
+/** Proof of seat ownership: the authenticated userId or the seat's secret reconnect token. */
+export interface SeatCredentials {
+  userId?: string
+  reconnectToken?: string
+}
+
+function tokensMatch(expected: string | undefined, given: string | undefined): boolean {
+  if (!expected || typeof given !== 'string') return false
+  const a = Buffer.from(expected)
+  const b = Buffer.from(given)
+  return a.length === b.length && timingSafeEqual(a, b)
+}
+
+/** A player name is never proof of identity — only the seat's userId or reconnect token is. */
+function ownsSeat(rp: RoomPlayer, creds: SeatCredentials): boolean {
+  if (rp.isBot) return false
+  if (tokensMatch(rp.reconnectToken, creds.reconnectToken)) return true
+  return !!rp.userId && rp.userId === creds.userId
+}
 
 const PR_WORDS = ['COQUI', 'PALMA', 'FARO', 'PONCE', 'GALLO', 'CEIBA', 'PLAYA', 'MONTE', 'SALSA', 'BOMBA']
 
@@ -30,7 +51,7 @@ export class RoomManager {
       roomCode,
       hostSocketId: socketId,
       gameMode,
-      players: [{ socketId, name: playerName, seatIndex: 0, connected: true, userId }],
+      players: [{ socketId, name: playerName, seatIndex: 0, connected: true, userId, reconnectToken: randomUUID() }],
       status: 'waiting',
       game: null,
       lastActivity: Date.now(),
@@ -43,38 +64,68 @@ export class RoomManager {
     return room
   }
 
-  joinRoom(socketId: string, roomCode: string, playerName: string, userId?: string): { room: Room; seatIndex: number } | null {
+  joinRoom(
+    socketId: string,
+    roomCode: string,
+    playerName: string,
+    userId?: string,
+    reconnectToken?: string,
+  ): { room: Room; seatIndex: number } | null {
     const room = this.rooms.get(roomCode)
     if (!room) return null
     if (room.status === 'in_game') {
-      // Reconnect attempt: match by userId first (more reliable), then by name
-      if (room.game) {
-        const player = room.game.players.find(p =>
-          !p.connected && ((userId && p.userId === userId) || p.name === playerName)
-        )
-        if (player) {
-          player.socketId = socketId
-          player.connected = true
-          if (userId) player.userId = userId
-          const rp = room.players.find(p => p.seatIndex === player.index)
-          if (rp) { rp.socketId = socketId; rp.connected = true; if (userId) rp.userId = userId }
-          this.socketToRoom.set(socketId, roomCode)
-          room.lastActivity = Date.now()
-          return { room, seatIndex: player.index }
-        }
-      }
-      return null
+      // Mid-game joins are reconnections only, and require proof of seat ownership
+      const result = this.reclaimSeat(socketId, roomCode, { userId, reconnectToken })
+      return result && { room: result.room, seatIndex: result.seatIndex }
     }
     if (room.players.length >= 4) return null
     if (room.players.some(p => p.name === playerName)) return null
 
     const seatIndex = room.players.length
-    const rp: RoomPlayer = { socketId, name: playerName, seatIndex, connected: true, userId }
+    const rp: RoomPlayer = { socketId, name: playerName, seatIndex, connected: true, userId, reconnectToken: randomUUID() }
     room.players.push(rp)
     this.socketToRoom.set(socketId, roomCode)
     if (userId) this.userToRoom.set(userId, roomCode)
     room.lastActivity = Date.now()
     return { room, seatIndex }
+  }
+
+  /**
+   * Move a seat to a new socket after a reconnect. Every path that replaces a
+   * player's socketId must go through here so ownership is always checked.
+   */
+  reclaimSeat(
+    socketId: string,
+    roomCode: string,
+    creds: SeatCredentials,
+  ): { room: Room; seatIndex: number; oldSocketId: string } | null {
+    const room = this.rooms.get(roomCode)
+    if (!room) return null
+    const rp = room.players.find(p => ownsSeat(p, creds))
+    if (!rp) return null
+
+    const oldSocketId = rp.socketId
+    rp.socketId = socketId
+    rp.connected = true
+
+    if (room.game) {
+      const gp = room.game.players.find(p => p.index === rp.seatIndex)
+      if (gp) {
+        gp.socketId = socketId
+        gp.connected = true
+      }
+    }
+
+    if (room.hostSocketId === oldSocketId) room.hostSocketId = socketId
+    if (oldSocketId !== socketId) this.socketToRoom.delete(oldSocketId)
+    this.socketToRoom.set(socketId, roomCode)
+    room.lastActivity = Date.now()
+    return { room, seatIndex: rp.seatIndex, oldSocketId }
+  }
+
+  /** The secret a seat owner needs to reclaim the seat. Send it only to that owner. */
+  getReconnectToken(room: Room, seatIndex: number): string | undefined {
+    return room.players.find(p => p.seatIndex === seatIndex)?.reconnectToken
   }
 
   leaveRoom(socketId: string): { roomCode: string; room: Room } | null {
@@ -156,10 +207,6 @@ export class RoomManager {
 
   getRoomCodeBySocket(socketId: string): string | undefined {
     return this.socketToRoom.get(socketId)
-  }
-
-  registerSocket(socketId: string, roomCode: string) {
-    this.socketToRoom.set(socketId, roomCode)
   }
 
   swapSeats(socketId: string, seatA: number, seatB: number): Room | null {

@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { socket } from '../socket'
 import { useGameStore } from '../store/gameStore'
-import { useRoomStore } from '../store/roomStore'
+import { useRoomStore, loadReconnectToken } from '../store/roomStore'
 import { useUIStore, ChatMessage, ActiveReaction } from '../store/uiStore'
 import { useCallStore } from '../store/callStore'
 import { useSocialStore, PresenceStatus } from '../store/socialStore'
@@ -13,20 +13,22 @@ import { ClientGameState, RoundEndPayload, GameEndPayload, PassPayload, RematchV
 export function useSocket() {
   const navigate = useNavigate()
   const { setGameState, setRoundEnd, setGameEnd, setLastTileSequence, addToScoreHistory, clearScoreHistory } = useGameStore()
-  const { setRoom, setMyPlayerIndex, setError, setRoomCode, setPlayerName } = useRoomStore()
+  const { setRoom, setMyPlayerIndex, setError, setRoomCode, setPlayerName, setReconnectToken } = useRoomStore()
   const { addPasoNotification, setShowRoundEnd, setShowGameEnd, setSelectedTile, setRematchVotes, setRematchCancelled, clearRematchState } = useUIStore()
 
   useEffect(() => {
     if (!socket.connected) socket.connect()
 
     // Re-join room after socket reconnection (new socket ID needs to be registered)
-    socket.on('connect', () => {
-      const roomCode = useRoomStore.getState().roomCode
-      const playerName = useRoomStore.getState().playerName
-      if (roomCode && playerName) {
-        socket.emit('room:rejoin', { roomCode, playerName })
+    // The server matches the seat by userId or reconnect token, never by name.
+    const rejoin = () => {
+      const { roomCode, reconnectToken } = useRoomStore.getState()
+      if (roomCode) {
+        socket.emit('room:rejoin', { roomCode, reconnectToken: reconnectToken || loadReconnectToken(roomCode) })
       }
-    })
+    }
+
+    socket.on('connect', rejoin)
 
     // Recover from background: phone calls, app switches, screen lock can suspend
     // the WebSocket. When the page becomes visible (or network comes back), force
@@ -35,11 +37,7 @@ export function useSocket() {
       if (!socket.connected) {
         socket.connect()
       } else {
-        const roomCode = useRoomStore.getState().roomCode
-        const playerName = useRoomStore.getState().playerName
-        if (roomCode && playerName) {
-          socket.emit('room:rejoin', { roomCode, playerName })
-        }
+        rejoin()
       }
     }
     const onVisibility = () => {
@@ -49,22 +47,24 @@ export function useSocket() {
     window.addEventListener('focus', ensureConnected)
     window.addEventListener('online', ensureConnected)
 
-    socket.on('room:created', ({ roomCode, room, myPlayerIndex }: {
-      roomCode: string; room: any; myPlayerIndex: number
+    socket.on('room:created', ({ roomCode, room, myPlayerIndex, reconnectToken }: {
+      roomCode: string; room: any; myPlayerIndex: number; reconnectToken?: string
     }) => {
       setRoom(room)
       setRoomCode(roomCode)
+      if (reconnectToken) setReconnectToken(roomCode, reconnectToken)
       setMyPlayerIndex(myPlayerIndex)
       const myName = room?.players?.[myPlayerIndex]?.name
       if (myName) setPlayerName(myName)
       navigate('/lobby')
     })
 
-    socket.on('room:joined', ({ roomCode, room, myPlayerIndex }: {
-      roomCode: string; room: any; myPlayerIndex: number
+    socket.on('room:joined', ({ roomCode, room, myPlayerIndex, reconnectToken }: {
+      roomCode: string; room: any; myPlayerIndex: number; reconnectToken?: string
     }) => {
       setRoom(room)
       setRoomCode(roomCode)
+      if (reconnectToken) setReconnectToken(roomCode, reconnectToken)
       setMyPlayerIndex(myPlayerIndex)
       const myName = room?.players?.[myPlayerIndex]?.name
       if (myName) setPlayerName(myName)
