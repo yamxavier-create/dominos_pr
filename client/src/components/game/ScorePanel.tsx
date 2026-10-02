@@ -27,8 +27,10 @@ export function ScorePanel({ scores, players, myPlayerIndex, gameMode, targetSco
 
   return (
     <div
-      className={`game-glass-panel flex items-center ${compact ? 'px-3 pb-1 gap-2' : 'px-3 pb-2 gap-3'}${onClick ? ' cursor-pointer' : ''}`}
-      style={{ paddingTop: `calc(${compact ? '0.25rem' : '0.5rem'} + var(--safe-top))` }}
+      className={`game-glass-panel flex items-center pr-3 ${compact ? 'pb-1 gap-2' : 'pb-2 gap-3'}${onClick ? ' cursor-pointer' : ''}`}
+      // Left padding clears the fixed "Salir" button that sits over this bar
+      // (5.5rem = its left offset + width)
+      style={{ paddingTop: `calc(${compact ? '0.25rem' : '0.5rem'} + var(--safe-top))`, paddingLeft: '5.5rem' }}
       onClick={onClick}
     >
       {/* Mode pill */}

@@ -13,12 +13,15 @@ interface PlayerHandProps {
   isMyTurn: boolean
   forcedFirstTileId: string | null
   compact?: boolean
+  large?: boolean
 }
 
 const HAND_W = 34
 const HAND_H = 68
 const HAND_W_COMPACT = 24
 const HAND_H_COMPACT = 48
+const HAND_W_LARGE = 46
+const HAND_H_LARGE = 92
 const DRAG_THRESHOLD = 10
 const DROP_RADIUS = 80 // px proximity to snap to an end tile
 const MAX_PER_ROW = 7
@@ -72,9 +75,9 @@ function detectNearEnd(px: number, py: number): 'left' | 'right' | null {
   return bestEnd
 }
 
-export function PlayerHand({ tiles, validPlayIds, isMyTurn, forcedFirstTileId, compact }: PlayerHandProps) {
-  const handW = compact ? HAND_W_COMPACT : HAND_W
-  const handH = compact ? HAND_H_COMPACT : HAND_H
+export function PlayerHand({ tiles, validPlayIds, isMyTurn, forcedFirstTileId, compact, large }: PlayerHandProps) {
+  const handW = large ? HAND_W_LARGE : compact ? HAND_W_COMPACT : HAND_W
+  const handH = large ? HAND_H_LARGE : compact ? HAND_H_COMPACT : HAND_H
   const selectedTileId = useUIStore(s => s.selectedTileId)
   const { selectTile } = useGameActions()
 

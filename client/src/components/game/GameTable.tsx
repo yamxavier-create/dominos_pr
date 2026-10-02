@@ -25,6 +25,7 @@ import { AvatarReaction } from '../player/AvatarReaction'
 import { RoundEndModal } from './RoundEndModal'
 import { GameEndModal } from './GameEndModal'
 import { useIsLandscape } from '../../hooks/useIsLandscape'
+import { useIsDesktop } from '../../hooks/useIsDesktop'
 
 function teamInfo(playerIndex: number, myPlayerIndex: number, playerCount: number, players: { name: string }[]) {
   if (playerCount === 2) {
@@ -175,6 +176,9 @@ export function GameTable() {
   }, [showRoundEnd, setShowScoreHistory])
 
   const isLandscape = useIsLandscape()
+  const isDesktop = useIsDesktop()
+  // Compact layout is for phones held sideways; a desktop screen is landscape but has room
+  const compact = isLandscape && !isDesktop
   const handleScoreBarClick = () => setShowScoreHistory(!showScoreHistory)
 
   if (!gameState) {
@@ -242,7 +246,7 @@ export function GameTable() {
         handNumber={handNumber}
         onClick={handleScoreBarClick}
         isOpen={showScoreHistory}
-        compact={isLandscape}
+        compact={compact}
       />
 
       {/* Score history panel */}
@@ -260,7 +264,7 @@ export function GameTable() {
         className="flex-1 overflow-hidden"
         style={{
           display: 'grid',
-          gridTemplateRows: isLandscape ? 'minmax(0, auto) 1fr minmax(0, auto)' : 'auto 1fr auto',
+          gridTemplateRows: compact ? 'minmax(0, auto) 1fr minmax(0, auto)' : 'auto 1fr auto',
           gridTemplateColumns: 'minmax(52px, auto) 1fr minmax(52px, auto)',
           minHeight: 0,
         }}
@@ -269,19 +273,20 @@ export function GameTable() {
         <div />
 
         {/* Top opponent */}
-        <div className={`flex flex-col items-center justify-start relative ${isLandscape ? 'pt-0.5 gap-0.5 overflow-hidden' : 'pt-1 gap-1'}`} data-seat="top">
+        <div className={`flex flex-col items-center justify-start relative ${compact ? 'pt-0.5 gap-0.5 overflow-hidden' : 'pt-1 gap-1'}`} data-seat="top">
           {topPlayer && (
             <>
               <PlayerSeat
+                large={isDesktop}
                 player={topPlayer}
                 isCurrentTurn={currentPlayerIndex === topIndex}
                 position={getPosition(topIndex, myPlayerIndex, playerCount)}
                 {...teamInfo(topIndex, myPlayerIndex, playerCount, players)}
                 {...seatCallProps(topIndex)}
-                compact={isLandscape}
+                compact={compact}
               />
               <AvatarReaction reactions={getReactions(topIndex)} position="top" />
-              <OpponentHand player={topPlayer} position="top" compact={isLandscape} />
+              <OpponentHand player={topPlayer} position="top" compact={compact} large={isDesktop} />
               {getPaso(topIndex) && (
                 <PasoChip show seat="top" playerName={topPlayer.name} bonusPoints={getPaso(topIndex)!.passBonusAwarded} />
               )}
@@ -296,10 +301,11 @@ export function GameTable() {
         <div />
 
         {/* Left opponent (4-player only) */}
-        <div className="flex flex-col items-center justify-center gap-1 px-0.5 relative" data-seat="left">
+        <div className={`flex flex-col items-center justify-center gap-1 relative ${isDesktop ? 'px-4' : 'px-0.5'}`} data-seat="left">
           {!is2Player && leftPlayer && (
             <>
               <PlayerSeat
+                large={isDesktop}
                 player={leftPlayer}
                 isCurrentTurn={currentPlayerIndex === leftIndex}
                 position={getPosition(leftIndex, myPlayerIndex, playerCount)}
@@ -307,7 +313,7 @@ export function GameTable() {
                 {...seatCallProps(leftIndex)}
               />
               <AvatarReaction reactions={getReactions(leftIndex)} position="left" />
-              <OpponentHand player={leftPlayer} position="left" compact={isLandscape} />
+              <OpponentHand player={leftPlayer} position="left" compact={compact} large={isDesktop} />
               {getPaso(leftIndex) && (
                 <PasoChip show seat="left" playerName={leftPlayer.name} bonusPoints={getPaso(leftIndex)!.passBonusAwarded} />
               )}
@@ -320,7 +326,7 @@ export function GameTable() {
 
         {/* Board center */}
         <div className="relative overflow-hidden w-full h-full table-surface" data-board>
-          <GameBoard board={board} />
+          <GameBoard board={board} allowZoom={isDesktop} />
           <TurnIndicator
             playerName={currentPlayerName}
             isMyTurn={isMyTurn}
@@ -343,10 +349,11 @@ export function GameTable() {
         </div>
 
         {/* Right opponent (4-player only) */}
-        <div className="flex flex-col items-center justify-center gap-1 px-0.5 relative" data-seat="right">
+        <div className={`flex flex-col items-center justify-center gap-1 relative ${isDesktop ? 'px-4' : 'px-0.5'}`} data-seat="right">
           {!is2Player && rightPlayer && (
             <>
               <PlayerSeat
+                large={isDesktop}
                 player={rightPlayer}
                 isCurrentTurn={currentPlayerIndex === rightIndex}
                 position={getPosition(rightIndex, myPlayerIndex, playerCount)}
@@ -354,7 +361,7 @@ export function GameTable() {
                 {...seatCallProps(rightIndex)}
               />
               <AvatarReaction reactions={getReactions(rightIndex)} position="right" />
-              <OpponentHand player={rightPlayer} position="right" compact={isLandscape} />
+              <OpponentHand player={rightPlayer} position="right" compact={compact} large={isDesktop} />
               {getPaso(rightIndex) && (
                 <PasoChip show seat="right" playerName={rightPlayer.name} bonusPoints={getPaso(rightIndex)!.passBonusAwarded} />
               )}
@@ -369,22 +376,23 @@ export function GameTable() {
         <div />
 
         {/* My hand (bottom) */}
-        <div className={`flex flex-col items-center justify-end relative ${isLandscape ? 'gap-0 overflow-hidden' : 'gap-1'}`} data-seat="bottom">
+        <div className={`flex flex-col items-center justify-end relative ${compact ? 'gap-0 overflow-hidden' : 'gap-1'}`} data-seat="bottom">
           {myPlayer && (
             <PlayerSeat
+                large={isDesktop}
               player={myPlayer}
               isCurrentTurn={isMyTurn}
               position="bottom"
-              compact={isLandscape}
+              compact={compact}
               {...teamInfo(myPlayerIndex, myPlayerIndex, playerCount, players)}
               {...seatCallProps(myPlayerIndex)}
             />
           )}
-          {!isLandscape && <AvatarReaction reactions={getReactions(myPlayerIndex)} position="bottom" />}
-          {!isLandscape && getPaso(myPlayerIndex) && (
+          {!compact && <AvatarReaction reactions={getReactions(myPlayerIndex)} position="bottom" />}
+          {!compact && getPaso(myPlayerIndex) && (
             <PasoChip show seat="bottom" playerName={myPlayer?.name ?? ''} bonusPoints={getPaso(myPlayerIndex)!.passBonusAwarded} />
           )}
-          {!isLandscape && getFloatingMessages(myPlayerIndex).map(msg => (
+          {!compact && getFloatingMessages(myPlayerIndex).map(msg => (
             <FloatingChatBubble key={msg.id} message={msg} />
           ))}
           {showEndChooser && (
@@ -412,7 +420,8 @@ export function GameTable() {
             validPlayIds={validPlayIds}
             isMyTurn={isMyTurn}
             forcedFirstTileId={forcedFirstTileId}
-            compact={isLandscape}
+            compact={compact}
+            large={isDesktop}
           />
         </div>
 

@@ -301,9 +301,10 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
 
 interface GameBoardProps {
   board: BoardState
+  allowZoom?: boolean  // desktop: grow tiles to use the larger table
 }
 
-export function GameBoard({ board }: GameBoardProps) {
+export function GameBoard({ board, allowZoom }: GameBoardProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [dims, setDims] = useState({ w: 0, h: 0 })
   const lastTileSequence = useGameStore(s => s.lastTileSequence)
@@ -336,7 +337,13 @@ export function GameBoard({ board }: GameBoardProps) {
     return <div ref={containerRef} className="w-full h-full" />
   }
 
-  const layout = computeSnakeLayout(board.tiles, dims.w, dims.h)
+  // On big screens, lay the snake out in a smaller virtual board and scale it up,
+  // so tiles grow with the table instead of staying phone-sized in the middle
+  const zoom = allowZoom ? Math.min(1.6, Math.max(1, Math.min(dims.w / 760, dims.h / 480))) : 1
+  const vw = dims.w / zoom
+  const vh = dims.h / zoom
+
+  const layout = computeSnakeLayout(board.tiles, vw, vh)
 
   // Compute bounding box of all tiles to determine if scaling is needed
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
@@ -358,10 +365,10 @@ export function GameBoard({ board }: GameBoardProps) {
   const BADGE_MARGIN = 20
   // Extra inset to account for table-surface border/margin
   const BORDER_INSET = 10
-  const availW = (dims.w / 2) - BORDER_INSET
-  const availH = (dims.h / 2) - BORDER_INSET
-  const cx = dims.w / 2
-  const cy = dims.h / 2
+  const availW = (vw / 2) - BORDER_INSET
+  const availH = (vh / 2) - BORDER_INSET
+  const cx = vw / 2
+  const cy = vh / 2
   const rightExtent = maxX - cx + BADGE_MARGIN
   const leftExtent  = cx - minX + BADGE_MARGIN
   const bottomExtent = maxY - cy + BADGE_MARGIN
@@ -374,7 +381,8 @@ export function GameBoard({ board }: GameBoardProps) {
     topExtent    > 0 ? availH / topExtent    : 1,
   )
   // Guard against NaN or invalid values
-  const scale = Number.isFinite(rawScale) ? Math.max(0.15, rawScale) : 1
+  const fitScale = Number.isFinite(rawScale) ? Math.max(0.15, rawScale) : 1
+  const scale = fitScale * zoom
 
 
   return (
@@ -382,8 +390,11 @@ export function GameBoard({ board }: GameBoardProps) {
       <div
         style={{
           position: 'absolute',
-          inset: 0,
-          transform: scale < 1 ? `scale(${scale})` : undefined,
+          left: (dims.w - vw) / 2,
+          top: (dims.h - vh) / 2,
+          width: vw,
+          height: vh,
+          transform: scale !== 1 ? `scale(${scale})` : undefined,
           transformOrigin: 'center center',
         }}
       >

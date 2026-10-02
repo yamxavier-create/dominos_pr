@@ -14,6 +14,7 @@ interface PlayerSeatProps {
   isCameraOff?: boolean
   isLocalPlayer?: boolean
   compact?: boolean
+  large?: boolean  // desktop: room for bigger camera tiles
 }
 
 function AvatarWithBadge({ player, initials, teamColor, isCurrentTurn, stream, isSpeaking, isCameraOff, size }: {
@@ -52,9 +53,10 @@ export function PlayerSeat({
   isCameraOff,
   isLocalPlayer,
   compact,
+  large,
 }: PlayerSeatProps) {
   const isSide = position === 'left' || position === 'right'
-  const avatarSize = isSide ? 56 : compact ? 48 : 80
+  const avatarSize = large ? (isSide ? 104 : 120) : isSide ? 56 : compact ? 48 : 80
   const initials = player.name.slice(0, 2).toUpperCase()
 
   const inCall = useCallStore(s =>
@@ -77,7 +79,7 @@ export function PlayerSeat({
     return (
       <div className="flex flex-col items-center py-0.5">
         <AvatarWithBadge {...avatarProps} />
-        <p className="font-body font-bold text-white text-[10px] leading-tight truncate max-w-[44px] mt-0.5 text-center">
+        <p className={`font-body font-bold text-white leading-tight truncate mt-0.5 text-center ${large ? 'text-xs max-w-[104px]' : 'text-[10px] max-w-[44px]'}`}>
           {player.name}
         </p>
         {!player.connected && (
@@ -110,7 +112,7 @@ export function PlayerSeat({
     <div className="flex items-center gap-1.5 px-2 py-1 rounded-xl game-glass-card flex-row transition-all duration-300">
       <AvatarWithBadge {...avatarProps} />
       <div>
-        <p className="font-body font-bold text-white leading-tight truncate text-xs max-w-20">
+        <p className={`font-body font-bold text-white leading-tight truncate ${large ? 'text-sm max-w-32' : 'text-xs max-w-20'}`}>
           {player.name}
         </p>
         <p className="font-body leading-tight text-xs" style={{ color: teamColor, opacity: 0.7 }}>
