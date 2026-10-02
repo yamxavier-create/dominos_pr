@@ -13,6 +13,14 @@ export function loadReconnectToken(roomCode: string): string | undefined {
   }
 }
 
+function forgetReconnectToken(roomCode: string) {
+  try {
+    localStorage.removeItem(tokenKey(roomCode))
+  } catch {
+    // Storage unavailable: nothing to forget
+  }
+}
+
 export function saveReconnectToken(roomCode: string, token: string) {
   try {
     localStorage.setItem(tokenKey(roomCode), token)
@@ -39,6 +47,8 @@ interface RoomStore {
   setError: (error: string | null) => void
   clearError: () => void
   clearRoom: () => void
+  /** Forget the room entirely so focus/reconnect never rejoins it. */
+  exitRoom: () => void
 }
 
 export const useRoomStore = create<RoomStore>(set => ({
@@ -62,4 +72,8 @@ export const useRoomStore = create<RoomStore>(set => ({
   setError: error => set({ error }),
   clearError: () => set({ error: null }),
   clearRoom: () => set({ room: null, myPlayerIndex: null, error: null }),
+  exitRoom: () => set(state => {
+    if (state.roomCode) forgetReconnectToken(state.roomCode)
+    return { room: null, roomCode: '', reconnectToken: '', myPlayerIndex: null }
+  }),
 }))

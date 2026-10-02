@@ -3,6 +3,7 @@ import prisma from '../db/prisma'
 import { getSocketUser } from '../socket/authMiddleware'
 import { RoomManager } from '../game/RoomManager'
 import { PresenceManager } from '../presence/PresenceManager'
+import { leaveCurrentRoom, emitLobbyState } from '../socket/roomEvents'
 
 const userSelect = { id: true, username: true, displayName: true, avatarUrl: true } as const
 
@@ -342,11 +343,7 @@ export function registerSocialHandlers(socket: Socket, io: Server, rooms?: RoomM
         }
         // Auto-leave waiting lobby
         if (currentRoom && currentRoom.status === 'waiting') {
-          const leaveResult = rooms.leaveRoom(socket.id)
-          if (leaveResult) {
-            socket.leave(leaveResult.roomCode)
-            io.to(leaveResult.roomCode).emit('room:updated', { room: rooms.getRoomInfo(leaveResult.room) })
-          }
+          leaveCurrentRoom(socket, io, rooms)
         }
       }
 
@@ -378,7 +375,7 @@ export function registerSocialHandlers(socket: Socket, io: Server, rooms?: RoomM
         myPlayerIndex: result.seatIndex,
         reconnectToken: rooms.getReconnectToken(result.room, result.seatIndex),
       })
-      io.to(friendRoomCode).emit('room:updated', { room: rooms.getRoomInfo(result.room) })
+      emitLobbyState(io, rooms, result.room)
 
       // 6. Notify presence for the joining user
       presence.notifyStatusChange(userId)

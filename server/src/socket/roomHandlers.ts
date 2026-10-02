@@ -1,10 +1,11 @@
 import { Socket, Server } from 'socket.io'
 import { RoomManager } from '../game/RoomManager'
 import { PresenceManager } from '../presence/PresenceManager'
-import { GameMode } from '../game/GameState'
+import { GameMode, Room } from '../game/GameState'
 import { buildClientGameState } from '../game/GameEngine'
 import { getSocketUser } from './authMiddleware'
 import { isNonEmptyString } from './payloadGuard'
+import { announceLeave, detachReplacedSocket, emitLobbyState, leaveCurrentRoom } from './roomEvents'
 
 const GAME_MODES: readonly GameMode[] = ['modo200', 'modo500']
 
@@ -13,6 +14,36 @@ function optionalString(value: unknown): string | undefined {
 }
 
 export function registerRoomHandlers(socket: Socket, io: Server, rooms: RoomManager, presence: PresenceManager) {
+
+  /** Resync a socket that just took (or retook) a seat, and tell the room. */
+  const sendSeat = (room: Room, seatIndex: number, oldSocketId?: string) => {
+    socket.join(room.roomCode)
+    if (oldSocketId) detachReplacedSocket(io, oldSocketId, socket.id, room.roomCode)
+    const rp = room.players.find(p => p.seatIndex === seatIndex)!
+    socket.emit('room:joined', {
+      roomCode: room.roomCode,
+      room: rooms.getRoomInfo(room),
+      myPlayerIndex: seatIndex,
+      reconnectToken: rp.reconnectToken,
+    })
+
+    if (room.status === 'in_game' && room.game) {
+      socket.emit('game:state_snapshot', {
+        gameState: buildClientGameState(room.game, seatIndex),
+        lastAction: null,
+      })
+      io.to(room.roomCode).emit('room:updated', { room: rooms.getRoomInfo(room) })
+      if (oldSocketId !== undefined && oldSocketId !== socket.id) {
+        io.to(room.roomCode).emit('connection:player_reconnected', { playerIndex: seatIndex, playerName: rp.name })
+      }
+    } else {
+      emitLobbyState(io, rooms, room)
+    }
+
+    if (room.chatHistory?.length) {
+      socket.emit('chat:history', { messages: room.chatHistory })
+    }
+  }
 
   socket.on('room:create', ({ playerName, gameMode }: { playerName?: unknown; gameMode?: unknown }) => {
     const socketUser = getSocketUser(socket)
@@ -23,6 +54,7 @@ export function registerRoomHandlers(socket: Socket, io: Server, rooms: RoomMana
     if (!GAME_MODES.includes(gameMode as GameMode)) {
       return socket.emit('room:error', { code: 'INVALID_MODE', message: 'Modo de juego inválido' })
     }
+    leaveCurrentRoom(socket, io, rooms)
     const userId = socketUser.user?.id
     const room = rooms.createRoom(socket.id, name, gameMode as GameMode, userId)
     socket.join(room.roomCode)
@@ -48,81 +80,39 @@ export function registerRoomHandlers(socket: Socket, io: Server, rooms: RoomMana
     if (!isNonEmptyString(roomCode)) {
       return socket.emit('room:error', { code: 'ROOM_NOT_FOUND', message: 'Sala no encontrada o llena' })
     }
+    const code = roomCode.toUpperCase()
+    if (!rooms.getRoom(code)) {
+      return socket.emit('room:error', { code: 'ROOM_NOT_FOUND', message: 'Sala no encontrada o llena' })
+    }
+    leaveCurrentRoom(socket, io, rooms, code)
     const userId = socketUser.user?.id
-    const result = rooms.joinRoom(socket.id, roomCode.toUpperCase(), name, userId, optionalString(reconnectToken))
+    const result = rooms.joinRoom(socket.id, code, name, userId, optionalString(reconnectToken))
     if (!result) {
       return socket.emit('room:error', {
         code: 'ROOM_NOT_FOUND',
         message: 'Sala no encontrada o llena',
       })
     }
-    const { room, seatIndex } = result
-    socket.join(room.roomCode)
-    const joined = {
-      roomCode: room.roomCode,
-      room: rooms.getRoomInfo(room),
-      myPlayerIndex: seatIndex,
-      reconnectToken: rooms.getReconnectToken(room, seatIndex),
-    }
-
-    if (room.status === 'in_game' && room.game) {
-      // Reconnect: send current game state
-      socket.emit('room:joined', joined)
-      socket.emit('game:state_snapshot', {
-        gameState: buildClientGameState(room.game, seatIndex),
-        lastAction: null,
-      })
-      io.to(room.roomCode).emit('connection:player_reconnected', {
-        playerIndex: seatIndex,
-        playerName: room.players.find(p => p.seatIndex === seatIndex)?.name ?? name,
-      })
-    } else {
-      socket.emit('room:joined', joined)
-      io.to(room.roomCode).emit('room:updated', { room: rooms.getRoomInfo(room) })
-    }
+    sendSeat(result.room, result.seatIndex, result.reclaimed ? result.oldSocketId : undefined)
     if (userId) presence.notifyStatusChange(userId)
   })
 
   // Lightweight reconnection: update socket ID in room/game state and re-join Socket.IO room.
-  // Triggered by client on socket reconnect (new socket ID after transport close).
-  // The seat is matched by userId or reconnect token — never by name.
+  // Triggered by client on socket reconnect (new socket ID after transport close) and on
+  // focus. The seat is matched by userId or reconnect token — never by name.
   socket.on('room:rejoin', ({ roomCode, reconnectToken }: { roomCode?: unknown; reconnectToken?: unknown }) => {
     if (!isNonEmptyString(roomCode)) return
     const result = rooms.reclaimSeat(socket.id, roomCode, {
       userId: getSocketUser(socket).user?.id,
       reconnectToken: optionalString(reconnectToken),
     })
-    if (!result) return
+    if (!result) {
+      // Seat expired, abandoned or room gone: the client must stop trying
+      return socket.emit('room:rejoin_failed', { roomCode })
+    }
     const { room, seatIndex, oldSocketId } = result
-    const rp = room.players.find(p => p.seatIndex === seatIndex)!
-
-    socket.join(roomCode)
-    console.log(`[room:rejoin] ${rp.name} reconnected to ${roomCode}: ${oldSocketId} → ${socket.id}`)
-
-    // Re-sync state after background/disconnect so the client doesn't show a stale board.
-    if (room.status === 'in_game' && room.game) {
-      socket.emit('room:joined', {
-        roomCode,
-        room: rooms.getRoomInfo(room),
-        myPlayerIndex: seatIndex,
-        reconnectToken: rp.reconnectToken,
-      })
-      socket.emit('game:state_snapshot', {
-        gameState: buildClientGameState(room.game, seatIndex),
-        lastAction: null,
-      })
-      io.to(roomCode).emit('connection:player_reconnected', {
-        playerIndex: seatIndex,
-        playerName: rp.name,
-      })
-    } else {
-      socket.emit('room:updated', { room: rooms.getRoomInfo(room) })
-    }
-
-    // Send chat history on reconnect
-    if (room.chatHistory?.length) {
-      socket.emit('chat:history', { messages: room.chatHistory })
-    }
+    console.log(`[room:rejoin] seat ${seatIndex} reconnected to ${roomCode}: ${oldSocketId} → ${socket.id}`)
+    sendSeat(room, seatIndex, oldSocketId)
   })
 
   socket.on('room:swap_seats', ({ seatA, seatB }: { seatA?: unknown; seatB?: unknown }) => {
@@ -159,12 +149,12 @@ export function registerRoomHandlers(socket: Socket, io: Server, rooms: RoomMana
     io.to(roomCode).emit('room:updated', { room: rooms.getRoomInfo(updated) })
   })
 
+  // Leaving on purpose: a lobby seat is freed now, a game seat is abandoned to a bot
   socket.on('room:leave', () => {
     const result = rooms.leaveRoom(socket.id)
     if (!result) return
-    const { roomCode, room } = result
-    socket.leave(roomCode)
-    io.to(roomCode).emit('room:updated', { room: rooms.getRoomInfo(room) })
+    socket.leave(result.roomCode)
+    announceLeave(io, rooms, result)
     const socketUser = getSocketUser(socket)
     if (socketUser.user) presence.notifyStatusChange(socketUser.user.id)
   })

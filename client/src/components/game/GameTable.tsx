@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { socket } from '../../socket'
+import { leaveRoomLocally } from '../../store/leaveRoom'
 import { useGameStore } from '../../store/gameStore'
 import { useRoomStore } from '../../store/roomStore'
 import { useUIStore } from '../../store/uiStore'
@@ -46,12 +47,7 @@ function LeaveGameButton() {
 
   const handleLeave = () => {
     socket.emit('room:leave')
-    useGameStore.getState().resetGame()
-    useRoomStore.getState().clearRoom()
-    useUIStore.getState().clearChatState()
-    useUIStore.getState().clearRematchState()
-    useUIStore.getState().setShowRoundEnd(false)
-    useUIStore.getState().setShowGameEnd(false)
+    leaveRoomLocally()
     navigate('/')
   }
 

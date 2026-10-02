@@ -38,7 +38,8 @@ export interface PlayerState {
   tiles: Tile[]
   connected: boolean
   userId?: string  // Set for authenticated users, undefined for guests
-  isBot?: boolean  // True for AI players
+  isBot?: boolean  // True for AI players, including a bot covering a disconnected human
+  substitutedByBot?: boolean  // A bot is playing this human's seat until the owner reclaims it
 }
 
 export interface TeamScores {
@@ -80,6 +81,7 @@ export interface RoomPlayer {
   userId?: string  // Set for authenticated users, undefined for guests
   isBot?: boolean  // True for AI players
   reconnectToken?: string  // Secret sent only to this seat's owner; required to reclaim the seat. Never broadcast.
+  abandoned?: boolean      // Owner left on purpose mid-game; the seat can't be reclaimed
 }
 
 export interface Room {

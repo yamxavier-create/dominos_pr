@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { socket } from '../socket'
 import { useGameStore } from '../store/gameStore'
 import { useRoomStore, loadReconnectToken } from '../store/roomStore'
+import { leaveRoomLocally } from '../store/leaveRoom'
 import { useUIStore, ChatMessage, ActiveReaction } from '../store/uiStore'
 import { useCallStore } from '../store/callStore'
 import { useSocialStore, PresenceStatus } from '../store/socialStore'
@@ -75,9 +76,21 @@ export function useSocket() {
       }
     })
 
-    socket.on('room:updated', ({ room }: { room: any }) => {
+    socket.on('room:updated', ({ room, myPlayerIndex }: { room: any; myPlayerIndex?: number }) => {
       setRoom(room)
+      // Lobby seats get reindexed when someone leaves; the server sends each player their new seat
+      if (typeof myPlayerIndex === 'number') setMyPlayerIndex(myPlayerIndex)
     })
+
+    // The server won't give this device the seat back: stop rejoining and go home
+    const kickedOut = (message: string) => () => {
+      leaveRoomLocally()
+      setError(message)
+      if (window.location.pathname === '/lobby' || window.location.pathname === '/game') navigate('/')
+    }
+    socket.on('room:rejoin_failed', kickedOut('Ya no tienes asiento en esa sala'))
+    socket.on('room:session_replaced', kickedOut('Abriste esta sala en otro dispositivo'))
+    socket.on('room:closed', kickedOut('La sala se cerró por inactividad'))
 
     socket.on('room:seat_swapped', ({ room, myPlayerIndex }: { room: any; myPlayerIndex: number }) => {
       setRoom(room)
@@ -311,6 +324,9 @@ export function useSocket() {
       socket.off('room:created')
       socket.off('room:joined')
       socket.off('room:updated')
+      socket.off('room:rejoin_failed')
+      socket.off('room:session_replaced')
+      socket.off('room:closed')
       socket.off('room:seat_swapped')
       socket.off('room:error')
       socket.off('game:started')

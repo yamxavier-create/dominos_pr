@@ -6,8 +6,11 @@ import { registerHandlers } from './handlers'
 import { checkRematchCancellation } from './gameHandlers'
 import { getSocketUser } from './authMiddleware'
 import { guardSocket } from './payloadGuard'
+import { emitLobbyState, installRoomLifecycleHooks } from './roomEvents'
 
 export function registerConnectionHandler(io: Server, rooms: RoomManager, presence: PresenceManager): void {
+  installRoomLifecycleHooks(io, rooms)
+
   io.on('connection', socket => {
     console.log(`[socket] connected: ${socket.id}`)
 
@@ -31,8 +34,9 @@ export function registerConnectionHandler(io: Server, rooms: RoomManager, presen
         presence.removeSocket(userData.user.id, socket.id)
       }
 
-      const result = rooms.leaveRoom(socket.id)
-      if (!result) {
+      // Keeps the seat for the grace period; a bot or seat release follows if they don't come back
+      const result = rooms.disconnect(socket.id)
+      if (!result?.room) {
         // Even without a room, presence may have changed (online -> offline)
         if (userData.user) {
           presence.notifyStatusChange(userData.user.id)
@@ -63,7 +67,7 @@ export function registerConnectionHandler(io: Server, rooms: RoomManager, presen
           }
         }
       } else {
-        io.to(roomCode).emit('room:updated', { room: rooms.getRoomInfo(room) })
+        emitLobbyState(io, rooms, room)
       }
 
       // Notify friends about status change (room leave)

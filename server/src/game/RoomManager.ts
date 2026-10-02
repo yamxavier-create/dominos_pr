@@ -2,6 +2,18 @@ import { randomUUID, timingSafeEqual } from 'crypto'
 import { Room, GameMode, RoomPlayer } from './GameState'
 import { generateBotName, generateBotSocketId } from './BotPlayer'
 
+const PR_WORDS = ['COQUI', 'PALMA', 'FARO', 'PONCE', 'GALLO', 'CEIBA', 'PLAYA', 'MONTE', 'SALSA', 'BOMBA']
+
+function generateRoomCode(existing: Set<string>): string {
+  let code: string
+  do {
+    const word = PR_WORDS[Math.floor(Math.random() * PR_WORDS.length)]
+    const digits = Math.floor(1000 + Math.random() * 9000)
+    code = `${word}-${digits}`
+  } while (existing.has(code))
+  return code
+}
+
 /** Proof of seat ownership: the authenticated userId or the seat's secret reconnect token. */
 export interface SeatCredentials {
   userId?: string
@@ -17,35 +29,73 @@ function tokensMatch(expected: string | undefined, given: string | undefined): b
 
 /** A player name is never proof of identity — only the seat's userId or reconnect token is. */
 function ownsSeat(rp: RoomPlayer, creds: SeatCredentials): boolean {
-  if (rp.isBot) return false
+  if (rp.isBot || rp.abandoned) return false
   if (tokensMatch(rp.reconnectToken, creds.reconnectToken)) return true
   return !!rp.userId && rp.userId === creds.userId
 }
 
-const PR_WORDS = ['COQUI', 'PALMA', 'FARO', 'PONCE', 'GALLO', 'CEIBA', 'PLAYA', 'MONTE', 'SALSA', 'BOMBA']
+function isHuman(rp: RoomPlayer): boolean {
+  return !rp.isBot
+}
 
-function generateRoomCode(existing: Set<string>): string {
-  let code: string
-  do {
-    const word = PR_WORDS[Math.floor(Math.random() * PR_WORDS.length)]
-    const digits = Math.floor(1000 + Math.random() * 9000)
-    code = `${word}-${digits}`
-  } while (existing.has(code))
-  return code
+export interface RoomLifecycleHooks {
+  /** A lobby seat was released or reindexed: every human needs their new seat index. */
+  onLobbyChanged?: (room: Room) => void
+  /** A disconnected player's grace period ran out mid-game: a bot should take the seat. */
+  onSeatExpired?: (room: Room, seatIndex: number) => void
+  /** The host moved to another player mid-game. */
+  onHostChanged?: (room: Room) => void
+  /** An idle room with connected players is about to be deleted. */
+  onRoomClosed?: (room: Room) => void
+}
+
+export interface RoomManagerOptions {
+  /** How long a disconnected human keeps their seat before it's released (lobby) or handed to a bot (game). */
+  reconnectGraceMs?: number
+  /** A room with no connected humans is deleted once it has been inactive this long. */
+  emptyRoomTtlMs?: number
+  /** A room with connected humans but no activity is closed after this long. */
+  idleRoomTtlMs?: number
+  /** 0 disables the periodic sweep (tests call cleanup() directly). */
+  cleanupIntervalMs?: number
+}
+
+export interface LeaveResult {
+  roomCode: string
+  /** null when the room was deleted because no humans are left */
+  room: Room | null
+  seatIndex: number
 }
 
 export class RoomManager {
   private rooms = new Map<string, Room>()
   private socketToRoom = new Map<string, string>() // socketId → roomCode
-  private userToRoom = new Map<string, string>()   // userId → roomCode
-  private cleanupInterval: NodeJS.Timeout
+  private userToRoom = new Map<string, string>()   // userId → roomCode (latest room the user sat in)
+  private graceTimers = new Map<RoomPlayer, NodeJS.Timeout>()
+  private cleanupInterval: NodeJS.Timeout | null = null
+  private hooks: RoomLifecycleHooks = {}
+  readonly reconnectGraceMs: number
+  private emptyRoomTtlMs: number
+  private idleRoomTtlMs: number
 
-  constructor() {
-    // Clean up idle rooms every 10 minutes
-    this.cleanupInterval = setInterval(() => this.cleanup(), 10 * 60 * 1000)
+  constructor(options: RoomManagerOptions = {}) {
+    this.reconnectGraceMs = options.reconnectGraceMs ?? 60_000
+    this.emptyRoomTtlMs = options.emptyRoomTtlMs ?? 10 * 60_000
+    this.idleRoomTtlMs = options.idleRoomTtlMs ?? 3 * 60 * 60_000
+    const interval = options.cleanupIntervalMs ?? 60_000
+    if (interval > 0) {
+      this.cleanupInterval = setInterval(() => this.cleanup(), interval)
+      this.cleanupInterval.unref()
+    }
+  }
+
+  setHooks(hooks: RoomLifecycleHooks) {
+    this.hooks = hooks
   }
 
   createRoom(socketId: string, playerName: string, gameMode: GameMode, userId?: string): Room {
+    // Callers release the previous membership first (with broadcasts); this is the safety net
+    this.leaveRoom(socketId)
     const roomCode = generateRoomCode(new Set(this.rooms.keys()))
     const room: Room = {
       roomCode,
@@ -64,22 +114,28 @@ export class RoomManager {
     return room
   }
 
+  /**
+   * Join a lobby, or reclaim an existing seat with credentials. Mid-game joins
+   * are reconnections only.
+   */
   joinRoom(
     socketId: string,
     roomCode: string,
     playerName: string,
     userId?: string,
     reconnectToken?: string,
-  ): { room: Room; seatIndex: number } | null {
+  ): { room: Room; seatIndex: number; reclaimed: boolean; oldSocketId?: string } | null {
     const room = this.rooms.get(roomCode)
     if (!room) return null
-    if (room.status === 'in_game') {
-      // Mid-game joins are reconnections only, and require proof of seat ownership
-      const result = this.reclaimSeat(socketId, roomCode, { userId, reconnectToken })
-      return result && { room: result.room, seatIndex: result.seatIndex }
-    }
+
+    const reclaimed = this.reclaimSeat(socketId, roomCode, { userId, reconnectToken })
+    if (reclaimed) return { ...reclaimed, reclaimed: true }
+
+    if (room.status === 'in_game') return null
     if (room.players.length >= 4) return null
     if (room.players.some(p => p.name === playerName)) return null
+
+    if (this.socketToRoom.get(socketId) !== roomCode) this.leaveRoom(socketId)
 
     const seatIndex = room.players.length
     const rp: RoomPlayer = { socketId, name: playerName, seatIndex, connected: true, userId, reconnectToken: randomUUID() }
@@ -87,7 +143,7 @@ export class RoomManager {
     this.socketToRoom.set(socketId, roomCode)
     if (userId) this.userToRoom.set(userId, roomCode)
     room.lastActivity = Date.now()
-    return { room, seatIndex }
+    return { room, seatIndex, reclaimed: false }
   }
 
   /**
@@ -104,6 +160,12 @@ export class RoomManager {
     const rp = room.players.find(p => ownsSeat(p, creds))
     if (!rp) return null
 
+    // One room per socket: a socket reclaiming here leaves wherever else it was
+    if (this.socketToRoom.has(socketId) && this.socketToRoom.get(socketId) !== roomCode) {
+      this.leaveRoom(socketId)
+    }
+
+    this.cancelGrace(rp)
     const oldSocketId = rp.socketId
     rp.socketId = socketId
     rp.connected = true
@@ -113,12 +175,25 @@ export class RoomManager {
       if (gp) {
         gp.socketId = socketId
         gp.connected = true
+        if (gp.substitutedByBot) {
+          gp.isBot = false
+          gp.substitutedByBot = false
+        }
       }
     }
 
     if (room.hostSocketId === oldSocketId) room.hostSocketId = socketId
-    if (oldSocketId !== socketId) this.socketToRoom.delete(oldSocketId)
+    // Mid-game, if the host is gone for good and nobody could inherit it, the
+    // first player back takes it so next_hand/next_game aren't stuck
+    const host = room.players.find(p => p.socketId === room.hostSocketId)
+    if (room.status === 'in_game' && (!host || host.abandoned || (!host.connected && !this.graceTimers.has(host)))) {
+      room.hostSocketId = socketId
+    }
+    if (oldSocketId !== socketId && this.socketToRoom.get(oldSocketId) === roomCode) {
+      this.socketToRoom.delete(oldSocketId)
+    }
     this.socketToRoom.set(socketId, roomCode)
+    if (rp.userId) this.userToRoom.set(rp.userId, roomCode)
     room.lastActivity = Date.now()
     return { room, seatIndex: rp.seatIndex, oldSocketId }
   }
@@ -128,43 +203,55 @@ export class RoomManager {
     return room.players.find(p => p.seatIndex === seatIndex)?.reconnectToken
   }
 
-  leaveRoom(socketId: string): { roomCode: string; room: Room } | null {
-    const roomCode = this.socketToRoom.get(socketId)
-    if (!roomCode) return null
-    const room = this.rooms.get(roomCode)
-    if (!room) return null
-
+  /**
+   * The socket dropped. The seat is kept for the grace period so the owner can
+   * reclaim it; after that it's released (lobby) or handed to a bot (game).
+   */
+  disconnect(socketId: string): LeaveResult | null {
+    const located = this.locate(socketId)
+    if (!located) return null
+    const { room, rp } = located
     this.socketToRoom.delete(socketId)
 
-    // Clean up userId mapping for lobby leaves
-    const leavingPlayer = room.players.find(p => p.socketId === socketId)
-    if (leavingPlayer?.userId && room.status === 'waiting') {
-      this.userToRoom.delete(leavingPlayer.userId)
-    }
+    rp.connected = false
+    const gp = room.game?.players.find(p => p.index === rp.seatIndex)
+    if (gp) gp.connected = false
+    room.lastActivity = Date.now()
+
+    this.startGrace(room, rp)
+    return { roomCode: room.roomCode, room, seatIndex: rp.seatIndex }
+  }
+
+  /**
+   * The player left on purpose. A lobby seat is freed now; a game seat is
+   * abandoned (never reclaimable) and handed to a bot by the caller.
+   */
+  leaveRoom(socketId: string): LeaveResult | null {
+    const located = this.locate(socketId)
+    if (!located) return null
+    const { room, rp } = located
+    this.socketToRoom.delete(socketId)
+    this.cancelGrace(rp)
+    const seatIndex = rp.seatIndex
 
     if (room.status === 'waiting') {
-      // Remove the player from lobby
-      room.players = room.players.filter(p => p.socketId !== socketId)
-      // Re-index remaining seats
-      room.players.forEach((p, i) => { p.seatIndex = i })
-      if (room.players.length === 0) {
-        this.rooms.delete(roomCode)
-        return null
-      }
-      // Transfer host if needed
-      if (room.hostSocketId === socketId) {
-        room.hostSocketId = room.players[0].socketId
-      }
-    } else if (room.game) {
-      // Mark as disconnected mid-game
-      const player = room.game.players.find(p => p.socketId === socketId)
-      if (player) player.connected = false
-      const rp = room.players.find(p => p.socketId === socketId)
-      if (rp) rp.connected = false
+      this.removeLobbySeat(room, rp)
+    } else {
+      rp.abandoned = true
+      rp.connected = false
+      rp.reconnectToken = undefined
+      const gp = room.game?.players.find(p => p.index === rp.seatIndex)
+      if (gp) gp.connected = false
+      if (room.hostSocketId === socketId) this.transferHost(room)
     }
+    this.releaseUser(rp.userId, room.roomCode)
 
     room.lastActivity = Date.now()
-    return { roomCode, room }
+    if (!room.players.some(p => isHuman(p) && !p.abandoned)) {
+      this.deleteRoom(room.roomCode)
+      return { roomCode: room.roomCode, room: null, seatIndex }
+    }
+    return { roomCode: room.roomCode, room, seatIndex }
   }
 
   addBot(roomCode: string): { room: Room; seatIndex: number } | null {
@@ -251,20 +338,117 @@ export class RoomManager {
     return this.userToRoom.get(userId)
   }
 
-  private cleanup() {
-    const cutoff = Date.now() - 60 * 60 * 1000 // 1 hour
+  /**
+   * Delete rooms nobody is coming back to. A room with no connected humans
+   * goes after emptyRoomTtlMs of inactivity; a room with connected humans is
+   * only closed (with notice) after idleRoomTtlMs.
+   */
+  cleanup(now = Date.now()) {
     for (const [code, room] of this.rooms) {
-      if (room.lastActivity < cutoff) {
-        for (const p of room.players) {
-          this.socketToRoom.delete(p.socketId)
-          if (p.userId) this.userToRoom.delete(p.userId)
-        }
-        this.rooms.delete(code)
+      const idleFor = now - room.lastActivity
+      const anyoneConnected = room.players.some(p => isHuman(p) && p.connected)
+      if (!anyoneConnected && idleFor >= this.emptyRoomTtlMs) {
+        this.deleteRoom(code)
+      } else if (anyoneConnected && idleFor >= this.idleRoomTtlMs) {
+        this.hooks.onRoomClosed?.(room)
+        this.deleteRoom(code)
       }
     }
   }
 
   destroy() {
-    clearInterval(this.cleanupInterval)
+    if (this.cleanupInterval) clearInterval(this.cleanupInterval)
+    for (const timer of this.graceTimers.values()) clearTimeout(timer)
+    this.graceTimers.clear()
+  }
+
+  // ─── Internals ──────────────────────────────────────────────────────────────
+
+  private locate(socketId: string): { room: Room; rp: RoomPlayer } | null {
+    const roomCode = this.socketToRoom.get(socketId)
+    if (!roomCode) return null
+    const room = this.rooms.get(roomCode)
+    const rp = room?.players.find(p => p.socketId === socketId)
+    if (!room || !rp) {
+      this.socketToRoom.delete(socketId)
+      return null
+    }
+    return { room, rp }
+  }
+
+  private startGrace(room: Room, rp: RoomPlayer) {
+    this.cancelGrace(rp)
+    const timer = setTimeout(() => {
+      this.graceTimers.delete(rp)
+      this.expireSeat(room, rp)
+    }, this.reconnectGraceMs)
+    timer.unref()
+    this.graceTimers.set(rp, timer)
+  }
+
+  private cancelGrace(rp: RoomPlayer) {
+    const timer = this.graceTimers.get(rp)
+    if (timer) clearTimeout(timer)
+    this.graceTimers.delete(rp)
+  }
+
+  private expireSeat(room: Room, rp: RoomPlayer) {
+    if (this.rooms.get(room.roomCode) !== room || rp.connected) return
+    if (room.status === 'waiting') {
+      this.removeLobbySeat(room, rp)
+      this.releaseUser(rp.userId, room.roomCode)
+      if (!room.players.some(isHuman)) {
+        this.deleteRoom(room.roomCode)
+        return
+      }
+      this.hooks.onLobbyChanged?.(room)
+    } else {
+      if (room.hostSocketId === rp.socketId && this.transferHost(room)) {
+        this.hooks.onHostChanged?.(room)
+      }
+      this.hooks.onSeatExpired?.(room, rp.seatIndex)
+    }
+  }
+
+  /** Remove a lobby seat, close the gap and keep a connected human as host on seat 0. */
+  private removeLobbySeat(room: Room, rp: RoomPlayer) {
+    room.players = room.players.filter(p => p !== rp)
+    room.players.sort((a, b) => a.seatIndex - b.seatIndex).forEach((p, i) => { p.seatIndex = i })
+    if (room.hostSocketId !== rp.socketId) return
+
+    // The lobby UI treats seat 0 as host, so move the new host there
+    const nextHost = room.players.find(p => isHuman(p) && p.connected) ?? room.players.find(isHuman)
+    if (!nextHost) return
+    const seat0 = room.players.find(p => p.seatIndex === 0)
+    if (seat0 && seat0 !== nextHost) {
+      seat0.seatIndex = nextHost.seatIndex
+      nextHost.seatIndex = 0
+    }
+    room.hostSocketId = nextHost.socketId
+  }
+
+  /** Mid-game: hand host rights to the first connected human. Returns whether it moved. */
+  private transferHost(room: Room): boolean {
+    const next = [...room.players]
+      .sort((a, b) => a.seatIndex - b.seatIndex)
+      .find(p => isHuman(p) && p.connected && !p.abandoned && p.socketId !== room.hostSocketId)
+    if (!next) return false
+    room.hostSocketId = next.socketId
+    return true
+  }
+
+  private releaseUser(userId: string | undefined, roomCode: string) {
+    if (userId && this.userToRoom.get(userId) === roomCode) this.userToRoom.delete(userId)
+  }
+
+  private deleteRoom(roomCode: string) {
+    const room = this.rooms.get(roomCode)
+    if (!room) return
+    for (const p of room.players) {
+      this.cancelGrace(p)
+      if (this.socketToRoom.get(p.socketId) === roomCode) this.socketToRoom.delete(p.socketId)
+      this.releaseUser(p.userId, roomCode)
+    }
+    this.rooms.delete(roomCode)
   }
 }

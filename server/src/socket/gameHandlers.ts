@@ -6,6 +6,7 @@ import {
   ServerGameState,
   BoardState,
   TeamScores,
+  Room,
 } from '../game/GameState'
 import {
   generateDoubleSixSet,
@@ -99,7 +100,8 @@ function scheduleBotTurn(io: Server, game: ServerGameState, rooms: RoomManager) 
   const delay = game.awaitingBoneyardDraw ? BOT_DRAW_DELAY : BOT_THINK_DELAY
 
   setTimeout(() => {
-    // Re-check state — game may have ended or player changed
+    // Re-check state — game may have ended, the room may be gone, or the owner reclaimed the seat
+    if (rooms.getRoom(game.roomCode)?.game !== game) return
     if (game.phase !== 'playing') return
     if (game.players[game.currentPlayerIndex]?.socketId !== currentPlayer.socketId) return
 
@@ -494,6 +496,25 @@ function handleGameEnd(io: Server, game: ServerGameState): boolean {
 }
 
 /**
+ * A human's seat is now played by a bot: their grace period ran out or they
+ * left on purpose. The owner can still reclaim it unless they abandoned it.
+ */
+export function handOverSeatToBot(io: Server, rooms: RoomManager, room: Room, seatIndex: number) {
+  const game = room.game
+  const player = game?.players.find(p => p.index === seatIndex)
+  if (!game || !player || player.connected || player.isBot) return
+
+  player.isBot = true
+  player.substitutedByBot = true
+  io.to(room.roomCode).emit('connection:player_replaced', {
+    playerIndex: player.index,
+    playerName: player.name,
+  })
+  broadcastState(io, game)
+  scheduleBotTurn(io, game, rooms)
+}
+
+/**
  * Check if a disconnecting player should cancel an active rematch vote.
  * Called from the main disconnect handler in index.ts.
  */
@@ -550,7 +571,9 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
         tiles: hands[i],
         connected: rp.connected,
         userId: rp.userId,
-        isBot: rp.isBot || false,
+        // A human who is gone when the game starts is covered by a bot until they reclaim the seat
+        isBot: rp.isBot || !rp.connected,
+        substitutedByBot: !rp.isBot && !rp.connected,
       })),
       board: { tiles: [], leftEnd: null, rightEnd: null },
       currentPlayerIndex: starterIdx,

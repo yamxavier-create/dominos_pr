@@ -5,149 +5,12 @@
  * Runs a real Socket.io server in-process with the production connection
  * handler. Run with `npm test` from the repo root.
  */
-import './env' // must stay first: points Prisma at an unreachable DB
-
-import { test, describe, before, after, afterEach } from 'node:test'
+import { test, describe } from 'node:test'
 import assert from 'node:assert/strict'
-import { createServer, Server as HttpServer } from 'http'
-import { AddressInfo } from 'net'
-import { Server } from 'socket.io'
-import { io as ioc, Socket as ClientSocket } from 'socket.io-client'
-import { RoomManager } from '../src/game/RoomManager'
-import { PresenceManager } from '../src/presence/PresenceManager'
-import { registerConnectionHandler } from '../src/socket/connection'
-import { SocketUserData } from '../src/socket/authMiddleware'
+import { setupTestServer, waitFor, collect, sleep, ClientSocket } from './harness'
 
-// ─── Harness ──────────────────────────────────────────────────────────────────
-
-let httpServer: HttpServer
-let io: Server
-let rooms: RoomManager
-let url: string
-const clients: ClientSocket[] = []
-const processErrors: unknown[] = []
-const onProcessError = (err: unknown) => { processErrors.push(err) }
-
-// Presence talks to the DB; the socket rules under test don't depend on it.
-const presenceStub = {
-  addSocket() {},
-  removeSocket() {},
-  notifyStatusChange() {},
-} as unknown as PresenceManager
-
-before(async () => {
-  process.on('uncaughtException', onProcessError)
-  process.on('unhandledRejection', onProcessError)
-
-  httpServer = createServer()
-  io = new Server(httpServer)
-  // Test auth: trust handshake.auth.testUserId instead of a JWT
-  io.use((socket, next) => {
-    const id = socket.handshake.auth?.testUserId as string | undefined
-    ;(socket.data as SocketUserData) = id
-      ? { user: { id, username: id, displayName: id }, guest: false }
-      : { guest: true }
-    next()
-  })
-  rooms = new RoomManager()
-  registerConnectionHandler(io, rooms, presenceStub)
-  await new Promise<void>(resolve => httpServer.listen(0, resolve))
-  url = `http://127.0.0.1:${(httpServer.address() as AddressInfo).port}`
-})
-
-afterEach(() => {
-  while (clients.length) clients.pop()!.disconnect()
-})
-
-after(async () => {
-  rooms.destroy()
-  io.close()
-  await new Promise(resolve => httpServer.close(resolve))
-  process.off('uncaughtException', onProcessError)
-  process.off('unhandledRejection', onProcessError)
-})
-
-async function connect(testUserId?: string): Promise<ClientSocket> {
-  const socket = ioc(url, {
-    transports: ['websocket'],
-    forceNew: true,
-    reconnection: false,
-    auth: testUserId ? { testUserId } : {},
-  })
-  clients.push(socket)
-  await waitFor(socket, 'connect')
-  return socket
-}
-
-function waitFor<T = any>(socket: ClientSocket, event: string, ms = 2000): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`timed out waiting for "${event}"`)), ms)
-    socket.once(event, (data: T) => {
-      clearTimeout(timer)
-      resolve(data)
-    })
-  })
-}
-
-/** Resolves with every event the socket received during the window. */
-function collect(socket: ClientSocket, ms = 300): Promise<string[]> {
-  const seen: string[] = []
-  const listener = (event: string) => { seen.push(event) }
-  socket.onAny(listener)
-  return new Promise(resolve => setTimeout(() => {
-    socket.offAny(listener)
-    resolve(seen)
-  }, ms))
-}
-
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-
-interface Seat {
-  socket: ClientSocket
-  name: string
-  userId?: string
-  reconnectToken: string
-}
-
-/**
- * Four humans in a live modo500 game. Seats 0 and 1 are authenticated, 2 and 3
- * are guests.
- */
-async function startFourPlayerGame() {
-  const specs = [
-    { name: 'Ana', userId: 'user-ana' },
-    { name: 'Beto', userId: 'user-beto' },
-    { name: 'Carla' },
-    { name: 'Dani' },
-  ]
-  const seats: Seat[] = []
-
-  const host = await connect(specs[0].userId)
-  host.emit('room:create', { playerName: specs[0].name, gameMode: 'modo500' })
-  const created = await waitFor(host, 'room:created')
-  const roomCode: string = created.roomCode
-  seats.push({ socket: host, ...specs[0], reconnectToken: created.reconnectToken })
-
-  for (const spec of specs.slice(1)) {
-    const socket = await connect(spec.userId)
-    socket.emit('room:join', { roomCode, playerName: spec.name })
-    const joined = await waitFor(socket, 'room:joined')
-    seats.push({ socket, ...spec, reconnectToken: joined.reconnectToken })
-  }
-
-  const started = seats.map(s => waitFor(s.socket, 'game:started'))
-  host.emit('game:start', { roomCode })
-  await Promise.all(started)
-
-  const room = rooms.getRoom(roomCode)!
-  assert.equal(room.game?.phase, 'playing')
-  return { roomCode, room, seats }
-}
-
-async function dropSeat(seat: Seat) {
-  seat.socket.disconnect()
-  await sleep(100)
-}
+const h = setupTestServer()
+const { connect, startFourPlayerGame, dropSeat } = h
 
 // ─── 1. Reconnection must prove seat ownership ────────────────────────────────
 
@@ -157,7 +20,7 @@ describe('reconnection', () => {
     const tokens = seats.map(s => s.reconnectToken)
     assert.ok(tokens.every(t => typeof t === 'string' && t.length >= 32))
     assert.equal(new Set(tokens).size, 4)
-    const info = JSON.stringify(rooms.getRoomInfo(room))
+    const info = JSON.stringify(h.rooms.getRoomInfo(room))
     for (const t of tokens) assert.ok(!info.includes(t), 'room info leaks a reconnect token')
   })
 
@@ -183,10 +46,11 @@ describe('reconnection', () => {
     for (const victim of [seats[2], seats[3]]) {
       const events = collect(attacker)
       attacker.emit('room:rejoin', { roomCode, playerName: victim.name })
-      assert.deepEqual(await events, [])
+      assert.deepEqual(await events, ['room:rejoin_failed'])
     }
+    const events = collect(attacker)
     attacker.emit('room:rejoin', { roomCode, reconnectToken: 'not-the-token' })
-    assert.deepEqual(await collect(attacker), [])
+    assert.deepEqual(await events, ['room:rejoin_failed'])
 
     assert.equal(room.game!.players[2].connected, false)
     assert.equal(room.game!.players[3].socketId, connectedSocketId)
@@ -302,7 +166,7 @@ const BAD_PAYLOADS: unknown[][] = [
 ]
 
 async function fuzzAllEvents(socket: ClientSocket, extra: Record<string, unknown> = {}, skip: string[] = []) {
-  const serverSocket = io.sockets.sockets.get(socket.id!)
+  const serverSocket = h.io.sockets.sockets.get(socket.id!)
   assert.ok(serverSocket, 'server socket not found')
   const events = serverSocket.eventNames().map(String).filter(e => !RESERVED.has(e) && !skip.includes(e))
   assert.ok(events.includes('game:play_tile') && events.includes('room:join'), 'handlers not registered')
@@ -323,7 +187,7 @@ describe('malformed payloads', () => {
     const socket = await connect()
     await fuzzAllEvents(socket)
     await sleep(500)
-    assert.deepEqual(processErrors, [])
+    assert.deepEqual(h.processErrors, [])
     assert.ok(socket.connected)
   })
 
@@ -335,7 +199,7 @@ describe('malformed payloads', () => {
     await fuzzAllEvents(seats[0].socket, { roomCode }, ['room:leave'])
     await fuzzAllEvents(seats[2].socket, { roomCode }, ['room:leave'])
     await sleep(800)
-    assert.deepEqual(processErrors, [])
+    assert.deepEqual(h.processErrors, [])
     assert.equal(JSON.stringify(room.game), before, 'garbage payloads changed game state')
   })
 
@@ -344,7 +208,7 @@ describe('malformed payloads', () => {
     socket.emit('room:create', { playerName: 'Eva', gameMode: 'modo200' })
     const created = await waitFor(socket, 'room:created')
     assert.match(created.roomCode, /^[A-Z]+-\d{4}$/)
-    assert.deepEqual(processErrors, [])
+    assert.deepEqual(h.processErrors, [])
   })
 
   test('room:create rejects an unknown game mode', async () => {
