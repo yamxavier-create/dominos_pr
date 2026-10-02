@@ -268,6 +268,9 @@ export function GameTable() {
           // minmax(0, …) lets the center shrink instead of pushing the side columns off screen
           gridTemplateColumns: 'minmax(52px, auto) minmax(0, 1fr) minmax(52px, auto)',
           minHeight: 0,
+          // Keep the hand and the corner capsules above the home indicator and
+          // out of the rounded screen corners on iPhone (0 everywhere else)
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         }}
       >
         {/* Top-left corner */}

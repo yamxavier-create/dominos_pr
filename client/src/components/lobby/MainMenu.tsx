@@ -378,13 +378,16 @@ export function MainMenu() {
 
   if (view === 'create') {
     return (
-      <div className="menu-reveal flex flex-col gap-4 sm:gap-5 w-full max-w-xs sm:max-w-sm md:max-w-md">
+      <div className="menu-reveal flex flex-col gap-4 sm:gap-5 w-full max-w-xs sm:max-w-sm md:max-w-md min-h-full">
         <button
           onClick={() => { setView('home'); clearError() }}
           className="font-body text-white/40 hover:text-white/70 text-sm self-start transition-colors"
         >
           ← Volver
         </button>
+
+        {/* Spacers center the form vertically (a bit above middle), Volver stays on top */}
+        <div className="flex-1" />
 
         <div className="text-center flex flex-col items-center gap-1.5">
           <GoldCaption>Crear Sala</GoldCaption>
@@ -437,19 +440,23 @@ export function MainMenu() {
         <GoldCTA onClick={handleCreate} disabled={!playerName.trim()} size="md">
           CREAR SALA
         </GoldCTA>
+        <div className="flex-[1.4]" />
       </div>
     )
   }
 
   if (view === 'join') {
     return (
-      <div className="menu-reveal flex flex-col gap-4 sm:gap-5 w-full max-w-xs sm:max-w-sm md:max-w-md">
+      <div className="menu-reveal flex flex-col gap-4 sm:gap-5 w-full max-w-xs sm:max-w-sm md:max-w-md min-h-full">
         <button
           onClick={() => { setView('home'); clearError() }}
           className="font-body text-white/40 hover:text-white/70 text-sm self-start transition-colors"
         >
           ← Volver
         </button>
+
+        {/* Spacers center the form vertically (a bit above middle), Volver stays on top */}
+        <div className="flex-1" />
 
         <div className="text-center flex flex-col items-center gap-1.5">
           <GoldCaption>Unirse a Sala</GoldCaption>
@@ -484,6 +491,7 @@ export function MainMenu() {
         <GoldCTA onClick={handleJoin} disabled={!playerName.trim() || !roomCode.trim()} size="md">
           UNIRSE
         </GoldCTA>
+        <div className="flex-[1.4]" />
       </div>
     )
   }

@@ -39,13 +39,15 @@ html, body, #root {
   overflow: hidden;
 }
 
+/*
+ * Flat on purpose. In iOS home-screen apps the root box is shorter than the
+ * screen by the status-bar height, and the canvas below it repeats the root
+ * background. A gradient here repeats its lighter top color into that strip,
+ * which shows up as a bar; a flat color matching where every screen fades to
+ * (see .felt-table) makes the strip invisible.
+ */
 html {
-  background:
-    repeating-linear-gradient(90deg, rgba(15,35,24,0.25) 0px, rgba(15,35,24,0.25) 1px, transparent 1px, transparent 24px),
-    repeating-linear-gradient(45deg, transparent 0px, transparent 40px, rgba(234,179,8,0.015) 40px, rgba(234,179,8,0.015) 41px),
-    repeating-linear-gradient(-45deg, transparent 0px, transparent 40px, rgba(234,179,8,0.015) 40px, rgba(234,179,8,0.015) 41px),
-    radial-gradient(ellipse at 50% 40%, rgba(23,48,34,0.4) 0%, transparent 60%),
-    linear-gradient(180deg, #0F1A14 0%, #0A1A0F 40%, #060E08 100%);
+  background: #0A1A0F;
   color-scheme: dark;
 }
 
@@ -459,8 +461,13 @@ body {
 }
 
 /* Subtle domino pattern overlay for menu bg */
+/*
+ * Full-screen backgrounds fade to the html background color at the bottom edge,
+ * so they join the strip iOS leaves below short pages without a visible seam.
+ */
 .felt-table {
   background:
+    linear-gradient(180deg, transparent calc(100% - 140px), #0A1A0F 100%),
     radial-gradient(ellipse at center, #173022 0%, #0A1A0F 80%, #060E08 100%);
 }
 
@@ -491,8 +498,8 @@ body {
     ),
     /* Radial vignette — dark edges, slightly lit center */
     radial-gradient(ellipse at 50% 40%, rgba(23, 48, 34, 0.4) 0%, transparent 60%),
-    /* Base gradient — rich dark green */
-    linear-gradient(180deg, #0F1A14 0%, #0A1A0F 40%, #060E08 100%);
+    /* Base gradient — rich dark green, ending on the app background color (see .felt-table) */
+    linear-gradient(180deg, #0F1A14 0%, #0A1A0F 40%, #060E08 85%, #0A1A0F 100%);
 }
 
 .table-surface {
