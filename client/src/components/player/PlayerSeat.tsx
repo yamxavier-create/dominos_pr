@@ -17,9 +17,10 @@ interface PlayerSeatProps {
   large?: boolean  // desktop: room for bigger camera tiles
 }
 
-function AvatarWithBadge({ player, initials, teamColor, isCurrentTurn, stream, isSpeaking, isCameraOff, size }: {
+function AvatarWithBadge({ player, initials, teamColor, isCurrentTurn, stream, isSpeaking, isCameraOff, size, badgeSide }: {
   player: ClientPlayer; initials: string; teamColor: string; isCurrentTurn: boolean
   stream: MediaStream | null; isSpeaking: boolean; isCameraOff: boolean; size: number
+  badgeSide: 'left' | 'right'
 }) {
   return (
     <div className="relative shrink-0">
@@ -32,12 +33,37 @@ function AvatarWithBadge({ player, initials, teamColor, isCurrentTurn, stream, i
         isCameraOff={isCameraOff}
         size={size}
       />
-      <span
-        className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center font-bold font-body bg-surface border border-gold/20 shadow-sm"
-        style={{ color: teamColor, fontSize: 9 }}
-      >
-        {player.tileCount}
-      </span>
+      <TileCountBadge count={player.tileCount} teamColor={teamColor} avatarSize={size} side={badgeSide} />
+    </div>
+  )
+}
+
+/** Tiles left in hand: a domino glyph + number, sized to the avatar so it stays readable */
+function TileCountBadge({ count, teamColor, avatarSize, side }: { count: number; teamColor: string; avatarSize: number; side: 'left' | 'right' }) {
+  const h = Math.max(20, Math.round(avatarSize * 0.26))
+  const font = Math.round(h * 0.6)
+  const glyphH = Math.round(h * 0.55)
+  return (
+    <div
+      className="absolute flex items-center gap-[3px] rounded-full font-body font-extrabold text-white leading-none"
+      style={{
+        [side]: -Math.round(h * 0.25),
+        bottom: -Math.round(h * 0.15),
+        height: h,
+        paddingLeft: Math.round(h * 0.28),
+        paddingRight: Math.round(h * 0.32),
+        fontSize: font,
+        background: 'linear-gradient(180deg, #15301F, #0A1A0F)',
+        border: `1.5px solid ${teamColor}`,
+        boxShadow: '0 2px 6px rgba(0,0,0,0.5)',
+      }}
+      aria-label={`${count} fichas`}
+    >
+      <svg viewBox="0 0 10 18" style={{ height: glyphH, width: 'auto' }} aria-hidden>
+        <rect x="0.75" y="0.75" width="8.5" height="16.5" rx="1.8" fill="none" stroke="rgba(255,255,255,0.75)" strokeWidth="1.5" />
+        <line x1="2.5" y1="9" x2="7.5" y2="9" stroke="rgba(255,255,255,0.75)" strokeWidth="1.2" />
+      </svg>
+      {count}
     </div>
   )
 }
@@ -72,6 +98,8 @@ export function PlayerSeat({
     isSpeaking: isSpeaking ?? false,
     isCameraOff: isCameraOff ?? true,
     size: avatarSize,
+    // The right-hand seat hugs the screen edge, so its badge goes on the table side
+    badgeSide: (position === 'right' ? 'left' : 'right') as 'left' | 'right',
   }
 
   // Side positions: compact vertical layout
