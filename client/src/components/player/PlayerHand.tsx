@@ -1,4 +1,4 @@
-import { useRef, useCallback, useState } from 'react'
+import { useRef, useCallback, useState, useEffect } from 'react'
 import { Tile } from '../../types/game'
 import { DominoTile } from '../domino/DominoTile'
 import { useUIStore } from '../../store/uiStore'
@@ -161,11 +161,30 @@ export function PlayerHand({ tiles, validPlayIds, isMyTurn, forcedFirstTileId, c
 
   const dragTile = dragPos ? getDragTile(dragPos.tileId) : null
 
+  // Shrink tiles when the row doesn't fit (a 7-tile hand on a 375px phone),
+  // so the hand never widens its grid column and pushes the side controls off screen
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [availW, setAvailW] = useState(0)
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const ro = new ResizeObserver(([entry]) => setAvailW(entry.contentRect.width))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   // Split tiles into rows when there are too many for one row
   const needsMultiRow = tiles.length > MAX_PER_ROW
   const rows: Tile[][] = needsMultiRow
     ? [tiles.slice(0, Math.ceil(tiles.length / 2)), tiles.slice(Math.ceil(tiles.length / 2))]
     : [tiles]
+
+  const gapPx = compact ? 4 : 6
+  const longestRow = Math.max(1, ...rows.map(r => r.length))
+  const naturalW = longestRow * handW + (longestRow - 1) * gapPx
+  const fit = availW > 0 ? Math.min(1, availW / naturalW) : 1
+  const tileW = Math.floor(handW * fit)
+  const tileH = Math.floor(handH * fit)
 
   const renderTile = (tile: Tile) => {
     const isPlayable = isMyTurn && validPlayIds.has(tile.id)
@@ -194,7 +213,7 @@ export function PlayerHand({ tiles, validPlayIds, isMyTurn, forcedFirstTileId, c
           orientation="vertical"
           isPlayable={isPlayable && !isSelected}
           isSelected={isSelected}
-          style={{ width: handW, height: handH }}
+          style={{ width: tileW, height: tileH }}
         />
         {isForced && (
           <span className="absolute -top-1 -right-1 bg-gold text-bg text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center">
@@ -207,7 +226,7 @@ export function PlayerHand({ tiles, validPlayIds, isMyTurn, forcedFirstTileId, c
 
   return (
     <>
-      <div className={`w-full flex flex-col items-center px-3 ${compact ? 'gap-0 py-0' : 'gap-1 py-1'}`}>
+      <div ref={containerRef} className={`w-full min-w-0 flex flex-col items-center px-3 ${compact ? 'gap-0 py-0' : 'gap-1 py-1'}`}>
         {rows.map((row, ri) => (
           <div key={ri} className={`flex items-center justify-center ${compact ? 'gap-1' : 'gap-1.5'}`}>
             {row.map(renderTile)}

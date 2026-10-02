@@ -246,6 +246,7 @@ export function GameTable() {
         onClick={handleScoreBarClick}
         isOpen={showScoreHistory}
         compact={compact}
+        showTeamNames={isDesktop}
       />
 
       {/* Score history panel */}
@@ -264,7 +265,8 @@ export function GameTable() {
         style={{
           display: 'grid',
           gridTemplateRows: compact ? 'minmax(0, auto) 1fr minmax(0, auto)' : 'auto 1fr auto',
-          gridTemplateColumns: 'minmax(52px, auto) 1fr minmax(52px, auto)',
+          // minmax(0, …) lets the center shrink instead of pushing the side columns off screen
+          gridTemplateColumns: 'minmax(52px, auto) minmax(0, 1fr) minmax(52px, auto)',
           minHeight: 0,
         }}
       >
@@ -372,12 +374,12 @@ export function GameTable() {
         </div>
 
         {/* Bottom-left corner: chat + reactions */}
-        <div className={`flex items-end justify-center ${compact ? 'pb-1 px-1' : 'pb-2 px-1.5'}`}>
-          <SocialDock size={isDesktop ? 46 : compact ? 34 : 40} />
+        <div className={`flex items-end justify-center ${compact ? 'pb-1 px-1' : isDesktop ? 'pb-2 px-1.5' : 'pb-2 px-1'}`}>
+          <SocialDock size={isDesktop ? 46 : compact ? 34 : 36} />
         </div>
 
         {/* My hand (bottom) */}
-        <div className={`flex flex-col items-center justify-end relative ${compact ? 'gap-0 overflow-hidden' : 'gap-1'}`} data-seat="bottom">
+        <div className={`flex flex-col items-center justify-end relative min-w-0 ${compact ? 'gap-0 overflow-hidden' : 'gap-1'}`} data-seat="bottom">
           {myPlayer && (
             <PlayerSeat
                 large={isDesktop}
@@ -427,8 +429,8 @@ export function GameTable() {
         </div>
 
         {/* Bottom-right corner: call + sound */}
-        <div className={`flex items-end justify-center ${compact ? 'pb-1 px-1' : 'pb-2 px-1.5'}`}>
-          <MediaDock size={isDesktop ? 46 : compact ? 34 : 40} />
+        <div className={`flex items-end justify-center ${compact ? 'pb-1 px-1' : isDesktop ? 'pb-2 px-1.5' : 'pb-2 px-1'}`}>
+          <MediaDock size={isDesktop ? 46 : compact ? 34 : 36} />
         </div>
       </div>
 

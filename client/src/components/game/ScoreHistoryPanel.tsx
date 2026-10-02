@@ -1,4 +1,5 @@
 import { type ScoreHistoryEntry } from '../../store/gameStore'
+import { teamNames } from './ScorePanel'
 
 interface ScoreHistoryPanelProps {
   isOpen: boolean
@@ -20,6 +21,17 @@ export function ScoreHistoryPanel({ isOpen, entries, myPlayerIndex, playerCount 
       }`}
     >
       <div className="overflow-y-auto scrollbar-none max-h-48">
+        {/* Who's on each team — the score bar only says Nosotros / Ellos on phones */}
+        {!is2Player && playerNames && (
+          <div className="flex items-center gap-3 px-3 py-2 border-b border-white/10 text-xs font-body">
+            <span className="min-w-0 truncate" style={{ color: '#22C55E' }}>
+              <span className="font-semibold">Nosotros:</span> <span className="text-white/70">{teamNames(playerNames.map(name => ({ name })), myTeam as 0 | 1)}</span>
+            </span>
+            <span className="min-w-0 truncate" style={{ color: '#F97316' }}>
+              <span className="font-semibold">Ellos:</span> <span className="text-white/70">{teamNames(playerNames.map(name => ({ name })), (1 - myTeam) as 0 | 1)}</span>
+            </span>
+          </div>
+        )}
         {entries.length === 0 ? (
           <p className="font-body text-white/30 text-xs text-center py-3">Sin manos todavía</p>
         ) : (

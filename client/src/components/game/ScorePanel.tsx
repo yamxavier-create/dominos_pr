@@ -10,9 +10,10 @@ interface ScorePanelProps {
   onClick?: () => void
   isOpen?: boolean
   compact?: boolean
+  showTeamNames?: boolean  // wide screens only; on phones the names live in the history panel
 }
 
-export function ScorePanel({ scores, players, myPlayerIndex, gameMode, targetScore, handNumber, onClick, isOpen, compact }: ScorePanelProps) {
+export function ScorePanel({ scores, players, myPlayerIndex, gameMode, targetScore, handNumber, onClick, isOpen, compact, showTeamNames }: ScorePanelProps) {
   const is2Player = players.length === 2
 
   const myTeam = myPlayerIndex % 2 === 0 ? 0 : 1
@@ -27,7 +28,7 @@ export function ScorePanel({ scores, players, myPlayerIndex, gameMode, targetSco
 
   return (
     <div
-      className={`game-glass-panel flex items-center pr-3 ${compact ? 'pb-1 gap-2' : 'pb-2 gap-3'}${onClick ? ' cursor-pointer' : ''}`}
+      className={`game-glass-panel flex items-center pr-3 ${compact ? 'pb-1 gap-2' : showTeamNames ? 'pb-2 gap-3' : 'pb-2 gap-2'}${onClick ? ' cursor-pointer' : ''}`}
       // Left padding clears the fixed "Salir" button that sits over this bar
       // (5.5rem = its left offset + width)
       style={{ paddingTop: `calc(${compact ? '0.25rem' : '0.5rem'} + var(--safe-top))`, paddingLeft: '5.5rem' }}
@@ -41,8 +42,10 @@ export function ScorePanel({ scores, players, myPlayerIndex, gameMode, targetSco
         {modeLabel}
       </span>
 
-      {/* Hand number */}
-      <span className={`font-body text-white/40 shrink-0 ${compact ? 'text-[10px]' : 'text-xs'}`}>#{handNumber}</span>
+      {/* Hand number — skipped on phone portrait for room; the history panel lists "Mano N" */}
+      {(compact || showTeamNames) && (
+        <span className={`font-body text-white/40 shrink-0 ${compact ? 'text-[10px]' : 'text-xs'}`}>#{handNumber}</span>
+      )}
 
       {/* Scores */}
       {compact ? (
@@ -56,7 +59,7 @@ export function ScorePanel({ scores, players, myPlayerIndex, gameMode, targetSco
       ) : (
         <>
           <TeamScore
-            label={is2Player ? teamALabel : `${teamALabel}: ${[players[0], players[2]].filter(Boolean).map(p => p?.name).filter(Boolean).join(' & ')}`}
+            label={is2Player || !showTeamNames ? teamALabel : `${teamALabel}: ${teamNames(players, 0)}`}
             score={scores.team0}
             pct={Math.min((scores.team0 / targetScore) * 100, 100)}
             color="#22C55E"
@@ -64,7 +67,7 @@ export function ScorePanel({ scores, players, myPlayerIndex, gameMode, targetSco
           />
           <span className="text-white/20 font-body text-xs shrink-0">vs</span>
           <TeamScore
-            label={is2Player ? teamBLabel : `${teamBLabel}: ${[players[1], players[3]].filter(Boolean).map(p => p?.name).filter(Boolean).join(' & ')}`}
+            label={is2Player || !showTeamNames ? teamBLabel : `${teamBLabel}: ${teamNames(players, 1)}`}
             score={scores.team1}
             pct={Math.min((scores.team1 / targetScore) * 100, 100)}
             color="#F97316"
@@ -87,6 +90,11 @@ export function ScorePanel({ scores, players, myPlayerIndex, gameMode, targetSco
       )}
     </div>
   )
+}
+
+/** "Ana & Beto" for team 0 (seats 0, 2) or team 1 (seats 1, 3) */
+export function teamNames(players: { name: string }[], team: 0 | 1): string {
+  return [players[team], players[team + 2]].filter(Boolean).map(p => p.name).join(' & ')
 }
 
 function TeamScore({ label, score, pct, color, gradient }: {

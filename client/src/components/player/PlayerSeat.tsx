@@ -115,9 +115,12 @@ export function PlayerSeat({
         <p className={`font-body font-bold text-white leading-tight truncate ${large ? 'text-sm max-w-32' : 'text-xs max-w-20'}`}>
           {player.name}
         </p>
-        <p className="font-body leading-tight text-xs" style={{ color: teamColor, opacity: 0.7 }}>
-          {teamLabel}
-        </p>
+        {/* In 2-player games the "team" is the player, so skip the repeated name */}
+        {teamLabel !== player.name && (
+          <p className="font-body leading-tight text-xs" style={{ color: teamColor, opacity: 0.7 }}>
+            {teamLabel}
+          </p>
+        )}
       </div>
       {!player.connected && (
         <span className="text-accent text-xs">{'\u26A1'}</span>
