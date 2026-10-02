@@ -31,11 +31,12 @@ export function LoginForm({ onLogin, onSwitchToRegister, onForgotPassword, error
       </div>
 
       <Input
-        label="Usuario"
-        placeholder="tu_usuario"
+        label="Usuario o email"
+        placeholder="tu_usuario o tu@email.com"
         value={username}
         onChange={e => setUsername(e.target.value)}
-        maxLength={20}
+        maxLength={254}
+        autoComplete="username"
         onKeyDown={e => e.key === 'Enter' && handleSubmit()}
       />
 

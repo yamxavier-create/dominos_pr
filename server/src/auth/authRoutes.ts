@@ -86,13 +86,15 @@ router.post('/login', async (req: Request, res: Response) => {
   try {
     const { username, password } = req.body
 
-    if (!username || !password) {
+    if (!username || !password || typeof username !== 'string') {
       res.status(400).json({ error: 'Username and password are required' })
       return
     }
 
+    // Usernames can't contain "@", so an "@" means the user typed their email
+    const identifier = username.trim().toLowerCase()
     const user = await prisma.user.findUnique({
-      where: { username: username.toLowerCase() },
+      where: identifier.includes('@') ? { email: identifier } : { username: identifier },
       select: { id: true, username: true, displayName: true, avatarUrl: true, email: true, passwordHash: true },
     })
 
