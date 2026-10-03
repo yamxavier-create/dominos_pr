@@ -4,9 +4,11 @@ import { setSocketAuth, socket } from '../socket'
 import { API_BASE } from '../apiBase'
 
 async function apiCall(path: string, options: RequestInit = {}) {
+  // headers go last: spreading options after them would drop Content-Type whenever
+  // a caller passes its own headers (Authorization), and the server would see no body
   const res = await fetch(`${API_BASE}/api/auth${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
     ...options,
+    headers: { 'Content-Type': 'application/json', ...options.headers },
   })
   const data = await res.json()
   if (!res.ok) throw new Error(data.error || 'Request failed')
