@@ -40,6 +40,7 @@ export interface PlayerState {
   userId?: string  // Set for authenticated users, undefined for guests
   isBot?: boolean  // True for AI players, including a bot covering a disconnected human
   substitutedByBot?: boolean  // A bot is playing this human's seat until the owner reclaims it
+  replacedByBot?: boolean     // A bot played this seat at some point in the current game (sticky)
 }
 
 export interface TeamScores {
@@ -50,6 +51,9 @@ export interface TeamScores {
 // ─── Full Server Game State ───────────────────────────────────────────────────
 
 export interface ServerGameState {
+  matchId: string           // unique per game (new on next_game/rematch); makes saving the result idempotent
+  ranked: boolean           // counts for UserStats only if no seat was ever a bot during this game
+  startedAt: number         // Date.now() when this game began
   roomCode: string
   gameMode: GameMode
   targetScore: 20 | 500

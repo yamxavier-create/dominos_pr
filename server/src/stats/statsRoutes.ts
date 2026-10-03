@@ -60,6 +60,7 @@ router.get('/history', async (req: Request, res: Response) => {
     const games = participations.map((p) => ({
       id: p.gameHistory.id,
       gameMode: p.gameHistory.gameMode,
+      ranked: p.gameHistory.ranked, // false: a bot played a seat, so it didn't count for stats
       won: p.won,
       team: p.team,
       winningTeam: p.gameHistory.winningTeam,

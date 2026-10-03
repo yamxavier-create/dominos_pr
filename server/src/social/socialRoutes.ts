@@ -79,7 +79,9 @@ router.get('/search', async (req: Request, res: Response) => {
     }
 
     const annotated = users.map(u => {
-      const f = friendshipMap.get(u.id)
+      // A rejected request is kept only for its cooldown; it's not a relation
+      const found = friendshipMap.get(u.id)
+      const f = found?.status === 'REJECTED' ? undefined : found
       return {
         ...u,
         friendshipStatus: f ? f.status : null,

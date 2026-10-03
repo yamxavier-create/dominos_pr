@@ -4,85 +4,112 @@ import { getSocketUser } from '../socket/authMiddleware'
 import { RoomManager } from '../game/RoomManager'
 import { PresenceManager } from '../presence/PresenceManager'
 import { leaveCurrentRoom, emitLobbyState } from '../socket/roomEvents'
+import { hit } from '../auth/rateLimit'
 
 const userSelect = { id: true, username: true, displayName: true, avatarUrl: true } as const
+
+const MAX_PENDING_OUTGOING = 20
+const REJECTION_COOLDOWN_MS = 7 * 24 * 60 * 60_000
+const MINUTE = 60_000
+
+/** Per-user limits on social events, checked before any DB query. */
+function limited(socket: Socket, key: string, max: number, windowMs: number): boolean {
+  if (hit(`social:${key}`, max, windowMs) === 0) return false
+  socket.emit('social:error', { message: 'Too many requests, try again later' })
+  return true
+}
+
+class SocialError extends Error {}
 
 export function registerSocialHandlers(socket: Socket, io: Server, rooms?: RoomManager, presence?: PresenceManager): void {
 
   // --- social:friend_request ---
-  socket.on('social:friend_request', async ({ targetUserId }: { targetUserId: string }) => {
+  socket.on('social:friend_request', async ({ targetUserId }: { targetUserId?: unknown }) => {
     try {
       const userData = getSocketUser(socket)
       if (!userData.user) {
         return socket.emit('social:error', { message: 'Login required' })
       }
       const userId = userData.user.id
+      if (typeof targetUserId !== 'string' || !targetUserId) return
 
       // Self-friend guard
       if (userId === targetUserId) {
         return socket.emit('social:error', { message: 'Cannot friend yourself' })
       }
+      if (limited(socket, `request:${userId}`, 10, MINUTE)) return
 
-      // Rate limit: max 20 pending outgoing requests
-      const pendingCount = await prisma.friendship.count({
-        where: { requesterId: userId, status: 'PENDING' },
-      })
-      if (pendingCount >= 20) {
-        return socket.emit('social:error', { message: 'Too many pending requests (max 20)' })
-      }
+      // Quota check, duplicate check and insert as one unit. The locks serialize
+      // concurrent requests from this user and between this pair, so a burst
+      // can't overshoot the quota or create A→B and B→A at the same time.
+      const pair = [userId, targetUserId].sort().join(':')
+      const outcome = await prisma.$transaction(async tx => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'friend-user:' + userId}))`
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'friend-pair:' + pair}))`
 
-      // Bidirectional check — prevent duplicate/race
-      const existing = await prisma.friendship.findFirst({
-        where: {
-          OR: [
-            { requesterId: userId, targetId: targetUserId },
-            { requesterId: targetUserId, targetId: userId },
-          ],
-        },
-      })
+        const existing = await tx.friendship.findFirst({
+          where: {
+            OR: [
+              { requesterId: userId, targetId: targetUserId },
+              { requesterId: targetUserId, targetId: userId },
+            ],
+          },
+        })
 
-      if (existing) {
-        if (existing.status === 'ACCEPTED') {
-          return socket.emit('social:error', { message: 'Already friends' })
-        }
-
-        if (existing.status === 'PENDING' && existing.requesterId === userId) {
-          return socket.emit('social:error', { message: 'Request already sent' })
-        }
+        if (existing?.status === 'ACCEPTED') throw new SocialError('Already friends')
+        if (existing?.status === 'PENDING' && existing.requesterId === userId) throw new SocialError('Request already sent')
 
         // Reverse PENDING request exists — auto-accept
-        if (existing.status === 'PENDING' && existing.requesterId === targetUserId) {
-          const updated = await prisma.friendship.update({
+        if (existing?.status === 'PENDING' && existing.requesterId === targetUserId) {
+          const updated = await tx.friendship.update({
             where: { id: existing.id },
             data: { status: 'ACCEPTED' },
-            include: {
-              requester: { select: userSelect },
-              target: { select: userSelect },
-            },
+            include: { requester: { select: userSelect }, target: { select: userSelect } },
           })
-
-          // Notify both parties
-          socket.emit('social:friend_accepted', {
-            friendshipId: updated.id,
-            friend: updated.requester, // the other user (who originally requested)
-          })
-          io.to(`user:${targetUserId}`).emit('social:friend_accepted', {
-            friendshipId: updated.id,
-            friend: updated.target, // us
-          })
-          return
+          return { kind: 'accepted' as const, friendship: updated }
         }
-      }
 
-      // Create new friend request
-      const friendship = await prisma.friendship.create({
-        data: { requesterId: userId, targetId: targetUserId },
-        include: {
-          requester: { select: userSelect },
-          target: { select: userSelect },
-        },
+        // They turned this user down recently: no new request until the cooldown passes
+        if (
+          existing?.status === 'REJECTED' &&
+          existing.requesterId === userId &&
+          Date.now() - existing.updatedAt.getTime() < REJECTION_COOLDOWN_MS
+        ) {
+          throw new SocialError('You can\'t send another request to this player yet')
+        }
+
+        const pendingCount = await tx.friendship.count({ where: { requesterId: userId, status: 'PENDING' } })
+        if (pendingCount >= MAX_PENDING_OUTGOING) {
+          throw new SocialError(`Too many pending requests (max ${MAX_PENDING_OUTGOING})`)
+        }
+
+        const include = { requester: { select: userSelect }, target: { select: userSelect } }
+        // A past rejection is reused as the new request (in this direction)
+        const friendship = existing
+          ? await tx.friendship.update({
+              where: { id: existing.id },
+              data: { requesterId: userId, targetId: targetUserId, status: 'PENDING' },
+              include,
+            })
+          : await tx.friendship.create({ data: { requesterId: userId, targetId: targetUserId }, include })
+        return { kind: 'sent' as const, friendship }
       })
 
+      if (outcome.kind === 'accepted') {
+        const updated = outcome.friendship
+        // Notify both parties
+        socket.emit('social:friend_accepted', {
+          friendshipId: updated.id,
+          friend: updated.requester, // the other user (who originally requested)
+        })
+        io.to(`user:${targetUserId}`).emit('social:friend_accepted', {
+          friendshipId: updated.id,
+          friend: updated.target, // us
+        })
+        return
+      }
+
+      const friendship = outcome.friendship
       socket.emit('social:friend_request_sent', {
         requestId: friendship.id,
         to: friendship.target,
@@ -92,6 +119,7 @@ export function registerSocialHandlers(socket: Socket, io: Server, rooms?: RoomM
         from: friendship.requester,
       })
     } catch (err) {
+      if (err instanceof SocialError) return socket.emit('social:error', { message: err.message })
       console.error('[Social] friend_request error:', err)
       socket.emit('social:error', { message: 'Failed to send friend request' })
     }
@@ -105,6 +133,7 @@ export function registerSocialHandlers(socket: Socket, io: Server, rooms?: RoomM
         return socket.emit('social:error', { message: 'Login required' })
       }
       const userId = userData.user.id
+      if (limited(socket, `manage:${userId}`, 30, MINUTE)) return
 
       const friendship = await prisma.friendship.findUnique({ where: { id: requestId } })
 
@@ -150,6 +179,7 @@ export function registerSocialHandlers(socket: Socket, io: Server, rooms?: RoomM
         return socket.emit('social:error', { message: 'Login required' })
       }
       const userId = userData.user.id
+      if (limited(socket, `manage:${userId}`, 30, MINUTE)) return
 
       const friendship = await prisma.friendship.findUnique({ where: { id: requestId } })
 
@@ -163,8 +193,9 @@ export function registerSocialHandlers(socket: Socket, io: Server, rooms?: RoomM
         return socket.emit('social:error', { message: 'Request is no longer pending' })
       }
 
-      // Delete the row (not set to REJECTED)
-      await prisma.friendship.delete({ where: { id: requestId } })
+      // Keep the row as REJECTED: its updatedAt starts the cooldown before the
+      // same person can ask again (deleting it allowed an instant resend)
+      await prisma.friendship.update({ where: { id: requestId }, data: { status: 'REJECTED' } })
 
       socket.emit('social:friend_rejected', { requestId })
       io.to(`user:${friendship.requesterId}`).emit('social:friend_rejected', { requestId })
@@ -182,6 +213,7 @@ export function registerSocialHandlers(socket: Socket, io: Server, rooms?: RoomM
         return socket.emit('social:error', { message: 'Login required' })
       }
       const userId = userData.user.id
+      if (limited(socket, `manage:${userId}`, 30, MINUTE)) return
 
       // Delete bidirectionally
       const result = await prisma.friendship.deleteMany({
@@ -214,6 +246,10 @@ export function registerSocialHandlers(socket: Socket, io: Server, rooms?: RoomM
         return socket.emit('social:error', { message: 'Login required' })
       }
       const userId = userData.user.id
+      if (typeof friendUserId !== 'string' || !friendUserId) return
+      // One invite per friend every 30s, 10 per minute overall: no toast flooding
+      if (limited(socket, `invite:${userId}`, 10, MINUTE)) return
+      if (limited(socket, `invite:${userId}:${friendUserId}`, 1, 30_000)) return
 
       // Verify friendship
       const friendship = await prisma.friendship.findFirst({
@@ -295,7 +331,8 @@ export function registerSocialHandlers(socket: Socket, io: Server, rooms?: RoomM
           fr => fr.requesterId === uid || fr.targetId === uid
         )
         if (f) {
-          statusMap[uid] = {
+          // A rejected request is kept only for its cooldown; it's not a relation
+          statusMap[uid] = f.status === 'REJECTED' ? { status: 'NONE', direction: null } : {
             status: f.status,
             direction: f.requesterId === userId ? 'outgoing' : 'incoming',
           }

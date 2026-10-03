@@ -14,6 +14,7 @@ interface MyStats {
 interface GameRecord {
   id: string
   gameMode: string
+  ranked: boolean
   won: boolean
   team: number
   winningTeam: number
@@ -134,6 +135,7 @@ export function StatsPage() {
                     <p className="font-body text-white text-sm font-semibold">
                       {g.won ? '✓ Victoria' : '✗ Derrota'}
                       <span className="text-white/30 font-normal ml-2">{g.gameMode === 'modo200' ? 'M·200' : 'M·500'}</span>
+                      {g.ranked === false && <span className="text-white/30 font-normal ml-2">· Práctica (no cuenta)</span>}
                     </p>
                     <p className="font-body text-white/30 text-xs mt-0.5">
                       {g.scoreTeam0} - {g.scoreTeam1} · {g.totalRounds} rondas · {g.playerCount}P

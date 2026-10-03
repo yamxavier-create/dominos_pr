@@ -8,130 +8,19 @@
 import './env-db'
 import './env'
 
-import { test, describe, before, after, beforeEach, TestContext } from 'node:test'
+import { describe } from 'node:test'
 import assert from 'node:assert/strict'
-import { createServer, Server as HttpServer } from 'http'
-import { AddressInfo } from 'net'
-import express from 'express'
-import { Server } from 'socket.io'
-import { io as ioc, Socket as ClientSocket } from 'socket.io-client'
 import prisma from '../src/db/prisma'
-import authRoutes from '../src/auth/authRoutes'
-import { authMiddleware } from '../src/socket/authMiddleware'
-import { registerConnectionHandler } from '../src/socket/connection'
-import { RoomManager } from '../src/game/RoomManager'
-import { PresenceManager } from '../src/presence/PresenceManager'
-import { setEmailTransport, OutgoingEmail } from '../src/auth/emailService'
-import { resetRateLimits } from '../src/auth/rateLimit'
 import { resolveGoogleUser, GoogleLinkConflictError } from '../src/auth/googleAccount'
 import { digestToken } from '../src/auth/tokens'
+import {
+  setupDbServer, dbTest, api as rootApi, register, connectAs, waitFor, sleep, lastLinkToken, deliveries,
+} from './dbHarness'
 
-// ─── Harness ──────────────────────────────────────────────────────────────────
+setupDbServer('auth.test')
 
-let httpServer: HttpServer
-let io: Server
-let rooms: RoomManager
-let base = ''
-let dbReady = false
-const sockets: ClientSocket[] = []
-const outbox: OutgoingEmail[] = []
-
-const presenceStub = { addSocket() {}, removeSocket() {}, notifyStatusChange() {} } as unknown as PresenceManager
-
-before(async () => {
-  try {
-    await prisma.$queryRaw`SELECT 1 FROM "EmailVerification" LIMIT 1`
-    dbReady = true
-  } catch {
-    console.warn('[auth.test] local test DB unavailable — run `npm run test:db:setup`. Skipping.')
-  }
-
-  const app = express()
-  app.use(express.json({ limit: '10kb' }))
-  app.use('/api/auth', authRoutes)
-  httpServer = createServer(app)
-  io = new Server(httpServer)
-  io.use(authMiddleware) // the real one: JWT + Session row
-  rooms = new RoomManager({ cleanupIntervalMs: 0 })
-  registerConnectionHandler(io, rooms, presenceStub)
-  await new Promise<void>(resolve => httpServer.listen(0, resolve))
-  base = `http://127.0.0.1:${(httpServer.address() as AddressInfo).port}`
-  setEmailTransport(async email => { outbox.push(email) })
-})
-
-beforeEach(async () => {
-  while (sockets.length) sockets.pop()!.disconnect()
-  outbox.length = 0
-  resetRateLimits()
-  if (dbReady) {
-    await prisma.$executeRawUnsafe(
-      'TRUNCATE "User", "Session", "PasswordReset", "EmailVerification", "UserStats", "Friendship", "GameHistory", "GameParticipant" CASCADE',
-    )
-  }
-})
-
-after(async () => {
-  while (sockets.length) sockets.pop()!.disconnect()
-  setEmailTransport(null)
-  rooms.destroy()
-  io.close()
-  await new Promise(resolve => httpServer.close(resolve))
-  await prisma.$disconnect()
-})
-
-/** Like test(), but skipped when the local test DB isn't set up. */
-function dbTest(name: string, fn: (t: TestContext) => Promise<void>) {
-  test(name, async t => {
-    if (!dbReady) return t.skip('local test DB unavailable')
-    await fn(t)
-  })
-}
-
-async function api(path: string, body?: unknown, opts: { method?: string; token?: string } = {}) {
-  const res = await fetch(`${base}/api/auth${path}`, {
-    method: opts.method ?? (body === undefined ? 'GET' : 'POST'),
-    headers: {
-      'Content-Type': 'application/json',
-      ...(opts.token ? { Authorization: `Bearer ${opts.token}` } : {}),
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  })
-  return { status: res.status, body: await res.json().catch(() => ({})), headers: res.headers }
-}
-
-async function register(username: string, password = 'secret123', email?: string) {
-  const res = await api('/register', { username, password, email })
-  assert.equal(res.status, 201, JSON.stringify(res.body))
-  return res.body as { token: string; user: { id: string; email: string | null; pendingEmail: string | null } }
-}
-
-async function connectAs(token: string): Promise<ClientSocket> {
-  const socket = ioc(base, { transports: ['websocket'], forceNew: true, reconnection: false, auth: { token } })
-  sockets.push(socket)
-  await new Promise<void>((resolve, reject) => {
-    socket.once('connect', () => resolve())
-    socket.once('connect_error', reject)
-  })
-  return socket
-}
-
-function waitFor<T = any>(socket: ClientSocket, event: string, ms = 2000): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`timed out waiting for "${event}"`)), ms)
-    socket.once(event, (data: T) => { clearTimeout(timer); resolve(data) })
-  })
-}
-
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-
-/** The token inside the last captured link of this kind. */
-function lastLinkToken(kind: OutgoingEmail['kind'], to?: string): string {
-  const email = [...outbox].reverse().find(e => e.kind === kind && (!to || e.to === to))
-  assert.ok(email?.link, `no ${kind} email captured`)
-  return new URL(email.link).searchParams.get('token')!
-}
-
-const deliveries = async () => { await sleep(20); return outbox } // emails go out in the background
+/** Auth routes only: paths relative to /api/auth */
+const api = (path: string, body?: unknown, opts?: { method?: string; token?: string }) => rootApi(`/auth${path}`, body, opts)
 
 const googleProfile = (overrides: Partial<{ googleId: string; email: string; name: string }> = {}) => ({
   googleId: 'google-victim',

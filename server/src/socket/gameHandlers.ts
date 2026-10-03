@@ -1,5 +1,6 @@
 import { Socket, Server } from 'socket.io'
-import prisma from '../db/prisma'
+import { randomUUID } from 'crypto'
+import { persistMatchResult, matchResultFrom } from '../stats/persistMatch'
 import { RoomManager } from '../game/RoomManager'
 import { chooseBotPlay, isBotSocketId, BOT_THINK_DELAY, BOT_DRAW_DELAY } from '../game/BotPlayer'
 import {
@@ -39,53 +40,6 @@ function pipsToModo200Points(pips: number): number {
   if (pips <= 0) return 0
   if (pips <= 14) return 1
   return Math.floor((pips - 15) / 10) + 2
-}
-
-/**
- * Persist game result to database and update player stats.
- */
-async function persistGameResult(game: ServerGameState, winningTeam: number) {
-  try {
-    const gameHistory = await prisma.gameHistory.create({
-      data: {
-        roomCode: game.roomCode,
-        gameMode: game.gameMode,
-        winningTeam,
-        totalRounds: game.handNumber,
-        scoreTeam0: game.scores.team0,
-        scoreTeam1: game.scores.team1,
-        playerCount: game.players.length,
-        startedAt: new Date(Date.now() - game.handNumber * 60000), // approximate
-        participants: {
-          create: game.players.map((p) => ({
-            userId: p.userId || null,
-            playerName: p.name,
-            playerIndex: p.index,
-            team: p.index % 2,
-            won: (p.index % 2) === winningTeam,
-          })),
-        },
-      },
-    })
-
-    // Update UserStats for authenticated players
-    for (const p of game.players) {
-      if (!p.userId) continue
-      const won = (p.index % 2) === winningTeam
-      await prisma.userStats.upsert({
-        where: { userId: p.userId },
-        create: { userId: p.userId, gamesPlayed: 1, gamesWon: won ? 1 : 0 },
-        update: {
-          gamesPlayed: { increment: 1 },
-          ...(won ? { gamesWon: { increment: 1 } } : {}),
-        },
-      })
-    }
-
-    console.log(`[Game] Persisted game ${gameHistory.id} — team ${winningTeam} won`)
-  } catch (err) {
-    console.error('[Game] Failed to persist game result:', err)
-  }
 }
 
 /**
@@ -195,7 +149,7 @@ function executeBotPlay(io: Server, game: ServerGameState, rooms: RoomManager) {
         finalScores: updatedScores,
         totalRounds: game.handNumber,
       })
-      persistGameResult(game, winTeam)
+      persistMatchResult(matchResultFrom(game, winTeam))
     }
     return
   }
@@ -476,7 +430,7 @@ function handleBlockedGame(io: Server, game: ServerGameState): boolean {
       finalScores: updatedScores,
       totalRounds: game.handNumber,
     })
-    persistGameResult(game, winTeam)
+    persistMatchResult(matchResultFrom(game, winTeam))
   }
 
   return true
@@ -491,8 +445,19 @@ function handleGameEnd(io: Server, game: ServerGameState): boolean {
     finalScores: game.scores,
     totalRounds: game.handNumber,
   })
-  persistGameResult(game, winTeam)
+  persistMatchResult(matchResultFrom(game, winTeam))
   return true
+}
+
+/**
+ * A new game in the same room (next_game, rematch): new identity for saving,
+ * and ranked again only if every seat is a human right now.
+ */
+function startNewMatch(game: ServerGameState) {
+  game.matchId = randomUUID()
+  game.startedAt = Date.now()
+  for (const p of game.players) p.replacedByBot = !!p.substitutedByBot
+  game.ranked = game.players.every(p => !p.isBot)
 }
 
 /**
@@ -506,6 +471,9 @@ export function handOverSeatToBot(io: Server, rooms: RoomManager, room: Room, se
 
   player.isBot = true
   player.substitutedByBot = true
+  // A bot touched this game: it no longer counts for anyone's stats or the leaderboard
+  player.replacedByBot = true
+  game.ranked = false
   io.to(room.roomCode).emit('connection:player_replaced', {
     playerIndex: player.index,
     playerName: player.name,
@@ -559,6 +527,10 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     const { playerIndex: starterIdx, tile: forcedTile } = findFirstPlayer(hands)
 
     const game: ServerGameState = {
+      matchId: randomUUID(),
+      // Ranked only between humans who are all present at the start
+      ranked: room.players.every(rp => !rp.isBot && rp.connected),
+      startedAt: Date.now(),
       roomCode: room.roomCode,
       gameMode: room.gameMode,
       targetScore: room.gameMode === 'modo200' ? 20 : 500,
@@ -574,6 +546,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
         // A human who is gone when the game starts is covered by a bot until they reclaim the seat
         isBot: rp.isBot || !rp.connected,
         substitutedByBot: !rp.isBot && !rp.connected,
+        replacedByBot: !rp.isBot && !rp.connected,
       })),
       board: { tiles: [], leftEnd: null, rightEnd: null },
       currentPlayerIndex: starterIdx,
@@ -716,7 +689,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
           finalScores: updatedScores,
           totalRounds: game.handNumber,
         })
-        persistGameResult(game, winningTeam)
+        persistMatchResult(matchResultFrom(game, winningTeam))
       }
       return
     }
@@ -825,6 +798,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     const nextStarter = game.gameWinnerIndex
 
     // Reset full game state (scores, hand number, pass counts)
+    startNewMatch(game)
     game.phase = 'playing'
     game.handNumber = 1
     game.scores = { team0: 0, team1: 0 }
@@ -891,6 +865,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
         const { hands, boneyard } = dealTiles(tiles, game.players.length)
         const nextStarter = game.gameWinnerIndex
 
+        startNewMatch(game)
         game.phase = 'playing'
         game.handNumber = 1
         game.scores = { team0: 0, team1: 0 }

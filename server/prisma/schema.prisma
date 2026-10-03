@@ -67,6 +67,10 @@ model Friendship {
 
 model GameHistory {
   id           String   @id @default(cuid())
+  // One id per played game: a retried save can never record (or count) the same game twice
+  matchId      String?  @unique
+  // false when any seat was a bot at any point: shown in history, never counted in UserStats
+  ranked       Boolean  @default(true)
   roomCode     String
   gameMode     String
   winningTeam  Int
@@ -90,6 +94,7 @@ model GameParticipant {
   playerIndex   Int
   team          Int
   won           Boolean
+  replacedByBot Boolean @default(false) // a bot played this seat after a disconnect or abandon
 
   gameHistory GameHistory @relation(fields: [gameHistoryId], references: [id], onDelete: Cascade)
   user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
