@@ -3,6 +3,9 @@ import { socket } from '../socket'
 import { useCallStore } from '../store/callStore'
 import { useRoomStore } from '../store/roomStore'
 import { useGameStore } from '../store/gameStore'
+import { applyMediaPrefs, capabilitiesOf, stopStream } from './webrtc/mediaPrefs'
+import { CallSession } from './webrtc/callSession'
+import { createReconnectScheduler } from './webrtc/reconnectScheduler'
 
 const METERED_API_KEY = 'a4eeccf14936fa399579d35818687b4c0448'
 
@@ -43,6 +46,32 @@ function fetchTurnCredentials(): Promise<void> {
 
 fetchTurnCredentials()
 
+/** Seats a call can connect to: other humans in this game. Bots never take part. */
+function humanPeers(myPlayerIndex: number): number[] {
+  const playerCount = useGameStore.getState().gameState?.playerCount ?? 4
+  const roomPlayers = useRoomStore.getState().room?.players ?? []
+  const peers: number[] = []
+  for (let i = 0; i < playerCount; i++) {
+    if (i === myPlayerIndex) continue
+    if (roomPlayers.find(p => p.index === i)?.isBot) continue
+    peers.push(i)
+  }
+  return peers
+}
+
+/** getUserMedia with the audio-only fallback when the camera is refused or missing. */
+async function requestMedia(audio: boolean, video: boolean): Promise<MediaStream | null> {
+  if (!audio && !video) return null
+  try {
+    return await navigator.mediaDevices.getUserMedia({ audio, video })
+  } catch {
+    if (audio && video) {
+      try { return await navigator.mediaDevices.getUserMedia({ audio: true }) } catch { return null }
+    }
+    return null
+  }
+}
+
 export function useWebRTC() {
   const myPlayerIndex = useRoomStore.getState().myPlayerIndex ?? 0
   const roomCode = useRoomStore.getState().roomCode
@@ -53,72 +82,83 @@ export function useWebRTC() {
   const localStreamRef = useRef<MediaStream | null>(null)
   // Track failed ICE restart attempts for full reconnection fallback
   const iceRestartAttemptsRef = useRef<Record<number, number>>({})
+  const sessionRef = useRef(new CallSession())
+  // Recovering the local stream is serialized: one re-acquisition at a time
+  const recoveringRef = useRef<Promise<void> | null>(null)
+  const createPCRef = useRef<(remoteIndex: number) => RTCPeerConnection>(null!)
 
   const getCallStore = () => useCallStore.getState()
 
-  const acquireLocalStream = useCallback(async (): Promise<MediaStream | null> => {
-    const { myAudioEnabled, myVideoEnabled } = getCallStore()
-    if (!myAudioEnabled && !myVideoEnabled) return null
-    try {
-      return await navigator.mediaDevices.getUserMedia({
-        video: myVideoEnabled,
-        audio: myAudioEnabled,
-      })
-    } catch {
-      if (myVideoEnabled && myAudioEnabled) {
-        try { return await navigator.mediaDevices.getUserMedia({ audio: true }) } catch { return null }
+  const closePeer = useCallback((remoteIndex: number) => {
+    reconnects.current.cancel(remoteIndex)
+    const pc = pcsRef.current[remoteIndex]
+    if (pc) {
+      pc.close()
+      delete pcsRef.current[remoteIndex]
+    }
+    iceRestartAttemptsRef.current[remoteIndex] = 0
+    getCallStore().setRemoteStream(remoteIndex, null)
+  }, [])
+
+  // Full reconnection: close PC and create a fresh one
+  const reconnectPeer = useCallback((remoteIndex: number) => {
+    console.log(`[WebRTC] Full reconnection for peer ${remoteIndex}`)
+    closePeer(remoteIndex)
+    createPCRef.current(remoteIndex)
+  }, [closePeer])
+
+  const reconnects = useRef(createReconnectScheduler<RTCPeerConnection>({
+    isActive: () => sessionRef.current.isCurrent(sessionRef.current.current()),
+    currentPc: peer => pcsRef.current[peer],
+    reconnect: peer => reconnectPeer(peer),
+  }))
+
+  /** Make `stream` the published local stream: apply mute/camera, swap tracks in every PC, stop the old one. */
+  const publishLocalStream = useCallback(async (stream: MediaStream) => {
+    const { micMuted, cameraOff } = getCallStore()
+    applyMediaPrefs(stream, { micMuted, cameraOff })
+
+    const previous = localStreamRef.current
+    localStreamRef.current = stream
+    getCallStore().setLocalStream(stream)
+    watchLocalTracks(stream)
+
+    for (const pc of Object.values(pcsRef.current)) {
+      const senders = pc.getSenders()
+      for (const track of stream.getTracks()) {
+        const sender = senders.find(s => s.track?.kind === track.kind)
+        if (sender) await sender.replaceTrack(track)
       }
-      return null
+    }
+    if (previous && previous !== stream) {
+      previous.getTracks().forEach(t => { t.onended = null })
+      stopStream(previous)
     }
   }, [])
 
   // Monitor local tracks — re-acquire stream if camera/mic dies (iOS background, OS kill)
   const watchLocalTracks = useCallback((stream: MediaStream) => {
     for (const track of stream.getTracks()) {
-      track.onended = async () => {
+      track.onended = () => {
+        if (recoveringRef.current) return
         console.log(`[WebRTC] Local ${track.kind} track ended — re-acquiring stream`)
-        const { myAudioEnabled, myVideoEnabled } = getCallStore()
-        if (!myAudioEnabled && !myVideoEnabled) return
-
-        try {
-          const newStream = await navigator.mediaDevices.getUserMedia({
-            video: myVideoEnabled,
-            audio: myAudioEnabled,
-          })
-          localStreamRef.current = newStream
-          getCallStore().setLocalStream(newStream)
-          watchLocalTracks(newStream)
-
-          // Replace tracks in all existing PeerConnections
-          for (const pc of Object.values(pcsRef.current)) {
-            const senders = pc.getSenders()
-            for (const newTrack of newStream.getTracks()) {
-              const sender = senders.find(s => s.track?.kind === newTrack.kind)
-              if (sender) {
-                await sender.replaceTrack(newTrack)
-                console.log(`[WebRTC] Replaced ${newTrack.kind} track in PC`)
-              }
-            }
+        const session = sessionRef.current.current()
+        recoveringRef.current = (async () => {
+          const { myAudioEnabled, myVideoEnabled } = getCallStore()
+          const fresh = await requestMedia(myAudioEnabled, myVideoEnabled)
+          if (!sessionRef.current.isCurrent(session)) {
+            stopStream(fresh)
+            return
           }
-        } catch (e) {
-          console.error('[WebRTC] Failed to re-acquire local stream', e)
-        }
+          if (!fresh) {
+            console.error('[WebRTC] Failed to re-acquire local stream')
+            return
+          }
+          await publishLocalStream(fresh)
+        })().finally(() => { recoveringRef.current = null })
       }
     }
-  }, [])
-
-  // Full reconnection: close PC and create a fresh one
-  const reconnectPeer = useCallback((remoteIndex: number) => {
-    console.log(`[WebRTC] Full reconnection for peer ${remoteIndex}`)
-    const old = pcsRef.current[remoteIndex]
-    if (old) {
-      old.close()
-      delete pcsRef.current[remoteIndex]
-    }
-    iceRestartAttemptsRef.current[remoteIndex] = 0
-    getCallStore().setRemoteStream(remoteIndex, null)
-    createPC(remoteIndex)
-  }, []) // createPC added below via assignment
+  }, [publishLocalStream])
 
   const createPC = useCallback((remoteIndex: number): RTCPeerConnection => {
     const pc = new RTCPeerConnection(iceConfig)
@@ -151,7 +191,7 @@ export function useWebRTC() {
         if (attempts >= MAX_ICE_RESTART_ATTEMPTS) {
           // ICE restarts exhausted — do full reconnection
           console.log(`[WebRTC] ICE restart attempts exhausted for peer ${remoteIndex}, full reconnect`)
-          setTimeout(() => reconnectPeer(remoteIndex), 500)
+          reconnects.current.schedule(remoteIndex, pc, 500)
           return
         }
 
@@ -174,7 +214,7 @@ export function useWebRTC() {
       // Full reconnect if connection outright fails (not just ICE)
       if (state === 'failed') {
         console.log(`[WebRTC] Connection failed for peer ${remoteIndex}, scheduling reconnect`)
-        setTimeout(() => reconnectPeer(remoteIndex), 1000)
+        reconnects.current.schedule(remoteIndex, pc, 1000)
       }
     }
 
@@ -218,26 +258,15 @@ export function useWebRTC() {
     pcsRef.current[remoteIndex] = pc
     getCallStore().setPeerState(remoteIndex, 'connecting')
     return pc
-  }, [myPlayerIndex, roomCode, reconnectPeer])
-
-  // Wire up reconnectPeer's dependency on createPC (circular ref)
-  // Both are stable callbacks so this is safe
-  const reconnectPeerFn = useCallback((remoteIndex: number) => {
-    const old = pcsRef.current[remoteIndex]
-    if (old) {
-      old.close()
-      delete pcsRef.current[remoteIndex]
-    }
-    iceRestartAttemptsRef.current[remoteIndex] = 0
-    getCallStore().setRemoteStream(remoteIndex, null)
-    createPC(remoteIndex)
-  }, [createPC])
+  }, [myPlayerIndex, roomCode])
+  createPCRef.current = createPC
 
   const handleSignal = useCallback(async ({
     from,
     desc,
     candidate,
   }: { from: number; desc?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit }) => {
+    if (!sessionRef.current.isCurrent(sessionRef.current.current())) return
     let pc = pcsRef.current[from]
     if (!pc) {
       console.log(`[WebRTC] Creating PC for incoming signal from peer ${from}`)
@@ -272,6 +301,9 @@ export function useWebRTC() {
   }, [myPlayerIndex, roomCode, createPC])
 
   const cleanup = useCallback(() => {
+    // Ends the session first: any pending permission prompt or recovery becomes stale
+    sessionRef.current.end()
+    reconnects.current.cancelAll()
     localStreamRef.current?.getTracks().forEach(track => {
       track.onended = null
       track.stop()
@@ -303,71 +335,82 @@ export function useWebRTC() {
     const { myAudioEnabled, myVideoEnabled } = getCallStore()
     if (!myAudioEnabled && !myVideoEnabled) return
     console.log(`[WebRTC] Peer ${peerIndex} joined call, refreshing PC`)
-    reconnectPeerFn(peerIndex)
-  }, [reconnectPeerFn])
+    reconnectPeer(peerIndex)
+  }, [reconnectPeer])
+
+  // The server says this seat's human is gone (bot took over or they abandoned)
+  const handlePeerLeft = useCallback((peerIndex: number) => {
+    console.log(`[WebRTC] Peer ${peerIndex} left the call`)
+    closePeer(peerIndex)
+    getCallStore().setPeerState(peerIndex, 'closed')
+  }, [closePeer])
 
   const joinCall = useCallback(async (audio: boolean, video: boolean) => {
     console.log(`[WebRTC] joinCall(audio=${audio}, video=${video})`)
-    getCallStore().setMyLobbyOpt(audio, video)
+    const session = sessionRef.current.current()
+    getCallStore().setCallError(null)
 
-    const stream = await navigator.mediaDevices.getUserMedia({ video, audio }).catch(async () => {
-      if (video && audio) return navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => null)
-      return null
-    })
-
+    const stream = await requestMedia(audio, video)
+    if (!sessionRef.current.isCurrent(session)) {
+      // Left the game while the permission prompt was open
+      console.log('[WebRTC] joinCall: call session ended during the permission prompt, discarding stream')
+      stopStream(stream)
+      return
+    }
     if (!stream) {
+      // Not in the call: keep the join button so the player can retry after allowing access
       console.error('[WebRTC] Failed to get media stream')
+      getCallStore().setCallError('No se pudo usar la cámara ni el micrófono. Revisa los permisos y vuelve a intentar.')
       return
     }
 
-    localStreamRef.current = stream
-    getCallStore().setLocalStream(stream)
-    watchLocalTracks(stream)
+    // Join with what we actually got (the audio-only fallback may drop video)
+    const caps = capabilitiesOf(stream)
+    getCallStore().setMyLobbyOpt(caps.audio, caps.video)
+    await publishLocalStream(stream)
 
     await fetchTurnCredentials()
+    if (!sessionRef.current.isCurrent(session)) return
 
-    const playerCount = useGameStore.getState().gameState?.playerCount ?? 4
-    for (let i = 0; i < playerCount; i++) {
-      if (i === myPlayerIndex) continue
-      const existingPC = pcsRef.current[i]
-      if (existingPC) {
-        existingPC.close()
-        delete pcsRef.current[i]
-        getCallStore().setRemoteStream(i, null)
-      }
+    for (const i of humanPeers(myPlayerIndex)) {
+      closePeer(i)
       createPC(i)
     }
 
-    socket.emit('webrtc:lobby_opt', { roomCode, audio, video })
-  }, [myPlayerIndex, roomCode, createPC, watchLocalTracks])
+    socket.emit('webrtc:lobby_opt', { roomCode, audio: caps.audio, video: caps.video })
+  }, [myPlayerIndex, roomCode, createPC, closePeer, publishLocalStream])
 
   useEffect(() => {
-    let mounted = true
+    const session = sessionRef.current.begin()
 
     async function init() {
-      await fetchTurnCredentials()
+      // The lobby opt-in as it was on arrival. Read before any await: a tap on
+      // "join call" meanwhile is joinCall's job, and init must not race it.
+      const { myAudioEnabled, myVideoEnabled } = getCallStore()
 
-      const stream = await acquireLocalStream()
-      if (!mounted) {
-        stream?.getTracks().forEach(t => t.stop())
+      await fetchTurnCredentials()
+      if (!sessionRef.current.isCurrent(session)) return
+
+      const stream = await requestMedia(myAudioEnabled, myVideoEnabled)
+      if (!sessionRef.current.isCurrent(session) || localStreamRef.current) {
+        // Left the game, or joinCall already published a stream
+        stopStream(stream)
         return
       }
-      localStreamRef.current = stream
-      getCallStore().setLocalStream(stream)
-      if (stream) watchLocalTracks(stream)
 
-      const { lobbyOpts, myAudioEnabled, myVideoEnabled } = getCallStore()
-      const iParticipate = myAudioEnabled || myVideoEnabled
+      if (!stream) {
+        // Opted in from the lobby but access failed: don't pretend to be in the call
+        if (myAudioEnabled || myVideoEnabled) getCallStore().setMyLobbyOpt(false, false)
+        return
+      }
+      const caps = capabilitiesOf(stream)
+      getCallStore().setMyLobbyOpt(caps.audio, caps.video)
+      await publishLocalStream(stream)
 
-      if (iParticipate) {
-        const playerCount = useGameStore.getState().gameState?.playerCount ?? 4
-        for (let i = 0; i < playerCount; i++) {
-          if (i === myPlayerIndex) continue
-          const peerOpt = lobbyOpts[i]
-          if (peerOpt?.audio || peerOpt?.video) {
-            createPC(i)
-          }
-        }
+      const { lobbyOpts } = getCallStore()
+      for (const i of humanPeers(myPlayerIndex)) {
+        const peerOpt = lobbyOpts[i]
+        if (peerOpt?.audio || peerOpt?.video) createPC(i)
       }
     }
 
@@ -376,12 +419,13 @@ export function useWebRTC() {
     signalHandlerRef.current = handleSignal
     joinCallRef.current = joinCall
     peerJoinedCallRef.current = handlePeerJoined
+    peerLeftCallRef.current = handlePeerLeft
     resetForNewGameRef.current = resetForNewGame
 
     return () => {
-      mounted = false
       joinCallRef.current = null
       peerJoinedCallRef.current = null
+      peerLeftCallRef.current = null
       resetForNewGameRef.current = null
       cleanup()
     }
@@ -400,6 +444,10 @@ export const joinCallRef = {
 }
 
 export const peerJoinedCallRef = {
+  current: null as ((peerIndex: number) => void) | null
+}
+
+export const peerLeftCallRef = {
   current: null as ((peerIndex: number) => void) | null
 }
 

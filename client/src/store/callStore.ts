@@ -24,6 +24,8 @@ interface CallStore {
   // Own controls
   micMuted: boolean
   cameraOff: boolean
+  /** Why the last attempt to join the call failed (permissions, no device) */
+  callError: string | null
 
   // Actions
   setMyLobbyOpt: (audio: boolean, video: boolean) => void
@@ -36,6 +38,7 @@ interface CallStore {
   setPeerMuted: (playerIndex: number, muted: boolean) => void
   setPeerCameraOff: (playerIndex: number, off: boolean) => void
   setSpeakingPeers: (map: Record<number, boolean>) => void
+  setCallError: (error: string | null) => void
   resetCallState: () => void
 }
 
@@ -51,6 +54,7 @@ const initialState = {
   speakingPeers: {},
   micMuted: false,
   cameraOff: false,
+  callError: null,
 }
 
 export const useCallStore = create<CallStore>()((set) => ({
@@ -71,5 +75,6 @@ export const useCallStore = create<CallStore>()((set) => ({
   setPeerCameraOff: (playerIndex, off) =>
     set(s => ({ cameraOffPeers: { ...s.cameraOffPeers, [playerIndex]: off } })),
   setSpeakingPeers: (map) => set({ speakingPeers: map }),
+  setCallError: (callError) => set({ callError }),
   resetCallState: () => set({ ...initialState }),
 }))

@@ -172,6 +172,7 @@ export function MediaDock({ size = 40 }: { size?: number }) {
   const sfxEnabled = useUIStore(s => s.sfxEnabled)
   const musicEnabled = useUIStore(s => s.musicEnabled)
   const inCall = useCallStore(s => s.myAudioEnabled || s.myVideoEnabled)
+  const callError = useCallStore(s => s.callError)
   const [joining, setJoining] = useState(false)
 
   const soundOn = sfxEnabled || musicEnabled
@@ -192,10 +193,28 @@ export function MediaDock({ size = 40 }: { size?: number }) {
   }
 
   return (
+    <>
+    {callError && !inCall && (
+      // Fixed, not anchored to the dock: the dock's grid cell clips overflow
+      <button
+        onClick={() => useCallStore.getState().setCallError(null)}
+        className="fixed top-16 left-1/2 -translate-x-1/2 z-50 max-w-[18rem] rounded-xl px-4 py-2.5 text-left font-body text-xs text-white/90 shadow-2xl"
+        style={{ background: 'rgba(15,35,24,0.96)', border: '1px solid rgba(249,115,22,0.5)' }}
+        role="alert"
+      >
+        {callError}
+      </button>
+    )}
     <Capsule>
       {/* Once in the call, mic/camera controls live on the player's own seat */}
       {!inCall && (
-        <DockButton label={joining ? 'Conectando…' : 'Unirse a la llamada'} size={size} tone="call" onClick={joinCall} disabled={joining}>
+        <DockButton
+          label={joining ? 'Conectando…' : callError ? `${callError} Toca para reintentar.` : 'Unirse a la llamada'}
+          size={size}
+          tone="call"
+          onClick={joinCall}
+          disabled={joining}
+        >
           {joining ? (
             <svg viewBox="0 0 24 24" fill="none" stroke={ICON_COLOR.call} strokeWidth={2.5} className="w-[50%] h-[50%] animate-spin" aria-hidden>
               <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
@@ -222,5 +241,6 @@ export function MediaDock({ size = 40 }: { size?: number }) {
         </Icon>
       </DockButton>
     </Capsule>
+    </>
   )
 }

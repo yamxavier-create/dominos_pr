@@ -8,10 +8,15 @@ Monorepo npm workspaces: `client/` (React + Vite + Zustand) y `server/` (Express
 npm run dev          # Client (5173) + Server (3001) concurrente
 npm run build        # Build ambos workspaces
 npm run start        # Production server (sirve client/dist/)
-npm test             # Pruebas adversariales del socket layer (server/test/)
+npm test             # Server (server/test/) + lógica pura del client (client/test/)
+npm run test:e2e     # Llamada de video en Chromium con cámara y micrófono falsos (e2e/)
+npm run test:db:setup --workspace=server   # Crea y migra la DB local dominos_pr_test (una vez)
 ```
 
-No hay lint script. TypeScript strict mode más `npm test` son los checks principales. Los tests apuntan Prisma a una DB inalcanzable (`server/test/env.ts`), así que nunca escriben en la DB local ni en Supabase.
+No hay lint script. TypeScript strict mode más `npm test` son los checks principales.
+
+- Los tests del server apuntan Prisma a una DB inalcanzable (`server/test/env.ts`). Los que necesitan DB (`auth`, `socialStats`) usan `dominos_pr_test` en localhost y se saltan con aviso si no existe. Nunca tocan Supabase.
+- `test:e2e` levanta server (contra `dominos_pr_test`) y Vite en 3001/5173. En macOS la app de terminal necesita permiso de Cámara y Micrófono; sin él, `getUserMedia` se queda colgado aunque los dispositivos sean falsos.
 
 ## Gotchas (no obvios del código)
 

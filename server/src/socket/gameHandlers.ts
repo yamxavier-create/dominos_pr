@@ -478,6 +478,8 @@ export function handOverSeatToBot(io: Server, rooms: RoomManager, room: Room, se
     playerIndex: player.index,
     playerName: player.name,
   })
+  // The human behind this seat is gone: peers drop their video connection to it
+  announcePeerLeft(io, room.roomCode, player.index)
   broadcastState(io, game)
   scheduleBotTurn(io, game, rooms)
 }
@@ -505,6 +507,7 @@ export function checkRematchCancellation(
 
 import { PresenceManager } from '../presence/PresenceManager'
 import { isNonEmptyString } from './payloadGuard'
+import { announcePeerLeft } from './webrtcHandlers'
 
 export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomManager, presence: PresenceManager) {
 

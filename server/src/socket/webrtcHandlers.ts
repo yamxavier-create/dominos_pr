@@ -1,75 +1,87 @@
 import { Socket, Server } from 'socket.io'
 import { RoomManager } from '../game/RoomManager'
+import { Room, PlayerState } from '../game/GameState'
+import { isNonEmptyString } from './payloadGuard'
+
+/**
+ * A seat can take part in the call only while a connected human holds it.
+ * A seat abandoned or handed to a bot keeps its old socketId in game.players,
+ * so matching on socketId alone would let that socket keep signaling.
+ */
+function callSeat(room: Room, player: PlayerState | undefined): PlayerState | undefined {
+  if (!player || player.isBot || !player.connected) return undefined
+  const rp = room.players.find(p => p.seatIndex === player.index)
+  if (!rp || rp.abandoned || rp.isBot || !rp.connected || rp.socketId !== player.socketId) return undefined
+  return player
+}
 
 export function registerWebRTCHandlers(socket: Socket, io: Server, rooms: RoomManager): void {
 
+  /** The room this socket currently sits in, only if it matches the claimed roomCode. */
+  const myRoom = (roomCode: unknown): Room | undefined => {
+    if (!isNonEmptyString(roomCode)) return undefined
+    if (rooms.getRoomCodeBySocket(socket.id) !== roomCode) return undefined
+    return rooms.getRoom(roomCode)
+  }
+
   socket.on('webrtc:signal', ({ roomCode, to, desc, candidate }: {
-    roomCode: string
-    to: number
+    roomCode?: unknown
+    to?: unknown
     desc?: unknown
     candidate?: unknown
   }) => {
-    const room = rooms.getRoom(roomCode)
-    if (!room) {
-      console.log('[WebRTC-Server] signal: room not found', roomCode)
-      socket.emit('webrtc:error', { reason: 'room_not_found', to })
+    const room = myRoom(roomCode)
+    if (!room?.game) {
+      socket.emit('webrtc:error', { reason: 'not_in_game', to })
       return
     }
-    if (!room.game) {
-      console.log('[WebRTC-Server] signal: no game in room')
-      socket.emit('webrtc:error', { reason: 'no_game', to })
+    const from = callSeat(room, room.game.players.find(p => p.socketId === socket.id))
+    if (!from) {
+      socket.emit('webrtc:error', { reason: 'sender_not_in_call', to })
       return
     }
-    const fromPlayer = room.game.players.find(p => p.socketId === socket.id)
-    if (fromPlayer === undefined) {
-      console.log('[WebRTC-Server] signal: sender not found, socketId=', socket.id)
-      socket.emit('webrtc:error', { reason: 'sender_not_found', to })
+    const target = Number.isInteger(to) ? callSeat(room, room.game.players.find(p => p.index === to)) : undefined
+    if (!target || target.index === from.index) {
+      socket.emit('webrtc:error', { reason: 'target_not_in_call', to })
       return
     }
-    const fromIndex = fromPlayer.index
-    const targetPlayer = room.game.players.find(p => p.index === to)
-    if (!targetPlayer?.socketId) {
-      console.log('[WebRTC-Server] signal: target not found, to=', to)
-      socket.emit('webrtc:error', { reason: 'target_not_found', to })
-      return
-    }
-    // Log whether target is still connected
-    const targetConnected = room.game.players[to]?.connected ?? false
-    console.log(`[WebRTC-Server] signal: ${fromIndex} → ${to} (${desc ? 'SDP' : 'ICE'}) target_connected=${targetConnected}`)
-    io.to(targetPlayer.socketId).emit('webrtc:signal', { from: fromIndex, desc, candidate })
+    io.to(target.socketId).emit('webrtc:signal', { from: from.index, desc, candidate })
   })
 
   socket.on('webrtc:toggle', ({ roomCode, micMuted, cameraOff }: {
-    roomCode: string
-    micMuted: boolean
-    cameraOff: boolean
+    roomCode?: unknown
+    micMuted?: unknown
+    cameraOff?: unknown
   }) => {
-    const room = rooms.getRoom(roomCode)
-    if (!room) return
-    if (!room.game) return
-    const fromPlayer = room.game.players.find(p => p.socketId === socket.id)
-    if (fromPlayer === undefined) return
-    socket.to(roomCode).emit('webrtc:peer_toggle', {
-      from: fromPlayer.index,
-      micMuted,
-      cameraOff,
+    const room = myRoom(roomCode)
+    if (!room?.game) return
+    const from = callSeat(room, room.game.players.find(p => p.socketId === socket.id))
+    if (!from) return
+    socket.to(room.roomCode).emit('webrtc:peer_toggle', {
+      from: from.index,
+      micMuted: micMuted === true,
+      cameraOff: cameraOff === true,
     })
   })
 
   socket.on('webrtc:lobby_opt', ({ roomCode, audio, video }: {
-    roomCode: string
-    audio: boolean
-    video: boolean
+    roomCode?: unknown
+    audio?: unknown
+    video?: unknown
   }) => {
-    const room = rooms.getRoom(roomCode)
-    if (!room) { console.log('[WebRTC-Server] lobby_opt: room not found'); return }
-    const fromPlayer = room.players.find(p => p.socketId === socket.id)
-    if (fromPlayer === undefined) { console.log('[WebRTC-Server] lobby_opt: player not found, socketId=', socket.id); return }
-    console.log(`[WebRTC-Server] lobby_opt: player ${fromPlayer.seatIndex} (${fromPlayer.name}) → audio=${audio} video=${video}`)
-    socket.to(roomCode).emit('webrtc:lobby_updated', {
+    const room = myRoom(roomCode)
+    if (!room) return
+    const fromPlayer = room.players.find(p => p.socketId === socket.id && !p.abandoned)
+    if (!fromPlayer) return
+    socket.to(room.roomCode).emit('webrtc:lobby_updated', {
       from: fromPlayer.seatIndex,
-      audio,
-      video,
+      audio: audio === true,
+      video: video === true,
     })
   })
+}
+
+/** Tell the room a seat left the call (bot took it, or the player abandoned) so peers close its connection. */
+export function announcePeerLeft(io: Server, roomCode: string, playerIndex: number) {
+  io.to(roomCode).emit('webrtc:peer_left', { playerIndex })
 }

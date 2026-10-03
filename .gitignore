@@ -31,4 +31,5 @@ client/android/
 
 # Test artifacts
 test-results/
+.playwright/
 .playwright-mcp/

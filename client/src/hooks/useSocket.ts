@@ -8,7 +8,7 @@ import { useAuthStore } from '../store/authStore'
 import { useUIStore, ChatMessage, ActiveReaction } from '../store/uiStore'
 import { useCallStore } from '../store/callStore'
 import { useSocialStore, PresenceStatus } from '../store/socialStore'
-import { signalHandlerRef, peerJoinedCallRef, resetForNewGameRef } from './useWebRTC'
+import { signalHandlerRef, peerJoinedCallRef, peerLeftCallRef, resetForNewGameRef } from './useWebRTC'
 import { playSfx, preloadSfx } from '../audio/sfx'
 import { ClientGameState, RoundEndPayload, GameEndPayload, PassPayload, RematchVoteUpdate, RematchCancelled, BoneyardDrawPayload } from '../types/game'
 
@@ -230,6 +230,11 @@ export function useSocket() {
       useCallStore.getState().setPeerCameraOff(from, cameraOff)
     })
 
+    // A seat's human left the call for good (bot took the seat or they abandoned)
+    socket.on('webrtc:peer_left', ({ playerIndex }: { playerIndex: number }) => {
+      peerLeftCallRef.current?.(playerIndex)
+    })
+
     // WebRTC signaling errors from server — signal relay failed
     socket.on('webrtc:error', ({ reason, to }: { reason: string; to: number }) => {
       console.error(`[WebRTC] Server signal error: ${reason} (target peer ${to})`)
@@ -353,6 +358,7 @@ export function useSocket() {
       socket.off('webrtc:signal')
       socket.off('webrtc:peer_toggle')
       socket.off('webrtc:error')
+      socket.off('webrtc:peer_left')
       socket.off('chat:message')
       socket.off('chat:history')
       socket.off('connection:player_disconnected')
