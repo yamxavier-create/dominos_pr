@@ -18,7 +18,9 @@ const httpServer = createServer(app)
 if (config.NODE_ENV !== 'production') {
   app.use(cors({ origin: config.CLIENT_ORIGIN }))
 }
-app.use(express.json())
+// Railway puts one proxy hop in front; auth rate limits need the client's real IP
+if (config.NODE_ENV === 'production') app.set('trust proxy', 1)
+app.use(express.json({ limit: '10kb' }))
 
 // Auth REST API
 app.use('/api/auth', authRoutes)

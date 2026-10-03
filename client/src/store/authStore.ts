@@ -8,6 +8,9 @@ export interface AuthUser {
   displayName: string
   avatarUrl: string | null
   email?: string | null
+  emailVerified?: boolean
+  /** Address waiting for the owner to click the confirmation link */
+  pendingEmail?: string | null
   stats?: { gamesPlayed: number; gamesWon: number }
 }
 

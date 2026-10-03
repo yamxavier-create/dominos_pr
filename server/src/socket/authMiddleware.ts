@@ -5,6 +5,9 @@ import prisma from '../db/prisma'
 export interface SocketUserData {
   user?: { id: string; username: string; displayName: string }
   guest: boolean
+  /** Session this socket authenticated with; revoking it disconnects the socket */
+  sessionJti?: string
+  sessionExpiresAt?: number
 }
 
 export async function authMiddleware(socket: Socket, next: (err?: Error) => void): Promise<void> {
@@ -42,6 +45,8 @@ export async function authMiddleware(socket: Socket, next: (err?: Error) => void
     ;(socket.data as SocketUserData) = {
       user: { id: user.id, username: user.username, displayName: user.displayName },
       guest: false,
+      sessionJti: payload.jti,
+      sessionExpiresAt: session.expiresAt.getTime(),
     }
 
     // Update lastSeenAt (non-critical)

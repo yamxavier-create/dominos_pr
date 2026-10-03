@@ -11,6 +11,7 @@ type AuthView = 'login' | 'register' | 'forgot'
 export function AuthPage() {
   const [view, setView] = useState<AuthView>('login')
   const [error, setError] = useState<string | null>(null)
+  const [sentTo, setSentTo] = useState<string | null>(null)
   const { register, login, loginWithGoogle } = useAuth()
   const navigate = useNavigate()
 
@@ -27,8 +28,9 @@ export function AuthPage() {
   const handleRegister = async (username: string, password: string, displayName?: string, email?: string) => {
     setError(null)
     try {
-      await register(username, password, displayName, email)
-      navigate('/')
+      const pendingEmail = await register(username, password, displayName, email)
+      if (pendingEmail) setSentTo(pendingEmail)
+      else navigate('/')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrar')
     }
@@ -42,6 +44,26 @@ export function AuthPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error con Google')
     }
+  }
+
+  if (sentTo) {
+    return (
+      <div className="fixed inset-0 felt-table flex items-center justify-center p-4">
+        <div className="menu-card text-center max-w-xs">
+          <h2 className="font-header text-2xl text-gold mb-3">Revisa tu email</h2>
+          <p className="font-body text-white/60 text-sm mb-4">
+            Te enviamos un enlace a <span className="text-white">{sentTo}</span>. Tu email se guarda cuando lo confirmes.
+          </p>
+          <button
+            onClick={() => navigate('/')}
+            className="font-body text-white font-bold py-2.5 px-6 rounded-xl text-sm"
+            style={{ background: 'linear-gradient(135deg, #22C55E, #16a34a)' }}
+          >
+            Continuar
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (

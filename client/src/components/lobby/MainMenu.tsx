@@ -88,7 +88,14 @@ function SettingsDropdown({ onClose }: { onClose: () => void }) {
         {user && (
           <div className="px-4 pt-1 pb-2 border-b border-white/10 mb-1">
             <p className="font-body text-white text-sm font-semibold truncate">{user.displayName}</p>
-            {user.email && <p className="font-body text-white/40 text-[11px] truncate">{user.email}</p>}
+            {user.email && (
+              <p className="font-body text-white/40 text-[11px] truncate">
+                {user.email}{user.emailVerified === false && ' · sin confirmar'}
+              </p>
+            )}
+            {user.pendingEmail && user.pendingEmail !== user.email && (
+              <p className="font-body text-gold/80 text-[11px] leading-snug mt-0.5">Confirma {user.pendingEmail} desde tu correo</p>
+            )}
           </div>
         )}
 
@@ -152,6 +159,7 @@ function EditProfileModal({ field, onClose }: { field: ProfileField; onClose: ()
   const [value, setValue] = useState(current)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [sentTo, setSentTo] = useState<string | null>(null)
 
   const save = async () => {
     const trimmed = value.trim()
@@ -163,8 +171,10 @@ function EditProfileModal({ field, onClose }: { field: ProfileField; onClose: ()
     setSaving(true)
     setError(null)
     try {
-      await updateProfile({ [field]: trimmed })
-      onClose()
+      const pendingEmail = await updateProfile({ [field]: trimmed })
+      // A new email is saved only after the owner clicks the link we sent
+      if (isEmail && trimmed && pendingEmail) setSentTo(pendingEmail)
+      else onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error')
     } finally {
@@ -179,6 +189,21 @@ function EditProfileModal({ field, onClose }: { field: ProfileField; onClose: ()
         style={{ background: '#0F2318', border: '1px solid rgba(255,255,255,0.10)' }}
         onClick={e => e.stopPropagation()}
       >
+        {sentTo ? (
+          <>
+            <p className="font-body text-white/80 text-sm">
+              Te enviamos un enlace a <span className="text-white">{sentTo}</span>. El email se guarda cuando lo confirmes.
+            </p>
+            <button
+              onClick={onClose}
+              className="w-full mt-4 font-body text-white font-bold py-2.5 rounded-xl text-sm"
+              style={{ background: 'linear-gradient(135deg, #22C55E, #16a34a)' }}
+            >
+              Listo
+            </button>
+          </>
+        ) : (
+        <>
         <p className="font-body text-white/60 text-xs mb-2 uppercase tracking-wider">{isEmail ? 'Tu email' : 'Tu nombre'}</p>
         <input
           type={isEmail ? 'email' : 'text'}
@@ -191,7 +216,7 @@ function EditProfileModal({ field, onClose }: { field: ProfileField; onClose: ()
           autoFocus
           className="w-full font-body text-white bg-white/5 border border-white/15 rounded-xl px-3 py-2 outline-none focus:border-primary/60"
         />
-        {isEmail && <p className="font-body text-white/40 text-xs mt-2">Lo usamos solo para recuperar tu contraseña.</p>}
+        {isEmail && <p className="font-body text-white/40 text-xs mt-2">Lo usamos solo para recuperar tu contraseña. Te enviaremos un enlace para confirmarlo.</p>}
         {error && <p className="font-body text-accent text-xs mt-2">{error}</p>}
         <div className="flex gap-2 mt-4">
           <button onClick={onClose} className="flex-1 font-body text-white/60 py-2.5 rounded-xl hover:bg-white/5 text-sm">Cancelar</button>
@@ -204,6 +229,8 @@ function EditProfileModal({ field, onClose }: { field: ProfileField; onClose: ()
             {saving ? '...' : 'Guardar'}
           </button>
         </div>
+        </>
+        )}
       </div>
     </div>
   )

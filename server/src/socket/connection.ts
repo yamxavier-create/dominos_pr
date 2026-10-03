@@ -6,10 +6,12 @@ import { registerHandlers } from './handlers'
 import { checkRematchCancellation } from './gameHandlers'
 import { getSocketUser } from './authMiddleware'
 import { guardSocket } from './payloadGuard'
+import { attachSocketServer, endSocketSession } from '../auth/sessionRevocation'
 import { emitLobbyState, installRoomLifecycleHooks } from './roomEvents'
 
 export function registerConnectionHandler(io: Server, rooms: RoomManager, presence: PresenceManager): void {
   installRoomLifecycleHooks(io, rooms)
+  attachSocketServer(io)
 
   io.on('connection', socket => {
     console.log(`[socket] connected: ${socket.id}`)
@@ -19,6 +21,14 @@ export function registerConnectionHandler(io: Server, rooms: RoomManager, presen
 
     // Join per-user room for real-time social notifications
     const userData = getSocketUser(socket)
+
+    // The session was checked once at handshake; end the socket when it expires
+    let sessionTimer: NodeJS.Timeout | undefined
+    if (userData.sessionExpiresAt) {
+      const MAX_TIMEOUT = 2 ** 31 - 1
+      const ms = Math.min(Math.max(userData.sessionExpiresAt - Date.now(), 0), MAX_TIMEOUT)
+      sessionTimer = setTimeout(() => endSocketSession(socket, 'expired'), ms)
+    }
     if (userData.user) {
       socket.join(`user:${userData.user.id}`)
       presence.addSocket(userData.user.id, socket.id)
@@ -28,6 +38,7 @@ export function registerConnectionHandler(io: Server, rooms: RoomManager, presen
 
     socket.on('disconnect', reason => {
       console.log(`[socket] disconnected: ${socket.id} — ${reason}`)
+      clearTimeout(sessionTimer)
 
       // Remove socket from presence tracking (starts grace period if last socket)
       if (userData.user) {

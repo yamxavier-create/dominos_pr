@@ -1,9 +1,10 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { socket } from '../socket'
+import { socket, setSocketAuth } from '../socket'
 import { useGameStore } from '../store/gameStore'
 import { useRoomStore, loadReconnectToken } from '../store/roomStore'
 import { leaveRoomLocally } from '../store/leaveRoom'
+import { useAuthStore } from '../store/authStore'
 import { useUIStore, ChatMessage, ActiveReaction } from '../store/uiStore'
 import { useCallStore } from '../store/callStore'
 import { useSocialStore, PresenceStatus } from '../store/socialStore'
@@ -91,6 +92,15 @@ export function useSocket() {
     socket.on('room:rejoin_failed', kickedOut('Ya no tienes asiento en esa sala'))
     socket.on('room:session_replaced', kickedOut('Abriste esta sala en otro dispositivo'))
     socket.on('room:closed', kickedOut('La sala se cerró por inactividad'))
+
+    // The server revoked or expired this session and cut the socket: drop the
+    // token and come back as a guest (a seat in a room is kept via its reconnect token)
+    socket.on('auth:session_ended', () => {
+      useAuthStore.getState().logout()
+      setSocketAuth(null)
+      // A server-side disconnect never auto-reconnects in socket.io
+      socket.once('disconnect', () => socket.connect())
+    })
 
     socket.on('room:seat_swapped', ({ room, myPlayerIndex }: { room: any; myPlayerIndex: number }) => {
       setRoom(room)
@@ -327,6 +337,7 @@ export function useSocket() {
       socket.off('room:rejoin_failed')
       socket.off('room:session_replaced')
       socket.off('room:closed')
+      socket.off('auth:session_ended')
       socket.off('room:seat_swapped')
       socket.off('room:error')
       socket.off('game:started')

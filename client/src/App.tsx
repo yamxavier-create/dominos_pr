@@ -9,6 +9,7 @@ import { AuthPage } from './pages/AuthPage'
 import { PrivacyPage } from './pages/PrivacyPage'
 import { TermsPage } from './pages/TermsPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
+import { VerifyEmailPage } from './pages/VerifyEmailPage'
 import { StatsPage } from './pages/StatsPage'
 import { GameInviteToast } from './components/social/GameInviteToast'
 import { PresenceToast } from './components/social/PresenceToast'
@@ -31,6 +32,7 @@ function AppRoutes() {
         <Route path="/game" element={<GamePage />} />
         <Route path="/stats" element={<StatsPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -43,13 +43,15 @@ export function useAuth() {
     })
   }, [])
 
-  const register = async (username: string, password: string, displayName?: string, email?: string) => {
+  /** Returns the address the confirmation link went to, if an email was given */
+  const register = async (username: string, password: string, displayName?: string, email?: string): Promise<string | null> => {
     const { token, user } = await apiCall('/register', {
       method: 'POST',
       body: JSON.stringify({ username, password, displayName, email }),
     })
     setAuth(user, token)
     setSocketAuth(token)
+    return user.pendingEmail ?? null
   }
 
   const login = async (username: string, password: string) => {
@@ -86,16 +88,30 @@ export function useAuth() {
     }
   }
 
-  const updateProfile = async (changes: { displayName?: string; email?: string }) => {
+  const updateProfile = async (changes: { displayName?: string; email?: string }): Promise<string | null> => {
     const { user: updatedUser } = await apiCall('/profile', {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(changes),
     })
-    // Update local store with the saved profile fields
+    // A new email isn't saved yet: it shows up as pendingEmail until confirmed
     const { updateUser } = useAuthStore.getState()
-    updateUser({ displayName: updatedUser.displayName, email: updatedUser.email })
+    updateUser({
+      displayName: updatedUser.displayName,
+      email: updatedUser.email,
+      emailVerified: updatedUser.emailVerified,
+      pendingEmail: updatedUser.pendingEmail,
+    })
+    return updatedUser.pendingEmail as string | null
   }
 
-  return { register, login, loginWithGoogle, logout: handleLogout, updateProfile, isAuthenticated, user, token }
+  /** Re-read the profile, e.g. after confirming an email in another tab */
+  const refreshUser = async () => {
+    const current = useAuthStore.getState().token
+    if (!current) return
+    const { user: fresh } = await apiCall('/me', { headers: { Authorization: `Bearer ${current}` } })
+    useAuthStore.getState().updateUser(fresh)
+  }
+
+  return { register, login, loginWithGoogle, logout: handleLogout, updateProfile, refreshUser, isAuthenticated, user, token }
 }

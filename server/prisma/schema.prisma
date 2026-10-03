@@ -11,6 +11,8 @@ model User {
   username     String   @unique
   displayName  String
   email        String?  @unique
+  // True once the owner proved the address: Google, an email confirmation link or a password reset link
+  emailVerified Boolean @default(false)
   passwordHash String?
   googleId     String?  @unique
   avatarUrl    String?
@@ -22,6 +24,7 @@ model User {
   sentRequests     Friendship[] @relation("FriendRequester")
   receivedRequests Friendship[] @relation("FriendTarget")
   passwordResets    PasswordReset[]
+  emailVerifications EmailVerification[]
   gameParticipants  GameParticipant[]
 }
 
@@ -98,7 +101,8 @@ model GameParticipant {
 model PasswordReset {
   id        String   @id @default(cuid())
   userId    String
-  token     String   @unique
+  token     String   @unique // SHA-256 of the emailed token; the raw token is never stored
+  email     String?  // Address the link was sent to; a reset only verifies the email if it still matches
   expiresAt DateTime
   createdAt DateTime @default(now())
   used      Boolean  @default(false)
@@ -107,6 +111,21 @@ model PasswordReset {
 
   @@index([userId])
   @@index([token])
+}
+
+/// A pending email address, saved on the User only after the owner clicks the link
+model EmailVerification {
+  id        String   @id @default(cuid())
+  userId    String
+  email     String
+  token     String   @unique // SHA-256 of the emailed token
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  used      Boolean  @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 enum FriendshipStatus {

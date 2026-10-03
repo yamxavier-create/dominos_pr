@@ -1,14 +1,23 @@
 import { Router, Request, Response } from 'express'
-import crypto from 'crypto'
 import prisma from '../db/prisma'
 import { hashPassword, comparePassword } from './passwordUtils'
 import { signToken, verifyToken, verifySession } from './jwt'
-import { verifyGoogleToken } from './google'
-import { sendPasswordResetEmail } from './emailService'
+import { verifyGoogleToken, isGoogleConfigured, GoogleTokenError } from './google'
+import { resolveGoogleUser, GoogleLinkConflictError } from './googleAccount'
+import { deliverInBackground, sendPasswordResetEmail } from './emailService'
+import { requestEmailChange, pendingEmailFor, confirmEmail } from './emailOwnership'
+import { revokeSessions, disconnectSessionSockets } from './sessionRevocation'
+import { newEmailToken, digestToken, isEmailToken } from './tokens'
+import { authLimits } from './rateLimit'
 
 const router = Router()
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const PASSWORD_MIN = 6
+const PASSWORD_MAX = 128 // bcrypt only reads 72 bytes; this also caps hashing cost
+const RESET_TTL_MS = 60 * 60_000
+
+const PUBLIC_USER = { id: true, username: true, displayName: true, avatarUrl: true, email: true, emailVerified: true } as const
 
 // Returns the normalized email, null when empty, or undefined when invalid
 function normalizeEmail(raw: unknown): string | null | undefined {
@@ -20,13 +29,23 @@ function normalizeEmail(raw: unknown): string | null | undefined {
   return email
 }
 
+function isPassword(value: unknown): value is string {
+  return typeof value === 'string' && value.length >= PASSWORD_MIN && value.length <= PASSWORD_MAX
+}
+
+async function startSession(userId: string, username: string) {
+  const { token, jti, expiresAt } = signToken(userId, username)
+  await prisma.session.create({ data: { userId, token: jti, expiresAt } })
+  return token
+}
+
 // POST /api/auth/register
-router.post('/register', async (req: Request, res: Response) => {
+router.post('/register', ...authLimits.register, async (req: Request, res: Response) => {
   try {
     const { username, password, displayName } = req.body
     const email = normalizeEmail(req.body.email)
 
-    if (!username || !password) {
+    if (typeof username !== 'string' || !username || typeof password !== 'string' || !password) {
       res.status(400).json({ error: 'Username and password are required' })
       return
     }
@@ -34,15 +53,18 @@ router.post('/register', async (req: Request, res: Response) => {
       res.status(400).json({ error: 'Username must be 3-20 characters' })
       return
     }
-    if (password.length < 6) {
-      res.status(400).json({ error: 'Password must be at least 6 characters' })
+    if (!isPassword(password)) {
+      res.status(400).json({ error: `Password must be ${PASSWORD_MIN}-${PASSWORD_MAX} characters` })
       return
     }
     if (!/^[a-zA-Z0-9_]+$/.test(username)) {
       res.status(400).json({ error: 'Username can only contain letters, numbers, and underscores' })
       return
     }
-
+    if (displayName !== undefined && displayName !== null && typeof displayName !== 'string') {
+      res.status(400).json({ error: 'Invalid display name' })
+      return
+    }
     if (email === undefined) {
       res.status(400).json({ error: 'Invalid email' })
       return
@@ -54,27 +76,21 @@ router.post('/register', async (req: Request, res: Response) => {
       return
     }
 
-    if (email && await prisma.user.findUnique({ where: { email } })) {
-      res.status(409).json({ error: 'Email already in use' })
-      return
-    }
-
+    // The email is only saved once confirmed, so the answer never depends on whether it's taken
     const passwordHash = await hashPassword(password)
     const user = await prisma.user.create({
       data: {
         username: username.toLowerCase(),
-        displayName: displayName || username,
-        email,
+        displayName: displayName?.trim().slice(0, 20) || username,
         passwordHash,
         stats: { create: {} },
       },
-      select: { id: true, username: true, displayName: true, avatarUrl: true, email: true, createdAt: true },
+      select: { ...PUBLIC_USER, createdAt: true },
     })
+    if (email) await requestEmailChange(user.id, email)
 
-    const { token, jti, expiresAt } = signToken(user.id, user.username)
-    await prisma.session.create({ data: { userId: user.id, token: jti, expiresAt } })
-
-    res.status(201).json({ token, user })
+    const token = await startSession(user.id, user.username)
+    res.status(201).json({ token, user: { ...user, pendingEmail: email } })
   } catch (err) {
     console.error('[Auth] Register error:', err)
     res.status(500).json({ error: 'Internal server error' })
@@ -82,12 +98,16 @@ router.post('/register', async (req: Request, res: Response) => {
 })
 
 // POST /api/auth/login
-router.post('/login', async (req: Request, res: Response) => {
+router.post('/login', ...authLimits.login, async (req: Request, res: Response) => {
   try {
     const { username, password } = req.body
 
-    if (!username || !password || typeof username !== 'string') {
+    if (typeof username !== 'string' || !username || typeof password !== 'string' || !password) {
       res.status(400).json({ error: 'Username and password are required' })
+      return
+    }
+    if (username.length > 254 || password.length > PASSWORD_MAX) {
+      res.status(401).json({ error: 'Invalid username or password' })
       return
     }
 
@@ -95,7 +115,7 @@ router.post('/login', async (req: Request, res: Response) => {
     const identifier = username.trim().toLowerCase()
     const user = await prisma.user.findUnique({
       where: identifier.includes('@') ? { email: identifier } : { username: identifier },
-      select: { id: true, username: true, displayName: true, avatarUrl: true, email: true, passwordHash: true },
+      select: { ...PUBLIC_USER, passwordHash: true },
     })
 
     if (!user || !user.passwordHash) {
@@ -109,12 +129,11 @@ router.post('/login', async (req: Request, res: Response) => {
       return
     }
 
-    const { token, jti, expiresAt } = signToken(user.id, user.username)
-    await prisma.session.create({ data: { userId: user.id, token: jti, expiresAt } })
+    const token = await startSession(user.id, user.username)
     await prisma.user.update({ where: { id: user.id }, data: { lastSeenAt: new Date() } })
 
     const { passwordHash: _, ...safeUser } = user
-    res.json({ token, user: safeUser })
+    res.json({ token, user: { ...safeUser, pendingEmail: await pendingEmailFor(user.id) } })
   } catch (err) {
     console.error('[Auth] Login error:', err)
     res.status(500).json({ error: 'Internal server error' })
@@ -122,60 +141,35 @@ router.post('/login', async (req: Request, res: Response) => {
 })
 
 // POST /api/auth/google
-router.post('/google', async (req: Request, res: Response) => {
+router.post('/google', ...authLimits.google, async (req: Request, res: Response) => {
   try {
     const { idToken } = req.body
-    if (!idToken) {
+    if (typeof idToken !== 'string' || !idToken || idToken.length > 4096) {
       res.status(400).json({ error: 'Google ID token is required' })
+      return
+    }
+    if (!isGoogleConfigured()) {
+      res.status(503).json({ error: 'Google login is not configured' })
       return
     }
 
     const profile = await verifyGoogleToken(idToken)
+    const account = await resolveGoogleUser(profile)
+    const token = await startSession(account.id, account.username)
 
-    // Find by googleId or email
-    let user = await prisma.user.findFirst({
-      where: { OR: [{ googleId: profile.googleId }, { email: profile.email }] },
-    })
-
-    if (user) {
-      // Update Google ID if they previously registered with email/password
-      if (!user.googleId) {
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: { googleId: profile.googleId, avatarUrl: user.avatarUrl || profile.picture },
-        })
-      }
-      await prisma.user.update({ where: { id: user.id }, data: { lastSeenAt: new Date() } })
-    } else {
-      // Create new account from Google
-      const baseUsername = profile.name.toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 16)
-      let username = baseUsername
-      let counter = 1
-      while (await prisma.user.findUnique({ where: { username } })) {
-        username = `${baseUsername}${counter++}`
-      }
-
-      user = await prisma.user.create({
-        data: {
-          username,
-          displayName: profile.name,
-          email: profile.email,
-          googleId: profile.googleId,
-          avatarUrl: profile.picture,
-          stats: { create: {} },
-        },
-      })
+    const user = await prisma.user.findUnique({ where: { id: account.id }, select: PUBLIC_USER })
+    res.json({ token, user: { ...user, pendingEmail: await pendingEmailFor(account.id) } })
+  } catch (err) {
+    if (err instanceof GoogleTokenError) {
+      res.status(401).json({ error: 'Invalid Google token' })
+      return
     }
-
-    const { token, jti, expiresAt } = signToken(user.id, user.username)
-    await prisma.session.create({ data: { userId: user.id, token: jti, expiresAt } })
-
-    const { passwordHash: _, ...safeUser } = user
-    res.json({ token, user: safeUser })
-  } catch (err: any) {
-    console.error('[Auth] Google auth error:', err?.message || err)
-    const isTokenError = err?.message?.includes('token') || err?.message?.includes('Token')
-    res.status(isTokenError ? 401 : 500).json({ error: err?.message || 'Google auth failed' })
+    if (err instanceof GoogleLinkConflictError) {
+      res.status(409).json({ error: 'This email is linked to a different Google account' })
+      return
+    }
+    console.error('[Auth] Google auth error:', err)
+    res.status(500).json({ error: 'Google auth failed' })
   }
 })
 
@@ -197,7 +191,7 @@ router.get('/me', async (req: Request, res: Response) => {
     const user = await prisma.user.findUnique({
       where: { id: payload.sub },
       select: {
-        id: true, username: true, displayName: true, avatarUrl: true, email: true, createdAt: true,
+        ...PUBLIC_USER, createdAt: true,
         stats: { select: { gamesPlayed: true, gamesWon: true } },
       },
     })
@@ -207,7 +201,7 @@ router.get('/me', async (req: Request, res: Response) => {
       return
     }
 
-    res.json({ user })
+    res.json({ user: { ...user, pendingEmail: await pendingEmailFor(user.id) } })
   } catch {
     res.status(401).json({ error: 'Invalid token' })
   }
@@ -222,9 +216,8 @@ router.post('/logout', async (req: Request, res: Response) => {
       return
     }
 
-    const token = authHeader.slice(7)
-    const payload = verifyToken(token)
-    await prisma.session.deleteMany({ where: { token: payload.jti } })
+    const payload = verifyToken(authHeader.slice(7))
+    await revokeSessions({ jti: payload.jti })
     res.json({ ok: true })
   } catch {
     res.status(200).json({ ok: true })
@@ -232,7 +225,7 @@ router.post('/logout', async (req: Request, res: Response) => {
 })
 
 // PATCH /api/auth/profile
-router.patch('/profile', async (req: Request, res: Response) => {
+router.patch('/profile', ...authLimits.profile, async (req: Request, res: Response) => {
   try {
     const authHeader = req.headers.authorization
     if (!authHeader?.startsWith('Bearer ')) {
@@ -247,7 +240,8 @@ router.patch('/profile', async (req: Request, res: Response) => {
     }
 
     const { displayName } = req.body
-    const data: { displayName?: string; email?: string | null } = {}
+    const data: { displayName?: string; email?: null; emailVerified?: false } = {}
+    let newEmail: string | null = null
 
     if (displayName !== undefined) {
       if (typeof displayName !== 'string') {
@@ -269,66 +263,72 @@ router.patch('/profile', async (req: Request, res: Response) => {
         return
       }
       if (email) {
-        const owner = await prisma.user.findUnique({ where: { email }, select: { id: true } })
-        if (owner && owner.id !== payload.sub) {
-          res.status(409).json({ error: 'Email already in use' })
-          return
-        }
+        newEmail = email
+      } else {
+        data.email = null
+        data.emailVerified = false
       }
-      data.email = email
     }
 
-    if (Object.keys(data).length === 0) {
+    if (Object.keys(data).length === 0 && !newEmail) {
       res.status(400).json({ error: 'Nothing to update' })
       return
     }
 
-    const user = await prisma.user.update({
-      where: { id: payload.sub },
-      data,
-      select: { id: true, username: true, displayName: true, avatarUrl: true, email: true },
-    })
+    if (Object.keys(data).length > 0) {
+      await prisma.user.update({ where: { id: payload.sub }, data })
+    }
+    // A new address is only saved once the owner confirms it from that inbox
+    if (newEmail) await requestEmailChange(payload.sub, newEmail)
 
-    res.json({ user })
+    const user = await prisma.user.findUnique({ where: { id: payload.sub }, select: PUBLIC_USER })
+    res.json({ user: { ...user, pendingEmail: await pendingEmailFor(payload.sub) } })
   } catch (err) {
     console.error('[Auth] Profile update error:', err)
     res.status(500).json({ error: 'Internal server error' })
   }
 })
 
-// POST /api/auth/request-reset
-router.post('/request-reset', async (req: Request, res: Response) => {
+// POST /api/auth/verify-email
+router.post('/verify-email', ...authLimits.redeemToken, async (req: Request, res: Response) => {
   try {
-    const { email } = req.body
-    if (!email || typeof email !== 'string') {
+    if (!isEmailToken(req.body.token)) {
+      res.status(400).json({ error: 'Invalid or expired link' })
+      return
+    }
+    const result = await confirmEmail(req.body.token)
+    if (!result.ok) {
+      res.status(result.reason === 'taken' ? 409 : 400).json({
+        error: result.reason === 'taken' ? 'Email already confirmed on another account' : 'Invalid or expired link',
+      })
+      return
+    }
+    res.json({ ok: true, email: result.email })
+  } catch (err) {
+    console.error('[Auth] Email verification error:', err)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// POST /api/auth/request-reset
+router.post('/request-reset', ...authLimits.requestReset, async (req: Request, res: Response) => {
+  try {
+    const email = normalizeEmail(req.body.email)
+    if (!email) {
       res.status(400).json({ error: 'Email is required' })
       return
     }
 
-    // Always return success to prevent email enumeration
-    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } })
-    if (!user) {
-      res.json({ ok: true })
-      return
+    // Same answer and timing whether or not the email has an account
+    const user = await prisma.user.findUnique({ where: { email }, select: { id: true } })
+    if (user) {
+      // Older links stay valid until they expire, so a flood of requests can't block recovery
+      const { token, digest } = newEmailToken()
+      await prisma.passwordReset.create({
+        data: { userId: user.id, token: digest, email, expiresAt: new Date(Date.now() + RESET_TTL_MS) },
+      })
+      deliverInBackground(sendPasswordResetEmail(email, token))
     }
-
-    // Invalidate any existing reset tokens for this user
-    await prisma.passwordReset.updateMany({
-      where: { userId: user.id, used: false },
-      data: { used: true },
-    })
-
-    // Create new reset token (1 hour expiry)
-    const token = crypto.randomBytes(32).toString('hex')
-    await prisma.passwordReset.create({
-      data: {
-        userId: user.id,
-        token,
-        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
-      },
-    })
-
-    await sendPasswordResetEmail(email, token)
     res.json({ ok: true })
   } catch (err) {
     console.error('[Auth] Password reset request error:', err)
@@ -337,40 +337,49 @@ router.post('/request-reset', async (req: Request, res: Response) => {
 })
 
 // POST /api/auth/reset-password
-router.post('/reset-password', async (req: Request, res: Response) => {
+router.post('/reset-password', ...authLimits.redeemToken, async (req: Request, res: Response) => {
   try {
     const { token, password } = req.body
-    if (!token || !password) {
-      res.status(400).json({ error: 'Token and password are required' })
-      return
-    }
-    if (password.length < 6) {
-      res.status(400).json({ error: 'Password must be at least 6 characters' })
-      return
-    }
-
-    const resetRecord = await prisma.passwordReset.findUnique({ where: { token } })
-    if (!resetRecord || resetRecord.used || resetRecord.expiresAt < new Date()) {
+    if (!isEmailToken(token)) {
       res.status(400).json({ error: 'Invalid or expired reset link' })
       return
     }
+    if (!isPassword(password)) {
+      res.status(400).json({ error: `Password must be ${PASSWORD_MIN}-${PASSWORD_MAX} characters` })
+      return
+    }
 
-    // Mark token as used
-    await prisma.passwordReset.update({
-      where: { id: resetRecord.id },
-      data: { used: true },
-    })
-
-    // Update password
+    // Hash first: a failure here must not burn the link
     const passwordHash = await hashPassword(password)
-    await prisma.user.update({
-      where: { id: resetRecord.userId },
-      data: { passwordHash },
+
+    // Consume the link, change the password and revoke every session as one unit.
+    // The conditional update makes the link single-use even under concurrent requests.
+    const userId = await prisma.$transaction(async tx => {
+      const record = await tx.passwordReset.findUnique({ where: { token: digestToken(token) } })
+      if (!record) return null
+      const consumed = await tx.passwordReset.updateMany({
+        where: { id: record.id, used: false, expiresAt: { gt: new Date() } },
+        data: { used: true },
+      })
+      if (consumed.count !== 1) return null
+
+      const user = await tx.user.findUnique({ where: { id: record.userId }, select: { email: true } })
+      // The link reached this inbox, which proves the address if it's still the account's email
+      const provesEmail = !!record.email && record.email === user?.email
+      await tx.user.update({
+        where: { id: record.userId },
+        data: { passwordHash, ...(provesEmail ? { emailVerified: true } : {}) },
+      })
+      await tx.passwordReset.updateMany({ where: { userId: record.userId, used: false }, data: { used: true } })
+      await tx.session.deleteMany({ where: { userId: record.userId } })
+      return record.userId
     })
 
-    // Invalidate all existing sessions (force re-login)
-    await prisma.session.deleteMany({ where: { userId: resetRecord.userId } })
-
+    if (!userId) {
+      res.status(400).json({ error: 'Invalid or expired reset link' })
+      return
+    }
+    disconnectSessionSockets({ userId })
     res.json({ ok: true })
   } catch (err) {
     console.error('[Auth] Password reset error:', err)

@@ -6,7 +6,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "prisma generate && tsc",
     "start": "NODE_ENV=production node dist/index.js",
-    "test": "node --import tsx --test --test-concurrency=1 test/*.test.ts"
+    "test": "node --import tsx --test --test-concurrency=1 test/*.test.ts",
+    "test:db:setup": "createdb dominos_pr_test 2>/dev/null; DIRECT_URL=postgresql://$USER@localhost:5432/dominos_pr_test DATABASE_URL=postgresql://$USER@localhost:5432/dominos_pr_test prisma migrate deploy"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.5.0",
