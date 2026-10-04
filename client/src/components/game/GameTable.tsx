@@ -247,7 +247,7 @@ export function GameTable() {
   )
 
   const board_ = (
-    <div className={`club-rail min-h-0 ${portrait || compact ? 'flex-1' : 'w-full h-full'}`} style={compact ? { padding: 6, borderRadius: 10 } : undefined}>
+    <div className={`club-rail min-h-0 ${portrait ? 'flex-1' : 'w-full h-full'}`} style={compact ? { padding: 6, borderRadius: 10 } : undefined}>
       <div className="club-felt relative overflow-hidden w-full h-full" data-board>
         <GameBoard board={board} allowZoom={isDesktop} />
         {!portrait && <TurnIndicator playerName={currentPlayerName} isMyTurn={isMyTurn} />}
@@ -431,105 +431,8 @@ export function GameTable() {
             <MediaDock size={46} direction="row" callControls />
           </div>
         </div>
-      ) : compact ? (
-        /* ─── Phone landscape: the four cameras in a 2×2 block, table and hand beside it ─── */
-        <div
-          className="flex-1 min-h-0 flex gap-2 px-2"
-          style={{ paddingBottom: 'calc(0.25rem + env(safe-area-inset-bottom, 0px))' }}
-        >
-          <div
-            className={`grid ${is2Player ? 'grid-cols-1' : 'grid-cols-2'} grid-rows-2 gap-1.5 shrink-0 min-h-0 relative z-20`}
-            style={{ width: is2Player ? 120 : 236 }}
-          >
-            {myPlayer && (
-              <CameraSeat
-                fill
-                overlay="over"
-                player={myPlayer}
-                isSelf
-                isPartner
-                isCurrentTurn={isMyTurn}
-                stream={seatCallProps(myPlayerIndex).stream}
-                isCameraOff={seatCallProps(myPlayerIndex).isCameraOff}
-                isSpeaking={seatCallProps(myPlayerIndex).isSpeaking}
-              />
-            )}
-            {!is2Player && leftPlayer && (
-              <CameraSeat
-                fill
-                overlay="over"
-                seat="left"
-                player={leftPlayer}
-                isPartner={false}
-                isCurrentTurn={currentPlayerIndex === leftIndex}
-                stream={seatCallProps(leftIndex).stream}
-                isCameraOff={seatCallProps(leftIndex).isCameraOff}
-                isSpeaking={seatCallProps(leftIndex).isSpeaking}
-              >
-                {overlaysFor(leftIndex, 'left', true)}
-              </CameraSeat>
-            )}
-            {topPlayer && (
-              <CameraSeat
-                fill
-                overlay="over"
-                seat="top"
-                player={topPlayer}
-                isPartner={!is2Player}
-                isCurrentTurn={currentPlayerIndex === topIndex}
-                stream={seatCallProps(topIndex).stream}
-                isCameraOff={seatCallProps(topIndex).isCameraOff}
-                isSpeaking={seatCallProps(topIndex).isSpeaking}
-              >
-                {overlaysFor(topIndex, 'top', true)}
-              </CameraSeat>
-            )}
-            {!is2Player && rightPlayer && (
-              <CameraSeat
-                fill
-                overlay="over"
-                seat="right"
-                player={rightPlayer}
-                isPartner={false}
-                isCurrentTurn={currentPlayerIndex === rightIndex}
-                stream={seatCallProps(rightIndex).stream}
-                isCameraOff={seatCallProps(rightIndex).isCameraOff}
-                isSpeaking={seatCallProps(rightIndex).isSpeaking}
-              >
-                {overlaysFor(rightIndex, 'right', true)}
-              </CameraSeat>
-            )}
-          </div>
-          <AvatarReaction reactions={getReactions(topIndex)} position="top" offset={{ dx: 0, dy: 0 }} />
-          {!is2Player && <AvatarReaction reactions={getReactions(leftIndex)} position="left" offset={{ dx: 0, dy: 0 }} />}
-          {!is2Player && <AvatarReaction reactions={getReactions(rightIndex)} position="right" offset={{ dx: 0, dy: 0 }} />}
-
-          {/* Table, and my hand on its shelf below it */}
-          <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-1">
-            {board_}
-            <div className="relative min-w-0 shrink-0" data-seat="bottom">
-              <div className="absolute inset-x-0 bottom-full mb-1 z-30 flex flex-col items-center gap-1 pointer-events-none">
-                {getPaso(myPlayerIndex) && (
-                  <PasoChip show seat="bottom" anchored playerName={myPlayer?.name ?? ''} bonusPoints={getPaso(myPlayerIndex)!.passBonusAwarded} />
-                )}
-                {getFloatingMessages(myPlayerIndex).map(msg => (
-                  <FloatingChatBubble key={msg.id} message={msg} />
-                ))}
-              </div>
-              <AvatarReaction reactions={getReactions(myPlayerIndex)} position="bottom" />
-              {endChooser}
-              {hand}
-            </div>
-          </div>
-
-          {/* Buttons down the edge; my seat isn't drawn, so mic/camera live here too */}
-          <div className="shrink-0 flex flex-col justify-between py-0.5">
-            <SocialDock size={34} direction="column" />
-            <MediaDock size={34} direction="column" callControls />
-          </div>
-        </div>
       ) : (
-      /* ─── Desktop: the original grid, in the club materials ─── */
+      /* ─── Landscape phone and desktop: seats around the table, in the club materials ─── */
       <div
         className="flex-1 overflow-hidden"
         style={{
@@ -547,7 +450,7 @@ export function GameTable() {
         <div />
 
         {/* Top opponent */}
-        <div className={`flex flex-col items-center justify-start relative ${compact ? 'pt-0.5 gap-0.5 overflow-hidden' : 'pt-1 gap-1'}`} data-seat="top">
+        <div className={`flex items-center relative ${compact ? 'flex-row justify-center gap-2 pt-0.5' : 'flex-col justify-start pt-1 gap-1'}`} data-seat="top">
           {topPlayer && (
             <>
               <PlayerSeat
@@ -580,6 +483,7 @@ export function GameTable() {
                 position={getPosition(leftIndex, myPlayerIndex, playerCount)}
                 {...teamInfo(leftIndex, myPlayerIndex, playerCount, players)}
                 {...seatCallProps(leftIndex)}
+                compact={compact}
               />
               <AvatarReaction reactions={getReactions(leftIndex)} position="left" />
               <OpponentHand player={leftPlayer} position="left" compact={compact} large={isDesktop} />
@@ -604,6 +508,7 @@ export function GameTable() {
                 position={getPosition(rightIndex, myPlayerIndex, playerCount)}
                 {...teamInfo(rightIndex, myPlayerIndex, playerCount, players)}
                 {...seatCallProps(rightIndex)}
+                compact={compact}
               />
               <AvatarReaction reactions={getReactions(rightIndex)} position="right" />
               <OpponentHand player={rightPlayer} position="right" compact={compact} large={isDesktop} />
@@ -618,7 +523,7 @@ export function GameTable() {
         </div>
 
         {/* My hand (bottom) */}
-        <div className={`flex flex-col items-center justify-end relative min-w-0 ${compact ? 'gap-0 overflow-hidden' : 'gap-1'}`} data-seat="bottom">
+        <div className={`flex relative min-w-0 ${compact ? 'flex-row items-end justify-center gap-2' : 'flex-col items-center justify-end gap-1'}`} data-seat="bottom">
           {myPlayer && (
             <PlayerSeat
               large={isDesktop}
@@ -637,8 +542,10 @@ export function GameTable() {
           {!compact && getFloatingMessages(myPlayerIndex).map(msg => (
             <FloatingChatBubble key={msg.id} message={msg} />
           ))}
-          {endChooser}
-          {hand}
+          <div className={compact ? 'flex-1 min-w-0 flex flex-col items-center' : 'contents'}>
+            {endChooser}
+            {hand}
+          </div>
         </div>
 
         {/* Bottom-right corner: call + sound */}

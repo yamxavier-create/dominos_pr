@@ -15,10 +15,6 @@ interface CameraSeatProps {
   stream: MediaStream | null
   isCameraOff: boolean
   isSpeaking: boolean
-  /** Fill the parent's height instead of the 104px portrait box (phone landscape block) */
-  fill?: boolean
-  /** Where overlays (paso, chat) appear: hanging below the box, or centered over it */
-  overlay?: 'below' | 'over'
   /** Overlays anchored to this seat (paso chip, reactions, chat bubbles) */
   children?: ReactNode
 }
@@ -29,7 +25,7 @@ interface CameraSeatProps {
  * side is green, rivals red; your partner gets a brass edge. The player on
  * turn gets a cream "Juega" tab, so the turn visibly travels along the row.
  */
-export function CameraSeat({ player, seat, isPartner, isSelf, isCurrentTurn, stream, isCameraOff, isSpeaking, fill, overlay = 'below', children }: CameraSeatProps) {
+export function CameraSeat({ player, seat, isPartner, isSelf, isCurrentTurn, stream, isCameraOff, isSpeaking, children }: CameraSeatProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const showVideo = stream !== null && !isCameraOff
   useVideoStream(videoRef, stream, showVideo)
@@ -38,9 +34,9 @@ export function CameraSeat({ player, seat, isPartner, isSelf, isCurrentTurn, str
   const edge = isSelf ? '2px solid #C9A24A' : isPartner ? '3px solid #C9A24A' : '2px solid #F1E3C2'
 
   return (
-    <div className={`relative min-w-0 flex flex-col items-stretch gap-1.5 ${fill ? 'h-full min-h-0' : ''}`} data-seat={seat}>
+    <div className="relative min-w-0 flex flex-col items-stretch gap-1.5" data-seat={seat}>
       <div
-        className={`relative box-border overflow-hidden flex items-center justify-center ${fill ? 'flex-1 min-h-0' : 'h-[104px]'}`}
+        className="relative h-[104px] box-border overflow-hidden flex items-center justify-center"
         style={{ borderRadius: 8, background: isPartner ? '#1B5E3A' : '#8E2A22', border: edge }}
       >
         {showVideo ? (
@@ -89,8 +85,8 @@ export function CameraSeat({ player, seat, isPartner, isSelf, isCurrentTurn, str
         ))}
       </div>
 
-      {/* Overlays (paso, chat) hang over the table edge, or sit on the box, instead of pushing the layout */}
-      <div className={`absolute inset-x-0 z-30 flex flex-col items-center gap-1 pointer-events-none ${overlay === 'over' ? 'top-1/3' : 'top-full mt-1'}`}>
+      {/* Overlays (paso, chat) hang over the table edge instead of pushing the row */}
+      <div className="absolute inset-x-0 top-full mt-1 z-30 flex flex-col items-center gap-1 pointer-events-none">
         {children}
       </div>
     </div>
