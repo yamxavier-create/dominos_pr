@@ -479,7 +479,7 @@ export function handOverSeatToBot(io: Server, rooms: RoomManager, room: Room, se
     playerName: player.name,
   })
   // The human behind this seat is gone: peers drop their video connection to it
-  announcePeerLeft(io, room.roomCode, player.index)
+  announcePeerLeft(io, room, player.index)
   broadcastState(io, game)
   scheduleBotTurn(io, game, rooms)
 }
@@ -508,6 +508,7 @@ export function checkRematchCancellation(
 import { PresenceManager } from '../presence/PresenceManager'
 import { isNonEmptyString } from './payloadGuard'
 import { announcePeerLeft } from './webrtcHandlers'
+import { emitLobbyState } from './roomEvents'
 
 export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomManager, presence: PresenceManager) {
 
@@ -863,6 +864,8 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
       io.to(roomCode).emit('game:rematch_accepted', {})
 
       setTimeout(() => {
+        // The host took everyone back to the room meanwhile
+        if (room.game !== game) return
         // Reuse next_game logic: shuffle, deal, reset scores, same seats
         const tiles = shuffleTiles(generateDoubleSixSet())
         const { hands, boneyard } = dealTiles(tiles, game.players.length)
@@ -898,6 +901,20 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
           io.to(p.socketId).emit('game:started', { gameState: clientState })
         }
       }, 2000)
+    }
+  })
+
+  // Host-only: after a finished game, everyone goes back to the room (the call
+  // stays up) to change seats or bots before the next game
+  socket.on('room:back_to_lobby', ({ roomCode }: { roomCode?: unknown }) => {
+    if (!isNonEmptyString(roomCode)) return
+    const room = rooms.getRoom(roomCode)
+    if (!room || room.hostSocketId !== socket.id) return
+    if (!rooms.returnToLobby(room)) return
+    io.to(room.roomCode).emit('room:back_to_lobby', { roomCode: room.roomCode })
+    emitLobbyState(io, rooms, room)
+    for (const rp of room.players) {
+      if (rp.userId) presence.notifyStatusChange(rp.userId)
     }
   })
 

@@ -4,7 +4,6 @@ import { useGameStore } from '../store/gameStore'
 import { useRoomStore } from '../store/roomStore'
 import { useUIStore } from '../store/uiStore'
 import { GameTable } from '../components/game/GameTable'
-import { useWebRTC } from '../hooks/useWebRTC'
 import { ChatPanel } from '../components/chat/ChatPanel'
 import { TileFlyAnimation } from '../components/board/TileFlyAnimation'
 
@@ -55,8 +54,6 @@ export function GamePage() {
   const room = useRoomStore(s => s.room)
   const chatOpen = useUIStore(s => s.chatOpen)
   const navigate = useNavigate()
-
-  useWebRTC()
 
   useEffect(() => {
     if (!room && !gameState) {

@@ -107,6 +107,7 @@ export class RoomManager {
       lastActivity: Date.now(),
       rematchVotes: [],
       chatHistory: [],
+      callEpoch: 0,
     }
     this.rooms.set(roomCode, room)
     this.socketToRoom.set(socketId, roomCode)
@@ -277,7 +278,7 @@ export class RoomManager {
     const player = room.players.find(p => p.seatIndex === seatIndex && p.isBot)
     if (!player) return null
     room.players = room.players.filter(p => p.seatIndex !== seatIndex)
-    room.players.forEach((p, i) => { p.seatIndex = i })
+    this.reindexSeats(room)
     room.lastActivity = Date.now()
     return room
   }
@@ -309,6 +310,7 @@ export class RoomManager {
 
     playerA.seatIndex = seatB
     playerB.seatIndex = seatA
+    room.callEpoch++
     // Keep host reference pointing to seat 0
     const newSeat0 = room.players.find(p => p.seatIndex === 0)
     if (newSeat0) room.hostSocketId = newSeat0.socketId
@@ -328,9 +330,42 @@ export class RoomManager {
         connected: p.connected,
         userId: p.userId,
         isBot: p.isBot || false,
+        call: p.call ?? null,
       })),
       status: room.status,
+      callEpoch: room.callEpoch,
     }
+  }
+
+  /**
+   * After a finished game the host brings everyone back to the room: the call
+   * keeps going, seats and bots can change, and the next game starts from here.
+   * Seats nobody is coming back to (abandoned, or handed to a bot for good) are
+   * released; a player still inside the reconnect grace keeps their seat.
+   */
+  returnToLobby(room: Room): boolean {
+    if (!room.game || room.game.phase !== 'game_end') return false
+    room.game = null
+    room.status = 'waiting'
+    room.rematchVotes = []
+    for (const rp of [...room.players]) {
+      if (isHuman(rp) && (rp.abandoned || (!rp.connected && !this.graceTimers.has(rp)))) {
+        this.cancelGrace(rp)
+        room.players = room.players.filter(p => p !== rp)
+        this.releaseUser(rp.userId, room.roomCode)
+      }
+    }
+    this.reindexSeats(room)
+    // The lobby UI treats seat 0 as host; mid-game the host may have moved
+    const host = room.players.find(p => p.socketId === room.hostSocketId)
+    const seat0 = room.players.find(p => p.seatIndex === 0)
+    if (host && seat0 && host !== seat0) {
+      seat0.seatIndex = host.seatIndex
+      host.seatIndex = 0
+      room.callEpoch++
+    }
+    room.lastActivity = Date.now()
+    return true
   }
 
   /** Get the roomCode a userId is currently in (lobby or game) */
@@ -413,7 +448,7 @@ export class RoomManager {
   /** Remove a lobby seat, close the gap and keep a connected human as host on seat 0. */
   private removeLobbySeat(room: Room, rp: RoomPlayer) {
     room.players = room.players.filter(p => p !== rp)
-    room.players.sort((a, b) => a.seatIndex - b.seatIndex).forEach((p, i) => { p.seatIndex = i })
+    this.reindexSeats(room)
     if (room.hostSocketId !== rp.socketId) return
 
     // The lobby UI treats seat 0 as host, so move the new host there
@@ -423,8 +458,19 @@ export class RoomManager {
     if (seat0 && seat0 !== nextHost) {
       seat0.seatIndex = nextHost.seatIndex
       nextHost.seatIndex = 0
+      room.callEpoch++
     }
     room.hostSocketId = nextHost.socketId
+  }
+
+  /** Close gaps in the seat order; any seat that moves starts a new call epoch. */
+  private reindexSeats(room: Room) {
+    let moved = false
+    room.players.sort((a, b) => a.seatIndex - b.seatIndex).forEach((p, i) => {
+      if (p.seatIndex !== i) moved = true
+      p.seatIndex = i
+    })
+    if (moved) room.callEpoch++
   }
 
   /** Mid-game: hand host rights to the first connected human. Returns whether it moved. */

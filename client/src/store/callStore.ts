@@ -8,7 +8,7 @@ export interface LobbyOpt {
 export type PeerState = 'connecting' | 'connected' | 'failed' | 'closed'
 
 interface CallStore {
-  // Lobby opt-in per playerIndex (set before game starts)
+  // Who is in the call, per seat (from the room, kept current by webrtc:lobby_updated)
   lobbyOpts: Record<number, LobbyOpt>
   myAudioEnabled: boolean
   myVideoEnabled: boolean
@@ -30,6 +30,9 @@ interface CallStore {
   // Actions
   setMyLobbyOpt: (audio: boolean, video: boolean) => void
   setPeerLobbyOpt: (playerIndex: number, audio: boolean, video: boolean) => void
+  setLobbyOpts: (opts: Record<number, LobbyOpt>) => void
+  /** Forget every per-seat peer state (seats moved, so the indices mean someone else). */
+  clearPeers: () => void
   setLocalStream: (stream: MediaStream | null) => void
   setRemoteStream: (playerIndex: number, stream: MediaStream | null) => void
   setPeerState: (playerIndex: number, state: PeerState) => void
@@ -63,6 +66,8 @@ export const useCallStore = create<CallStore>()((set) => ({
   setMyLobbyOpt: (audio, video) => set({ myAudioEnabled: audio, myVideoEnabled: video }),
   setPeerLobbyOpt: (playerIndex, audio, video) =>
     set(s => ({ lobbyOpts: { ...s.lobbyOpts, [playerIndex]: { audio, video } } })),
+  setLobbyOpts: (lobbyOpts) => set({ lobbyOpts }),
+  clearPeers: () => set({ remoteStreams: {}, peerStates: {}, mutedPeers: {}, cameraOffPeers: {}, speakingPeers: {} }),
   setLocalStream: (stream) => set({ localStream: stream }),
   setRemoteStream: (playerIndex, stream) =>
     set(s => ({ remoteStreams: { ...s.remoteStreams, [playerIndex]: stream } })),

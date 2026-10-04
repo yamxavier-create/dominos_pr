@@ -14,14 +14,19 @@ import { StatsPage } from './pages/StatsPage'
 import { GameInviteToast } from './components/social/GameInviteToast'
 import { PresenceToast } from './components/social/PresenceToast'
 import { ConnectionStatus } from './components/ui/ConnectionStatus'
+import { CallHost } from './components/call/CallHost'
+import { useRoomStore } from './store/roomStore'
 
 function AppRoutes() {
   useSocket()
   useBackgroundMusic()
   useAuth() // Auto-login from stored token
+  const roomCode = useRoomStore(s => s.roomCode)
 
   return (
     <>
+      {/* One call per room: it starts in the lobby and survives every game */}
+      {roomCode && <CallHost key={roomCode} />}
       <ConnectionStatus />
       <GameInviteToast />
       <PresenceToast />

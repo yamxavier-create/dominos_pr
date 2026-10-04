@@ -86,6 +86,12 @@ export interface RoomPlayer {
   isBot?: boolean  // True for AI players
   reconnectToken?: string  // Secret sent only to this seat's owner; required to reclaim the seat. Never broadcast.
   abandoned?: boolean      // Owner left on purpose mid-game; the seat can't be reclaimed
+  call?: CallMedia         // What this seat publishes in the video call; undefined = not in the call
+}
+
+export interface CallMedia {
+  audio: boolean
+  video: boolean
 }
 
 export interface Room {
@@ -98,6 +104,7 @@ export interface Room {
   lastActivity: number        // Date.now() for cleanup
   rematchVotes: number[]      // playerIndex values who voted for rematch
   chatHistory: ChatMessage[]  // last 50 messages, cleared on game start
+  callEpoch: number           // bumped whenever seats are reindexed; call signals from an older epoch are dropped
 }
 
 // ─── Chat ────────────────────────────────────────────────────────────────────

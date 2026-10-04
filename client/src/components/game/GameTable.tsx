@@ -6,7 +6,6 @@ import { useGameStore } from '../../store/gameStore'
 import { useRoomStore } from '../../store/roomStore'
 import { useUIStore } from '../../store/uiStore'
 import { useCallStore } from '../../store/callStore'
-import { useSpeakingDetection } from '../../hooks/useSpeakingDetection'
 import { useGameActions } from '../../hooks/useGameActions'
 import { getPosition } from '../../hooks/usePlayerPositions'
 import { GameBoard } from '../board/GameBoard'
@@ -104,17 +103,6 @@ function LeaveGameButton({ compact }: { compact?: boolean }) {
   )
 }
 
-function RemoteAudio({ stream }: { stream: MediaStream | null }) {
-  const audioRef = useRef<HTMLAudioElement>(null)
-  useEffect(() => {
-    if (!audioRef.current) return
-    audioRef.current.srcObject = stream ?? null
-    if (stream) audioRef.current.play().catch(e => console.warn('audio play blocked:', e))
-    return () => { if (audioRef.current) audioRef.current.srcObject = null }
-  }, [stream])
-  return <audio ref={audioRef} autoPlay />
-}
-
 export function GameTable() {
   const gameState = useGameStore(s => s.gameState)
   const scoreHistory = useGameStore(s => s.scoreHistory)
@@ -132,8 +120,6 @@ export function GameTable() {
   const speakingPeers = useCallStore(s => s.speakingPeers)
   const cameraOffPeers = useCallStore(s => s.cameraOffPeers)
   const cameraOff = useCallStore(s => s.cameraOff)
-  const myAudioEnabled = useCallStore(s => s.myAudioEnabled)
-  const myVideoEnabled = useCallStore(s => s.myVideoEnabled)
 
   // Track which chat messages are still visible (auto-expire after 4s)
   const [visibleMsgIds, setVisibleMsgIds] = useState<Set<string>>(new Set())
@@ -165,9 +151,6 @@ export function GameTable() {
   const getReactions = useCallback((playerIndex: number) => {
     return activeReactions.filter(r => r.playerIndex === playerIndex)
   }, [activeReactions])
-
-  // Speaking detection
-  useSpeakingDetection(remoteStreams, localStream, myPlayerIndex)
 
   useEffect(() => {
     if (showRoundEnd) setShowScoreHistory(false)
@@ -651,15 +634,6 @@ export function GameTable() {
           <MediaDock size={isDesktop ? 46 : 34} direction="column" />
         </div>
       </div>
-      )}
-
-      {/* Remote audio elements — always rendered when in call to prevent audio loss */}
-      {(myAudioEnabled || myVideoEnabled) && (
-        <>
-          {Object.entries(remoteStreams).map(([idx, stream]) => (
-            <RemoteAudio key={`audio-${idx}`} stream={stream} />
-          ))}
-        </>
       )}
 
       {/* Overlays */}

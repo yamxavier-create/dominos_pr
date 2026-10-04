@@ -8,14 +8,14 @@ import { useAuthStore } from '../store/authStore'
 import { useUIStore, ChatMessage, ActiveReaction } from '../store/uiStore'
 import { useCallStore } from '../store/callStore'
 import { useSocialStore, PresenceStatus } from '../store/socialStore'
-import { signalHandlerRef, peerJoinedCallRef, peerLeftCallRef, resetForNewGameRef } from './useWebRTC'
+import { signalHandlerRef, peerJoinedCallRef, peerLeftCallRef } from './useWebRTC'
 import { playSfx, preloadSfx } from '../audio/sfx'
 import { ClientGameState, RoundEndPayload, GameEndPayload, PassPayload, RematchVoteUpdate, RematchCancelled, BoneyardDrawPayload } from '../types/game'
 
 export function useSocket() {
   const navigate = useNavigate()
   const { setGameState, setRoundEnd, setGameEnd, setLastTileSequence, addToScoreHistory, clearScoreHistory } = useGameStore()
-  const { setRoom, setMyPlayerIndex, setError, setRoomCode, setPlayerName, setReconnectToken } = useRoomStore()
+  const { setError, setRoomCode, setPlayerName, setReconnectToken } = useRoomStore()
   const { addPasoNotification, setShowRoundEnd, setShowGameEnd, setSelectedTile, setRematchVotes, setRematchCancelled, clearRematchState } = useUIStore()
 
   useEffect(() => {
@@ -52,10 +52,9 @@ export function useSocket() {
     socket.on('room:created', ({ roomCode, room, myPlayerIndex, reconnectToken }: {
       roomCode: string; room: any; myPlayerIndex: number; reconnectToken?: string
     }) => {
-      setRoom(room)
+      useRoomStore.setState({ room, myPlayerIndex })
       setRoomCode(roomCode)
       if (reconnectToken) setReconnectToken(roomCode, reconnectToken)
-      setMyPlayerIndex(myPlayerIndex)
       const myName = room?.players?.[myPlayerIndex]?.name
       if (myName) setPlayerName(myName)
       navigate('/lobby')
@@ -64,10 +63,15 @@ export function useSocket() {
     socket.on('room:joined', ({ roomCode, room, myPlayerIndex, reconnectToken }: {
       roomCode: string; room: any; myPlayerIndex: number; reconnectToken?: string
     }) => {
-      setRoom(room)
+      useRoomStore.setState({ room, myPlayerIndex })
       setRoomCode(roomCode)
       if (reconnectToken) setReconnectToken(roomCode, reconnectToken)
-      setMyPlayerIndex(myPlayerIndex)
+      // Back in a seat the room still lists in the call, but this page has no
+      // camera running (reload, another device): tell the others we're out
+      const mySeat = room?.players?.find((p: { index: number }) => p.index === myPlayerIndex)
+      if (mySeat?.call && !useCallStore.getState().localStream) {
+        socket.emit('webrtc:lobby_opt', { roomCode, audio: false, video: false })
+      }
       const myName = room?.players?.[myPlayerIndex]?.name
       if (myName) setPlayerName(myName)
       // Don't yank an in-progress game back to /lobby when we re-join after a
@@ -78,9 +82,20 @@ export function useSocket() {
     })
 
     socket.on('room:updated', ({ room, myPlayerIndex }: { room: any; myPlayerIndex?: number }) => {
-      setRoom(room)
-      // Lobby seats get reindexed when someone leaves; the server sends each player their new seat
-      if (typeof myPlayerIndex === 'number') setMyPlayerIndex(myPlayerIndex)
+      // Lobby seats get reindexed when someone leaves; the server sends each player their new seat.
+      // Room and seat change together: the call rebuilds from both.
+      useRoomStore.setState(typeof myPlayerIndex === 'number' ? { room, myPlayerIndex } : { room })
+    })
+
+    // The host closed the finished game: everyone is back in the room, call still up
+    socket.on('room:back_to_lobby', () => {
+      useGameStore.getState().resetGame()
+      const ui = useUIStore.getState()
+      ui.clearRematchState()
+      ui.setShowRoundEnd(false)
+      ui.setShowGameEnd(false)
+      ui.setChatOpen(false)
+      navigate('/lobby')
     })
 
     // The server won't give this device the seat back: stop rejoining and go home
@@ -103,8 +118,7 @@ export function useSocket() {
     })
 
     socket.on('room:seat_swapped', ({ room, myPlayerIndex }: { room: any; myPlayerIndex: number }) => {
-      setRoom(room)
-      setMyPlayerIndex(myPlayerIndex)
+      useRoomStore.setState({ room, myPlayerIndex })
     })
 
     socket.on('room:error', ({ message }: { message: string }) => {
@@ -122,8 +136,6 @@ export function useSocket() {
       clearScoreHistory()
       clearRematchState()
       useUIStore.getState().clearChatState()
-      // Tear down and re-establish WebRTC to prevent stream/PC accumulation
-      resetForNewGameRef.current?.()
       navigate('/game')
       preloadSfx()
     })
@@ -344,6 +356,7 @@ export function useSocket() {
       socket.off('room:closed')
       socket.off('auth:session_ended')
       socket.off('room:seat_swapped')
+      socket.off('room:back_to_lobby')
       socket.off('room:error')
       socket.off('game:started')
       socket.off('game:state_snapshot')
