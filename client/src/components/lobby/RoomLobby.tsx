@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRoomStore } from '../../store/roomStore'
 import { useGameActions } from '../../hooks/useGameActions'
 import { socket } from '../../socket'
@@ -7,6 +7,9 @@ import { useAuthStore } from '../../store/authStore'
 import { useSocialStore, Friend } from '../../store/socialStore'
 import { API_BASE } from '../../apiBase'
 import { GoldCTA, GoldCaption, Starburst } from '../ui/GoldCTA'
+import { joinCallRef } from '../../hooks/useWebRTC'
+import { useVideoStream } from '../player/AvatarVideo'
+import { useCallToggles, MicIcon, CameraIcon } from '../player/CallControls'
 
 const teamColors = ['#22C55E', '#F97316', '#22C55E', '#F97316']
 const seatLabels = ['Host', 'Jugador 2', 'Jugador 3', 'Jugador 4']
@@ -22,6 +25,119 @@ function WaitingDots() {
   )
 }
 
+function StrokeIcon({ children, className = 'w-4 h-4' }: { children: React.ReactNode; className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      {children}
+    </svg>
+  )
+}
+
+/** A seat's camera in the room: live video, or the player's initials when there's none. */
+function SeatVideo({ seatIndex, name, isMe, color }: { seatIndex: number; name: string; isMe: boolean; color: string }) {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const stream = useCallStore(s => isMe ? s.localStream : (s.remoteStreams[seatIndex] ?? null))
+  const cameraOff = useCallStore(s => isMe ? s.cameraOff : !!s.cameraOffPeers[seatIndex])
+  const speaking = useCallStore(s => !!s.speakingPeers[seatIndex])
+  const hasVideo = !!stream && stream.getVideoTracks().length > 0 && !cameraOff
+  useVideoStream(videoRef, stream, hasVideo)
+
+  return (
+    <div
+      className="relative w-full aspect-[4/3] rounded-[10px] overflow-hidden"
+      style={{
+        background: `${color}22`,
+        boxShadow: speaking ? `0 0 0 2px #F5C518, 0 0 14px rgba(245,197,24,0.35)` : 'inset 0 0 0 1px rgba(255,255,255,0.06)',
+        transition: 'box-shadow 0.2s',
+      }}
+    >
+      {hasVideo ? (
+        // Muted: the room's audio plays from CallHost
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className="w-full h-full object-cover"
+          style={isMe ? { transform: 'scaleX(-1)' } : undefined}
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center font-header text-3xl" style={{ color: `${color}cc` }}>
+          {name.slice(0, 2).toUpperCase()}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Join the call from the room, or once in it, mic and camera switches. */
+function LobbyCallBar({ peopleInCall }: { peopleInCall: number }) {
+  const inCall = useCallStore(s => s.myAudioEnabled || s.myVideoEnabled)
+  const callError = useCallStore(s => s.callError)
+  const [joining, setJoining] = useState(false)
+  const { micMuted, cameraOff, toggleMic, toggleCamera } = useCallToggles()
+
+  const joinCall = async () => {
+    setJoining(true)
+    try {
+      await joinCallRef.current?.(true, true)
+    } finally {
+      setJoining(false)
+    }
+  }
+
+  if (!inCall) {
+    return (
+      <div className="flex flex-col gap-1.5">
+        <button
+          type="button"
+          onClick={joinCall}
+          disabled={joining}
+          className="w-full flex items-center justify-center gap-2 font-body font-semibold text-sm py-3 rounded-xl transition-all disabled:opacity-60"
+          style={{ background: 'rgba(34,197,94,0.14)', border: '1px solid rgba(34,197,94,0.45)', color: '#86EFAC' }}
+        >
+          <StrokeIcon><path d="M3 7h11v10H3z" /><path d="M14 10.5l7-3.5v10l-7-3.5" /></StrokeIcon>
+          {joining ? 'Conectando…' : 'Unirse a la llamada'}
+        </button>
+        {callError && (
+          <p role="alert" className="font-body text-xs text-center" style={{ color: '#FCA5A5' }}>{callError}</p>
+        )}
+        {!callError && peopleInCall > 0 && (
+          <p className="font-body text-white/40 text-[11px] text-center">
+            {peopleInCall === 1 ? '1 persona en la llamada' : `${peopleInCall} personas en la llamada`}
+          </p>
+        )}
+      </div>
+    )
+  }
+
+  const toggle = (label: string, off: boolean, onClick: () => void, icon: React.ReactNode) => (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      aria-pressed={off}
+      title={label}
+      className="w-11 h-11 rounded-full flex items-center justify-center transition-colors"
+      style={off
+        ? { background: 'rgba(220,38,38,0.85)', color: '#fff' }
+        : { background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', color: '#F5C518' }}
+    >
+      <StrokeIcon className="w-5 h-5">{icon}</StrokeIcon>
+    </button>
+  )
+
+  return (
+    <div className="flex items-center justify-center gap-3">
+      {toggle(micMuted ? 'Activar mic' : 'Silenciar mic', micMuted, toggleMic, <MicIcon muted={micMuted} />)}
+      {toggle(cameraOff ? 'Activar camara' : 'Apagar camara', cameraOff, toggleCamera, <CameraIcon off={cameraOff} />)}
+      <span className="font-body text-xs text-white/50">
+        En la llamada · {peopleInCall}
+      </span>
+    </div>
+  )
+}
+
 export function RoomLobby() {
   const room = useRoomStore(s => s.room)
   const roomCode = useRoomStore(s => s.roomCode)
@@ -30,9 +146,10 @@ export function RoomLobby() {
   const [selectedSeat, setSelectedSeat] = useState<number | null>(null)
   const [showInvite, setShowInvite] = useState(false)
   const [invitedIds, setInvitedIds] = useState<Set<string>>(new Set())
-  const myAudioEnabled = useCallStore(s => s.myAudioEnabled)
-  const myVideoEnabled = useCallStore(s => s.myVideoEnabled)
   const lobbyOpts = useCallStore(s => s.lobbyOpts)
+  const mutedPeers = useCallStore(s => s.mutedPeers)
+  const myMicMuted = useCallStore(s => s.micMuted)
+  const iAmInCall = useCallStore(s => s.myAudioEnabled || s.myVideoEnabled)
   const isAuthenticated = useAuthStore(s => s.isAuthenticated)
   const token = useAuthStore(s => s.token)
   const friends = useSocialStore(s => s.friends)
@@ -54,24 +171,14 @@ export function RoomLobby() {
     setInvitedIds(prev => new Set(prev).add(friendId))
   }
 
-  const handleToggleAudio = () => {
-    const newAudio = !myAudioEnabled
-    useCallStore.getState().setMyLobbyOpt(newAudio, myVideoEnabled)
-    socket.emit('webrtc:lobby_opt', { roomCode, audio: newAudio, video: myVideoEnabled })
-  }
-
-  const handleToggleVideo = () => {
-    const newVideo = !myVideoEnabled
-    useCallStore.getState().setMyLobbyOpt(myAudioEnabled, newVideo)
-    socket.emit('webrtc:lobby_opt', { roomCode, audio: myAudioEnabled, video: newVideo })
-  }
-
   if (!room) return null
 
   const isHost = myPlayerIndex === 0
   const playerCount = room.players.filter(p => p.connected).length
   const canStart = playerCount === 2 || playerCount === 4
   const is2PlayerLobby = playerCount <= 2
+  const inCallAt = (seatIndex: number) => seatIndex === myPlayerIndex ? iAmInCall : !!(lobbyOpts[seatIndex]?.audio || lobbyOpts[seatIndex]?.video)
+  const peopleInCall = room.players.filter(p => !p.isBot && inCallAt(p.index)).length
 
   const handleSeatClick = (seatIndex: number) => {
     if (!isHost) return
@@ -90,16 +197,16 @@ export function RoomLobby() {
   return (
     <div className="menu-reveal flex flex-col gap-3 w-full max-w-sm">
       {/* Room code hero */}
-      <div className="relative flex flex-col items-center py-4">
+      <div className="relative flex flex-col items-center py-2">
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="w-64 h-64">
+          <div className="w-56 h-56">
             <Starburst opacity={0.22} />
           </div>
         </div>
         <div className="relative flex flex-col items-center">
           <GoldCaption>Código de Sala</GoldCaption>
           <p
-            className="font-header text-[3.2rem] leading-none mt-1.5 room-code-glow"
+            className="font-header text-[2.6rem] leading-none mt-1.5 room-code-glow"
             style={{
               color: '#EAB308',
               letterSpacing: '0.12em',
@@ -128,7 +235,7 @@ export function RoomLobby() {
             <div
               key={seatIndex}
               onClick={() => handleSeatClick(seatIndex)}
-              className={`p-3.5 transition-all ${player ? 'seat-card' : 'seat-card-empty'} ${isHost && player ? 'cursor-pointer' : ''}`}
+              className={`p-2 transition-all ${player ? 'seat-card' : 'seat-card-empty'} ${isHost && player ? 'cursor-pointer' : ''}`}
               style={{
                 ...(isSelected ? {
                   background: 'rgba(234,179,8,0.08)',
@@ -147,15 +254,37 @@ export function RoomLobby() {
                 } : {}),
               }}
             >
-              <div className="flex items-center gap-2.5">
-                {/* Team avatar */}
+              {player && !player.isBot ? (
+                <SeatVideo seatIndex={seatIndex} name={player.name} isMe={isMe} color={color} />
+              ) : (
                 <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center font-header text-sm shrink-0"
+                  className="w-full aspect-[4/3] rounded-[10px] flex items-center justify-center"
+                  style={{ background: 'rgba(255,255,255,0.025)' }}
+                >
+                  {player?.isBot ? (
+                    <span className="text-3xl opacity-60" aria-hidden>🤖</span>
+                  ) : isHost ? (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); socket.emit('room:add_bot') }}
+                      className="font-body text-primary/60 hover:text-primary text-sm transition-colors"
+                    >
+                      + Añadir Bot
+                    </button>
+                  ) : (
+                    <p className="font-body text-white/25 text-xs italic">
+                      Esperando <WaitingDots />
+                    </p>
+                  )}
+                </div>
+              )}
+              <div className="flex items-center gap-2 mt-2 min-h-[28px]">
+                {/* Team badge */}
+                <div
+                  className="w-6 h-6 rounded-full flex items-center justify-center font-header text-xs shrink-0"
                   style={{
                     background: player ? `${color}18` : 'rgba(255,255,255,0.03)',
                     border: `1.5px solid ${player ? `${color}66` : 'rgba(255,255,255,0.10)'}`,
                     color: player ? color : 'rgba(255,255,255,0.20)',
-                    boxShadow: player ? `0 0 8px ${color}20` : 'none',
                   }}
                 >
                   {label}
@@ -163,13 +292,12 @@ export function RoomLobby() {
                 <div className="flex-1 min-w-0">
                   {player ? (
                     <>
-                      <p className="font-body text-white text-xs font-semibold leading-tight break-words">
+                      <p className="font-body text-white text-xs font-semibold leading-tight truncate">
                         {player.name}
                         {isMe && <span className="text-[10px] ml-1" style={{ color }}>(tú)</span>}
-                        {player.isBot && <span className="text-[10px] ml-1 text-white/30">🤖</span>}
                       </p>
-                      <p className="font-body text-white/30 text-[11px]">
-                        {player.isBot ? 'Bot' : seatLabels[seatIndex]}
+                      <p className="font-body text-white/30 text-[10px] leading-tight">
+                        {player.isBot ? 'Bot' : !player.connected ? 'Reconectando…' : seatLabels[seatIndex]}
                         {isHost && player.isBot && (
                           <button
                             onClick={(e) => { e.stopPropagation(); socket.emit('room:remove_bot', { seatIndex }) }}
@@ -180,73 +308,33 @@ export function RoomLobby() {
                         )}
                       </p>
                     </>
-                  ) : isHost ? (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); socket.emit('room:add_bot') }}
-                      className="font-body text-primary/50 hover:text-primary text-sm transition-colors"
-                    >
-                      + Añadir Bot
-                    </button>
                   ) : (
-                    <p className="font-body text-white/20 text-sm italic">
-                      Esperando <WaitingDots />
-                    </p>
+                    <p className="font-body text-white/20 text-xs">Libre</p>
                   )}
                 </div>
-                {player && (
-                  <div className="flex items-center gap-1 shrink-0">
-                    {/* Mic icon */}
-                    {isMe ? (
-                      <button
-                        onClick={e => { e.stopPropagation(); handleToggleAudio() }}
-                        title={myAudioEnabled ? 'Micrófono activado' : 'Micrófono desactivado'}
-                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', lineHeight: 1 }}
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={myAudioEnabled ? '#F5C518' : 'rgba(255,255,255,0.3)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                          <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                          <line x1="12" y1="19" x2="12" y2="23" />
-                          <line x1="8" y1="23" x2="16" y2="23" />
-                          {!myAudioEnabled && <line x1="4" y1="4" x2="20" y2="20" stroke="rgba(255,255,255,0.3)" />}
-                        </svg>
-                      </button>
-                    ) : (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={lobbyOpts[seatIndex]?.audio ? '#F5C518' : 'rgba(255,255,255,0.3)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                        <line x1="12" y1="19" x2="12" y2="23" />
-                        <line x1="8" y1="23" x2="16" y2="23" />
-                        {!lobbyOpts[seatIndex]?.audio && <line x1="4" y1="4" x2="20" y2="20" stroke="rgba(255,255,255,0.3)" />}
-                      </svg>
-                    )}
-                    {/* Camera icon */}
-                    {isMe ? (
-                      <button
-                        onClick={e => { e.stopPropagation(); handleToggleVideo() }}
-                        title={myVideoEnabled ? 'Cámara activada' : 'Cámara desactivada'}
-                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', lineHeight: 1 }}
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={myVideoEnabled ? '#F5C518' : 'rgba(255,255,255,0.3)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polygon points="23 7 16 12 23 17 23 7" />
-                          <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-                          {!myVideoEnabled && <line x1="4" y1="4" x2="20" y2="20" stroke="rgba(255,255,255,0.3)" />}
-                        </svg>
-                      </button>
-                    ) : (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={lobbyOpts[seatIndex]?.video ? '#F5C518' : 'rgba(255,255,255,0.3)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polygon points="23 7 16 12 23 17 23 7" />
-                        <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-                        {!lobbyOpts[seatIndex]?.video && <line x1="4" y1="4" x2="20" y2="20" stroke="rgba(255,255,255,0.3)" />}
-                      </svg>
-                    )}
-                    <span className="w-2 h-2 rounded-full bg-primary" />
-                  </div>
+                {player && !player.isBot && (
+                  inCallAt(seatIndex) ? (
+                    <span
+                      className="shrink-0"
+                      style={{ color: (isMe ? myMicMuted : mutedPeers[seatIndex]) ? 'rgba(248,113,113,0.9)' : '#F5C518' }}
+                      title={(isMe ? myMicMuted : mutedPeers[seatIndex]) ? 'Mic apagado' : 'En la llamada'}
+                    >
+                      <StrokeIcon><MicIcon muted={!!(isMe ? myMicMuted : mutedPeers[seatIndex])} /></StrokeIcon>
+                    </span>
+                  ) : (
+                    <span className="shrink-0 text-white/25" title="Fuera de la llamada">
+                      <StrokeIcon><MicIcon muted /></StrokeIcon>
+                    </span>
+                  )
                 )}
               </div>
             </div>
           )
         })}
       </div>
+
+      {/* Call: join it here, before the first game */}
+      <LobbyCallBar peopleInCall={peopleInCall} />
 
       {/* Teams legend / mode indicator */}
       <div className="flex flex-col items-center gap-1.5 text-xs font-body">

@@ -15,6 +15,8 @@ export function GameEndModal() {
   const rematchCancelled = useUIStore(s => s.rematchCancelled)
   const myPlayerIndex = useRoomStore(s => s.myPlayerIndex)
   const roomCode = useRoomStore(s => s.roomCode)
+  // Compare to the live socket: the host may have moved mid-game
+  const isHost = useRoomStore(s => s.room?.hostSocketId === socket.id)
 
   const isAuthenticated = useAuthStore(s => s.isAuthenticated)
   const authUserId = useAuthStore(s => s.user?.id)
@@ -187,6 +189,19 @@ export function GameEndModal() {
               >
                 {hasVoted ? '✓ LISTO' : 'REVANCHA'}
               </GoldCTA>
+              {/* Back to the room: the call stays up; change seats or bots, then play again */}
+              {isHost ? (
+                <button
+                  type="button"
+                  onClick={() => socket.emit('room:back_to_lobby', { roomCode })}
+                  disabled={allVoted && !rematchCancelled}
+                  className="w-full mt-3 font-body text-sm py-2.5 rounded-xl text-white/80 hover:text-white transition-all btn-outline-shine disabled:opacity-40"
+                >
+                  Volver a la sala
+                </button>
+              ) : (
+                <p className="font-body text-white/35 text-xs mt-3">El host puede llevarlos de vuelta a la sala</p>
+              )}
             </div>
 
             {/* Vote counter and player list */}

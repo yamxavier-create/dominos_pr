@@ -1,8 +1,8 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { socket } from '../socket'
-import { useCallStore } from '../store/callStore'
+import { useCallStore, LobbyOpt } from '../store/callStore'
+import type { RoomInfo } from '../types/game'
 import { useRoomStore } from '../store/roomStore'
-import { useGameStore } from '../store/gameStore'
 import { applyMediaPrefs, capabilitiesOf, stopStream } from './webrtc/mediaPrefs'
 import { CallSession } from './webrtc/callSession'
 import { createReconnectScheduler } from './webrtc/reconnectScheduler'
@@ -46,17 +46,27 @@ function fetchTurnCredentials(): Promise<void> {
 
 fetchTurnCredentials()
 
-/** Seats a call can connect to: other humans in this game. Bots never take part. */
-function humanPeers(myPlayerIndex: number): number[] {
-  const playerCount = useGameStore.getState().gameState?.playerCount ?? 4
-  const roomPlayers = useRoomStore.getState().room?.players ?? []
-  const peers: number[] = []
-  for (let i = 0; i < playerCount; i++) {
-    if (i === myPlayerIndex) continue
-    if (roomPlayers.find(p => p.index === i)?.isBot) continue
-    peers.push(i)
-  }
-  return peers
+/** My seat right now. Seats move in the room (swaps, someone leaving), so never cache it. */
+function mySeat(): number {
+  return useRoomStore.getState().myPlayerIndex ?? 0
+}
+
+/** Seats a call can connect to: the other humans in the room. Bots never take part. */
+function humanPeers(): number[] {
+  const me = mySeat()
+  const players = useRoomStore.getState().room?.players ?? []
+  return players.filter(p => !p.isBot && p.index !== me).map(p => p.index)
+}
+
+/** Every signal carries the seat layout it was meant for; the server drops stale ones. */
+function sendSignal(roomCode: string, payload: { to: number; desc?: RTCSessionDescription | null; candidate?: RTCIceCandidate }) {
+  socket.emit('webrtc:signal', { roomCode, epoch: useRoomStore.getState().room?.callEpoch, ...payload })
+}
+
+/** Tell the room my mic and camera state (new peers, or after seats moved). */
+function announceMyToggles(roomCode: string) {
+  const { micMuted, cameraOff } = useCallStore.getState()
+  socket.emit('webrtc:toggle', { roomCode, micMuted, cameraOff })
 }
 
 /** getUserMedia with the audio-only fallback when the camera is refused or missing. */
@@ -72,8 +82,11 @@ async function requestMedia(audio: boolean, video: boolean): Promise<MediaStream
   }
 }
 
+/**
+ * The video call of the current room. Mounted once per room (see CallHost),
+ * so it starts in the lobby and keeps running through every game.
+ */
 export function useWebRTC() {
-  const myPlayerIndex = useRoomStore.getState().myPlayerIndex ?? 0
   const roomCode = useRoomStore.getState().roomCode
 
   const pcsRef = useRef<Record<number, RTCPeerConnection>>({})
@@ -220,7 +233,7 @@ export function useWebRTC() {
 
     pc.onicecandidate = ({ candidate }) => {
       if (candidate) {
-        socket.emit('webrtc:signal', { roomCode, to: remoteIndex, candidate })
+        sendSignal(roomCode, { to: remoteIndex, candidate })
       }
     }
 
@@ -228,7 +241,7 @@ export function useWebRTC() {
       try {
         makingOfferRef.current[remoteIndex] = true
         await pc.setLocalDescription()
-        socket.emit('webrtc:signal', { roomCode, to: remoteIndex, desc: pc.localDescription })
+        sendSignal(roomCode, { to: remoteIndex, desc: pc.localDescription })
       } catch (err) {
         console.error('[WebRTC] negotiationneeded error', err)
       } finally {
@@ -258,7 +271,7 @@ export function useWebRTC() {
     pcsRef.current[remoteIndex] = pc
     getCallStore().setPeerState(remoteIndex, 'connecting')
     return pc
-  }, [myPlayerIndex, roomCode])
+  }, [roomCode])
   createPCRef.current = createPC
 
   const handleSignal = useCallback(async ({
@@ -272,7 +285,7 @@ export function useWebRTC() {
       console.log(`[WebRTC] Creating PC for incoming signal from peer ${from}`)
       pc = createPC(from)
     }
-    const polite = myPlayerIndex > from
+    const polite = mySeat() > from
 
     try {
       if (desc) {
@@ -286,7 +299,7 @@ export function useWebRTC() {
         await pc.setRemoteDescription(desc)
         if (desc.type === 'offer') {
           await pc.setLocalDescription()
-          socket.emit('webrtc:signal', { roomCode, to: from, desc: pc.localDescription })
+          sendSignal(roomCode, { to: from, desc: pc.localDescription })
         }
       } else if (candidate) {
         try {
@@ -298,7 +311,7 @@ export function useWebRTC() {
     } catch (err) {
       console.error('[WebRTC] signal handling error', err)
     }
-  }, [myPlayerIndex, roomCode, createPC])
+  }, [roomCode, createPC])
 
   const cleanup = useCallback(() => {
     // Ends the session first: any pending permission prompt or recovery becomes stale
@@ -317,26 +330,27 @@ export function useWebRTC() {
     getCallStore().resetCallState()
   }, [])
 
-  // Soft reset on new game — ICE restart, not full teardown
-  const resetForNewGame = useCallback(async () => {
-    const { myAudioEnabled, myVideoEnabled } = getCallStore()
-    if (!myAudioEnabled && !myVideoEnabled) return
-
-    for (const [idx, pc] of Object.entries(pcsRef.current)) {
-      if (pc.connectionState !== 'closed') {
-        console.log(`[WebRTC] ICE restart for peer ${idx} (new game)`)
-        iceRestartAttemptsRef.current[Number(idx)] = 0
-        pc.restartIce()
-      }
-    }
-  }, [])
+  /**
+   * Seats moved (swap, someone left, back from a game): every index now names
+   * someone else, so drop all connections and connect again by the new seats.
+   * Whoever is in the call offers; the rest answer.
+   */
+  const rebuildCall = useCallback(() => {
+    console.log('[WebRTC] Seats changed, rebuilding the call')
+    for (const idx of Object.keys(pcsRef.current)) closePeer(Number(idx))
+    getCallStore().clearPeers()
+    if (!localStreamRef.current) return
+    for (const i of humanPeers()) createPC(i)
+    announceMyToggles(roomCode)
+  }, [roomCode, closePeer, createPC])
 
   const handlePeerJoined = useCallback((peerIndex: number) => {
     const { myAudioEnabled, myVideoEnabled } = getCallStore()
     if (!myAudioEnabled && !myVideoEnabled) return
     console.log(`[WebRTC] Peer ${peerIndex} joined call, refreshing PC`)
     reconnectPeer(peerIndex)
-  }, [reconnectPeer])
+    announceMyToggles(roomCode)
+  }, [reconnectPeer, roomCode])
 
   // The server says this seat's human is gone (bot took over or they abandoned)
   const handlePeerLeft = useCallback((peerIndex: number) => {
@@ -372,13 +386,14 @@ export function useWebRTC() {
     await fetchTurnCredentials()
     if (!sessionRef.current.isCurrent(session)) return
 
-    for (const i of humanPeers(myPlayerIndex)) {
+    for (const i of humanPeers()) {
       closePeer(i)
       createPC(i)
     }
 
     socket.emit('webrtc:lobby_opt', { roomCode, audio: caps.audio, video: caps.video })
-  }, [myPlayerIndex, roomCode, createPC, closePeer, publishLocalStream])
+    announceMyToggles(roomCode)
+  }, [roomCode, createPC, closePeer, publishLocalStream])
 
   useEffect(() => {
     const session = sessionRef.current.begin()
@@ -408,7 +423,7 @@ export function useWebRTC() {
       await publishLocalStream(stream)
 
       const { lobbyOpts } = getCallStore()
-      for (const i of humanPeers(myPlayerIndex)) {
+      for (const i of humanPeers()) {
         const peerOpt = lobbyOpts[i]
         if (peerOpt?.audio || peerOpt?.video) createPC(i)
       }
@@ -416,17 +431,36 @@ export function useWebRTC() {
 
     init()
 
+    // Follow the room: who is in the call, and seat changes
+    let epoch = useRoomStore.getState().room?.callEpoch ?? 0
+    syncFromRoom(useRoomStore.getState().room)
+    const unsubscribe = useRoomStore.subscribe((state, prev) => {
+      if (state.room === prev.room) return
+      syncFromRoom(state.room)
+      const next = state.room?.callEpoch ?? epoch
+      if (next !== epoch) {
+        epoch = next
+        rebuildCall()
+        return
+      }
+      // A seat that no longer holds a human (left the room, bot took it): hang up on it
+      const humans = new Set(humanPeers())
+      for (const idx of Object.keys(pcsRef.current).map(Number)) {
+        if (!humans.has(idx)) closePeer(idx)
+      }
+    })
+
     signalHandlerRef.current = handleSignal
     joinCallRef.current = joinCall
     peerJoinedCallRef.current = handlePeerJoined
     peerLeftCallRef.current = handlePeerLeft
-    resetForNewGameRef.current = resetForNewGame
 
     return () => {
+      unsubscribe()
+      signalHandlerRef.current = null
       joinCallRef.current = null
       peerJoinedCallRef.current = null
       peerLeftCallRef.current = null
-      resetForNewGameRef.current = null
       cleanup()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -451,6 +485,11 @@ export const peerLeftCallRef = {
   current: null as ((peerIndex: number) => void) | null
 }
 
-export const resetForNewGameRef = {
-  current: null as (() => Promise<void>) | null
+/** Who is in the call, as the room last reported it. */
+function syncFromRoom(room: RoomInfo | null) {
+  const opts: Record<number, LobbyOpt> = {}
+  for (const p of room?.players ?? []) {
+    if (p.call) opts[p.index] = { audio: p.call.audio, video: p.call.video }
+  }
+  useCallStore.getState().setLobbyOpts(opts)
 }

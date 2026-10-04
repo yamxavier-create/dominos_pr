@@ -65,8 +65,18 @@ export interface RoomInfo {
   roomCode: string
   hostSocketId: string
   gameMode: GameMode
-  players: Array<{ index: number; name: string; connected: boolean; userId?: string; isBot?: boolean }>
+  players: Array<{
+    index: number
+    name: string
+    connected: boolean
+    userId?: string
+    isBot?: boolean
+    /** What this seat publishes in the video call; null when not in it */
+    call?: { audio: boolean; video: boolean } | null
+  }>
   status: 'waiting' | 'in_game'
+  /** Bumped whenever seats are reindexed: the call reconnects by the new seats */
+  callEpoch?: number
 }
 
 // ─── Round & Game End Payloads ────────────────────────────────────────────────
