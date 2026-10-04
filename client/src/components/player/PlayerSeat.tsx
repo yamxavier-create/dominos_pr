@@ -82,7 +82,8 @@ export function PlayerSeat({
   large,
 }: PlayerSeatProps) {
   const isSide = position === 'left' || position === 'right'
-  const avatarSize = large ? (isSide ? 104 : 120) : isSide ? 56 : compact ? 48 : 80
+  // Phone held sideways: every camera the same size, as big as the height allows
+  const avatarSize = large ? (isSide ? 104 : 120) : compact ? 76 : isSide ? 56 : 80
   const initials = player.name.slice(0, 2).toUpperCase()
 
   const inCall = useCallStore(s =>
