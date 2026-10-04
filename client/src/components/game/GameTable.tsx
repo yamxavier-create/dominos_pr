@@ -17,7 +17,6 @@ import { SocialDock, MediaDock } from './GameDock'
 import { TurnIndicator } from '../player/TurnIndicator'
 import { TurnStatus } from '../player/TurnStatus'
 import { CameraSeat } from '../player/CameraSeat'
-import { SelfView } from '../player/SelfView'
 import { ScorePanel } from './ScorePanel'
 import { ScoreHistoryPanel } from './ScoreHistoryPanel'
 import { BoneyardPile } from './BoneyardPile'
@@ -343,8 +342,19 @@ export function GameTable() {
           className="flex-1 min-h-0 flex flex-col gap-2.5 px-3"
           style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
         >
-          {/* The other players in a row: rival · partner · rival (2 players: just the rival) */}
-          <div className="grid grid-cols-3 gap-2 relative z-20">
+          {/* Everyone's camera in one row, same size: you · rival · partner · rival (2 players: you · rival) */}
+          <div className={`grid ${is2Player ? 'grid-cols-2 px-[12%]' : 'grid-cols-4'} gap-1.5 relative z-20`}>
+            {myPlayer && (
+              <CameraSeat
+                player={myPlayer}
+                isSelf
+                isPartner
+                isCurrentTurn={isMyTurn}
+                stream={seatCallProps(myPlayerIndex).stream}
+                isCameraOff={seatCallProps(myPlayerIndex).isCameraOff}
+                isSpeaking={seatCallProps(myPlayerIndex).isSpeaking}
+              />
+            )}
             {!is2Player && leftPlayer && (
               <CameraSeat
                 seat="left"
@@ -359,7 +369,7 @@ export function GameTable() {
               </CameraSeat>
             )}
             {topPlayer && (
-              <div className={is2Player ? 'col-start-2' : undefined}>
+              <div>
                 <CameraSeat
                   seat="top"
                   player={topPlayer}
@@ -418,7 +428,6 @@ export function GameTable() {
 
           <div className="flex items-center justify-between gap-2">
             <SocialDock size={46} direction="row" />
-            <SelfView size={46} />
             <MediaDock size={46} direction="row" callControls />
           </div>
         </div>
