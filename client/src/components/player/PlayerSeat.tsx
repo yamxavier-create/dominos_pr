@@ -38,14 +38,14 @@ function AvatarWithBadge({ player, initials, teamColor, isCurrentTurn, stream, i
   )
 }
 
-/** Tiles left in hand: a domino glyph + number, sized to the avatar so it stays readable */
-function TileCountBadge({ count, teamColor, avatarSize, side }: { count: number; teamColor: string; avatarSize: number; side: 'left' | 'right' }) {
+/** Tiles left in hand: a small cream sign with a tile glyph + number, sized to the avatar */
+function TileCountBadge({ count, avatarSize, side }: { count: number; teamColor: string; avatarSize: number; side: 'left' | 'right' }) {
   const h = Math.max(20, Math.round(avatarSize * 0.26))
-  const font = Math.round(h * 0.6)
+  const font = Math.round(h * 0.62)
   const glyphH = Math.round(h * 0.55)
   return (
     <div
-      className="absolute flex items-center gap-[3px] rounded-full font-body font-extrabold text-white leading-none"
+      className="absolute flex items-center gap-[3px] font-club font-bold leading-none bg-club-cream text-club-ink"
       style={{
         [side]: -Math.round(h * 0.25),
         bottom: -Math.round(h * 0.15),
@@ -53,15 +53,15 @@ function TileCountBadge({ count, teamColor, avatarSize, side }: { count: number;
         paddingLeft: Math.round(h * 0.28),
         paddingRight: Math.round(h * 0.32),
         fontSize: font,
-        background: 'linear-gradient(180deg, #15301F, #0A1A0F)',
-        border: `1.5px solid ${teamColor}`,
-        boxShadow: '0 2px 6px rgba(0,0,0,0.5)',
+        borderRadius: 4,
+        border: '1.5px solid #5A351E',
+        boxShadow: '0 2px 0 #07160E',
       }}
       aria-label={`${count} fichas`}
     >
       <svg viewBox="0 0 10 18" style={{ height: glyphH, width: 'auto' }} aria-hidden>
-        <rect x="0.75" y="0.75" width="8.5" height="16.5" rx="1.8" fill="none" stroke="rgba(255,255,255,0.75)" strokeWidth="1.5" />
-        <line x1="2.5" y1="9" x2="7.5" y2="9" stroke="rgba(255,255,255,0.75)" strokeWidth="1.2" />
+        <rect x="0.75" y="0.75" width="8.5" height="16.5" rx="1.8" fill="none" stroke="#2B1B12" strokeWidth="1.5" />
+        <line x1="2.5" y1="9" x2="7.5" y2="9" stroke="#2B1B12" strokeWidth="1.2" />
       </svg>
       {count}
     </div>
@@ -107,11 +107,11 @@ export function PlayerSeat({
     return (
       <div className="flex flex-col items-center py-0.5">
         <AvatarWithBadge {...avatarProps} />
-        <p className={`font-body font-bold text-white leading-tight truncate mt-0.5 text-center ${large ? 'text-xs max-w-[104px]' : 'text-[10px] max-w-[44px]'}`}>
+        <p className={`font-club font-bold text-club-text leading-tight truncate mt-0.5 text-center ${large ? 'text-xs max-w-[104px]' : 'text-[10px] max-w-[44px]'}`}>
           {player.name}
         </p>
         {!player.connected && (
-          <span className="text-accent text-[10px]">{'\u26A1'}</span>
+          <span className="font-club text-club-muted text-[10px]">sin conexión</span>
         )}
       </div>
     )
@@ -120,13 +120,13 @@ export function PlayerSeat({
   // Compact (landscape): inline horizontal layout
   if (compact) {
     return (
-      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg game-glass-card transition-all duration-300">
+      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-club-strip transition-all duration-300">
         <AvatarWithBadge {...avatarProps} />
-        <p className="font-body font-bold text-white text-[10px] leading-tight truncate max-w-16">
+        <p className="font-club font-bold text-club-text text-[10px] leading-tight truncate max-w-16">
           {player.name}
         </p>
         {!player.connected && (
-          <span className="text-accent text-[10px]">{'\u26A1'}</span>
+          <span className="font-club text-club-muted text-[10px]">sin conexión</span>
         )}
         {isLocalPlayer && inCall && (
           <CallControls className="ml-1" />
@@ -137,21 +137,21 @@ export function PlayerSeat({
 
   // Default (portrait top/bottom): full layout
   return (
-    <div className="flex items-center gap-1.5 px-2 py-1 rounded-xl game-glass-card flex-row transition-all duration-300">
+    <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-club-strip flex-row transition-all duration-300">
       <AvatarWithBadge {...avatarProps} />
       <div>
-        <p className={`font-body font-bold text-white leading-tight truncate ${large ? 'text-sm max-w-32' : 'text-xs max-w-20'}`}>
+        <p className={`font-club font-bold text-club-text leading-tight truncate ${large ? 'text-sm max-w-32' : 'text-xs max-w-20'}`}>
           {player.name}
         </p>
         {/* In 2-player games the "team" is the player, so skip the repeated name */}
         {teamLabel !== player.name && (
-          <p className="font-body leading-tight text-xs" style={{ color: teamColor, opacity: 0.7 }}>
+          <p className="font-club font-semibold leading-tight text-xs text-club-muted">
             {teamLabel}
           </p>
         )}
       </div>
       {!player.connected && (
-        <span className="text-accent text-xs">{'\u26A1'}</span>
+        <span className="font-club text-club-muted text-xs">sin conexión</span>
       )}
       {isLocalPlayer && inCall && (
         <CallControls className="mt-1" />

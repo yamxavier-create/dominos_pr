@@ -16,8 +16,9 @@ interface PlayerHandProps {
   large?: boolean
 }
 
-const HAND_W = 34
-const HAND_H = 68
+// Phone portrait matches the «mesa de club» mock: 46px faces standing on the shelf
+const HAND_W = 46
+const HAND_H = 92
 const HAND_W_COMPACT = 24
 const HAND_H_COMPACT = 48
 const HAND_W_LARGE = 46
@@ -179,44 +180,53 @@ export function PlayerHand({ tiles, validPlayIds, isMyTurn, forcedFirstTileId, c
     ? [tiles.slice(0, Math.ceil(tiles.length / 2)), tiles.slice(Math.ceil(tiles.length / 2))]
     : [tiles]
 
-  const gapPx = compact ? 4 : 6
+  const gapPx = compact ? 4 : 8
   const longestRow = Math.max(1, ...rows.map(r => r.length))
   const naturalW = longestRow * handW + (longestRow - 1) * gapPx
-  const fit = availW > 0 ? Math.min(1, availW / naturalW) : 1
+  const fit = availW > 0 ? Math.min(1, (availW - 24) / naturalW) : 1
   const tileW = Math.floor(handW * fit)
   const tileH = Math.floor(handH * fit)
+
+  const LIFT = compact ? 6 : 14
 
   const renderTile = (tile: Tile) => {
     const isPlayable = isMyTurn && validPlayIds.has(tile.id)
     const isSelected = selectedTileId === tile.id
     const isForced = forcedFirstTileId === tile.id && isMyTurn
     const isBeingDragged = dragPos?.tileId === tile.id
+    // Only on my turn: playable tiles rise off the shelf, the rest step back
+    const dimmed = isMyTurn && !isPlayable
+    const lift = isSelected ? LIFT + 6 : isPlayable ? LIFT : 0
 
     return (
       <div
         key={tile.id}
         data-tile-id={tile.id}
-        className={`
-          relative transition-transform duration-200 shrink-0 touch-none
-          ${isPlayable ? 'cursor-grab hover:-translate-y-2' : 'opacity-60'}
-          ${isSelected ? '-translate-y-3' : ''}
-          ${isForced ? 'ring-2 ring-gold rounded' : ''}
-          ${isBeingDragged ? 'opacity-30' : ''}
-        `}
+        className={`relative shrink-0 touch-none transition-[transform,opacity] duration-200 ease-out ${isPlayable ? 'cursor-grab' : ''}`}
+        style={{
+          transform: lift ? `translateY(-${lift}px)` : undefined,
+          opacity: isBeingDragged ? 0.3 : dimmed ? 0.5 : 1,
+        }}
         onPointerDown={e => onPointerDown(e, tile.id)}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
+        role={isPlayable ? 'button' : undefined}
+        aria-label={`Ficha ${tile.low} y ${tile.high}${isPlayable ? ', se puede jugar' : ''}${isForced ? ', tienes que salir con ella' : ''}`}
       >
         <DominoTile
           pip1={tile.low}
           pip2={tile.high}
           orientation="vertical"
-          isPlayable={isPlayable && !isSelected}
+          depth="hand"
           isSelected={isSelected}
           style={{ width: tileW, height: tileH }}
         />
         {isForced && (
-          <span className="absolute -top-1 -right-1 bg-gold text-bg text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center">
+          <span
+            className="absolute -top-1.5 -right-1.5 w-5 h-5 flex items-center justify-center rounded-full bg-club-brass text-club-ink font-club font-bold text-xs"
+            style={{ border: '1px solid #7A5A1E' }}
+            aria-hidden
+          >
             !
           </span>
         )}
@@ -226,15 +236,22 @@ export function PlayerHand({ tiles, validPlayIds, isMyTurn, forcedFirstTileId, c
 
   return (
     <>
-      <div ref={containerRef} className={`w-full min-w-0 flex flex-col items-center px-3 ${compact ? 'gap-0 py-0' : 'gap-1 py-1'}`}>
-        {rows.map((row, ri) => (
-          <div key={ri} className={`flex items-center justify-center ${compact ? 'gap-1' : 'gap-1.5'}`}>
-            {row.map(renderTile)}
+      {/* Full width only to measure the room; the shelf hugs the hand */}
+      <div ref={containerRef} className={`w-full min-w-0 flex justify-center px-1 ${compact ? 'pt-1.5' : 'pt-4'}`}>
+        <div className="flex flex-col items-stretch max-w-full" style={{ minWidth: Math.min(availW || 0, 240) }}>
+          <div className={`flex flex-col items-center px-3 ${compact ? 'gap-1' : 'gap-2'}`}>
+            {rows.map((row, ri) => (
+              <div key={ri} className={`flex items-end justify-center ${compact ? 'gap-1' : 'gap-2'}`}>
+                {row.map(renderTile)}
+              </div>
+            ))}
+            {tiles.length === 0 && (
+              <span className="font-club text-sm text-club-muted pb-1">Sin fichas</span>
+            )}
           </div>
-        ))}
-        {tiles.length === 0 && (
-          <span className="text-white/30 font-body text-sm">Sin fichas</span>
-        )}
+          {/* The wood shelf the tiles stand on */}
+          <div className="club-shelf" style={compact ? { height: 6, borderTopWidth: 1.5 } : undefined} aria-hidden />
+        </div>
       </div>
 
       {/* Drag ghost — follows finger */}
@@ -288,16 +305,16 @@ function TileGlow({ el, active, label }: { el: Element; active: boolean; label: 
         top: r.top - pad,
         width: r.width + pad * 2,
         height: r.height + pad * 2,
-        border: active ? '2.5px solid rgba(34, 197, 94, 0.9)' : '2px dashed rgba(255,255,255,0.25)',
-        backgroundColor: active ? 'rgba(34, 197, 94, 0.15)' : 'transparent',
-        boxShadow: active ? '0 0 16px rgba(34, 197, 94, 0.5)' : 'none',
+        border: active ? '3px solid #C9A24A' : '2px dashed rgba(241, 227, 194, 0.45)',
+        backgroundColor: active ? 'rgba(201, 162, 74, 0.18)' : 'transparent',
+        boxShadow: 'none',
         zIndex: 45,
       }}
     >
       <span
-        className="absolute -top-5 left-1/2 -translate-x-1/2 font-body font-bold text-xs whitespace-nowrap transition-opacity duration-150"
+        className="absolute -top-5 left-1/2 -translate-x-1/2 font-club font-bold text-xs whitespace-nowrap transition-opacity duration-150"
         style={{
-          color: active ? '#22C55E' : 'rgba(255,255,255,0.4)',
+          color: active ? '#C9A24A' : '#C9D8C4',
           opacity: active ? 1 : 0.6,
         }}
       >

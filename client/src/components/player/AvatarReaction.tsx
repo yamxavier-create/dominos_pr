@@ -4,6 +4,8 @@ import { ActiveReaction } from '../../store/uiStore'
 interface AvatarReactionProps {
   reactions: ActiveReaction[]
   position: 'top' | 'bottom' | 'left' | 'right'
+  /** Override the default offset from the seat (phone portrait: all cameras sit in the top row) */
+  offset?: { dx: number; dy: number }
 }
 
 interface PositionedReaction extends ActiveReaction {
@@ -21,7 +23,7 @@ function getOffsets(position: 'top' | 'bottom' | 'left' | 'right') {
   }
 }
 
-export function AvatarReaction({ reactions, position }: AvatarReactionProps) {
+export function AvatarReaction({ reactions, position, offset }: AvatarReactionProps) {
   const [positioned, setPositioned] = useState<PositionedReaction[]>([])
 
   useEffect(() => {
@@ -38,7 +40,7 @@ export function AvatarReaction({ reactions, position }: AvatarReactionProps) {
     }
 
     const rect = seatEl.getBoundingClientRect()
-    const offsets = getOffsets(position)
+    const offsets = offset ?? getOffsets(position)
     const centerX = rect.left + rect.width / 2
     const centerY = rect.top + rect.height / 2
 
@@ -47,7 +49,7 @@ export function AvatarReaction({ reactions, position }: AvatarReactionProps) {
       screenX: centerX + offsets.dx + (i - (reactions.length - 1) / 2) * 20,
       screenY: centerY + offsets.dy,
     })))
-  }, [reactions, position])
+  }, [reactions, position, offset?.dx, offset?.dy])
 
   if (positioned.length === 0) return null
 

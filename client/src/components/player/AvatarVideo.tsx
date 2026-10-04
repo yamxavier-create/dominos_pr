@@ -1,29 +1,10 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, RefObject } from 'react'
 
-interface AvatarVideoProps {
-  stream: MediaStream | null
-  initials: string
-  teamColor: string
-  isCurrentTurn: boolean
-  isSpeaking: boolean
-  isCameraOff: boolean
-  size?: number
-}
-
-export function AvatarVideo({
-  stream,
-  initials,
-  teamColor,
-  isCurrentTurn,
-  isSpeaking,
-  isCameraOff,
-  size = 40,
-}: AvatarVideoProps) {
-  const videoRef = useRef<HTMLVideoElement>(null)
-
+/** Attach a MediaStream to a <video> and keep it playing (iOS pauses it on background). */
+export function useVideoStream(videoRef: RefObject<HTMLVideoElement>, stream: MediaStream | null, active: boolean) {
   useEffect(() => {
     const video = videoRef.current
-    if (!video) return
+    if (!video || !active) return
 
     video.srcObject = stream
     if (stream) {
@@ -43,33 +24,46 @@ export function AvatarVideo({
       video.removeEventListener('pause', handlePause)
       video.srcObject = null
     }
-  }, [stream])
+  }, [stream, active, videoRef])
+}
 
+interface AvatarVideoProps {
+  stream: MediaStream | null
+  initials: string
+  teamColor: string     // camera background when it's off
+  isCurrentTurn: boolean
+  isSpeaking: boolean
+  isCameraOff: boolean
+  size?: number
+}
+
+/** Square camera tile used by the side seats (landscape and desktop layouts). */
+export function AvatarVideo({
+  stream,
+  initials,
+  teamColor,
+  isCurrentTurn,
+  isSpeaking,
+  isCameraOff,
+  size = 40,
+}: AvatarVideoProps) {
+  const videoRef = useRef<HTMLVideoElement>(null)
   const showVideo = stream !== null && !isCameraOff
+  useVideoStream(videoRef, stream, showVideo)
 
-  const borderColor = isCurrentTurn
-    ? '#EAB308'
-    : isSpeaking
-      ? '#22C55E'
-      : 'rgba(255,255,255,0.15)'
-
-  // When it's the player's turn, the CSS animation drives box-shadow;
-  // don't set it inline or we override the pulse.
-  const inlineShadow = isCurrentTurn
-    ? undefined
-    : isSpeaking
-      ? '0 0 12px rgba(34,197,94,0.6)'
-      : 'none'
+  // Turn = brass, speaking = cream, otherwise a quiet cream edge
+  const borderColor = isCurrentTurn ? '#C9A24A' : isSpeaking ? '#F1E3C2' : 'rgba(241, 227, 194, 0.45)'
 
   return (
     <div
-      className={`rounded-full overflow-hidden flex-shrink-0 ${isCurrentTurn ? 'avatar-turn-pulse' : ''}`}
+      className="overflow-hidden flex-shrink-0"
       style={{
         width: size,
         height: size,
-        border: `2px solid ${borderColor}`,
-        ...(inlineShadow !== undefined ? { boxShadow: inlineShadow } : {}),
-        transition: 'border-color 0.3s, box-shadow 0.3s',
+        borderRadius: 8,
+        border: `${isCurrentTurn ? 3 : 2}px solid ${borderColor}`,
+        background: teamColor,
+        transition: 'border-color 0.3s',
       }}
     >
       {showVideo ? (
@@ -82,11 +76,8 @@ export function AvatarVideo({
         />
       ) : (
         <div
-          className="w-full h-full flex items-center justify-center text-white font-bold"
-          style={{
-            background: teamColor + '30',
-            fontSize: size * 0.35,
-          }}
+          className="w-full h-full flex items-center justify-center font-club font-bold text-club-text"
+          style={{ fontSize: size * 0.32 }}
         >
           {initials}
         </div>

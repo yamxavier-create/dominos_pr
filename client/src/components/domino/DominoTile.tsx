@@ -4,102 +4,81 @@ interface DominoTileProps {
   pip1: number              // left pip (horizontal) or top pip (vertical)
   pip2: number              // right pip (horizontal) or bottom pip (vertical)
   orientation?: 'horizontal' | 'vertical'
-  isPlayable?: boolean      // teal glow + brighter border
-  isSelected?: boolean      // gold border + lifted
+  isPlayable?: boolean
+  isSelected?: boolean      // brass outline
   isNew?: boolean           // triggers entry animation
-  faceDown?: boolean        // renders solid back instead of pips
+  faceDown?: boolean        // blank face, no pips
+  /** How the tile's thickness reads: lying on the felt, standing on the shelf, or flat. */
+  depth?: 'board' | 'hand' | 'none'
   className?: string
   style?: React.CSSProperties
   onClick?: () => void
 }
 
-// Horizontal SVG: 80 × 40 viewBox
-function HorizontalTile({
-  pip1, pip2, isPlayable, isSelected, isNew, faceDown, className, style, onClick
-}: DominoTileProps) {
-  if (faceDown) {
-    return (
-      <svg
-        viewBox="0 0 80 40"
-        className={`domino-tile ${className ?? ''}`}
-        style={{ display: 'block', ...style }}
-      >
-        <rect x="1" y="1" width="78" height="38" rx="4" fill="#2D4A3E" stroke="#1A332A" strokeWidth="1.5" />
-        <rect x="3" y="3" width="74" height="34" rx="3" fill="none" stroke="#3D5A4E" strokeWidth="1" />
-      </svg>
-    )
-  }
+// «Mesa de club» tile: an ink body showing as a slot between two cream faces,
+// a brass rivet in the middle, and its edge (thickness) as a hard shadow below.
+const BODY = '#2B1B12'
+const FACE = '#F4EBD3'
+const BRASS = '#C9A24A'
+const BRASS_EDGE = '#7A5A1E'
 
-  const borderColor = isSelected ? '#FFD93D' : isPlayable ? '#0D7377' : '#8899aa'
-  const bgColor = '#FFF8F0'
-  const animClass = isNew ? 'tile-new' : ''
-  const selectedClass = isSelected ? 'tile-selected' : ''
-  const playableClass = isPlayable ? 'tile-playable' : ''
+const DEPTH_SHADOW: Record<NonNullable<DominoTileProps['depth']>, string | undefined> = {
+  board: '0 3px 0 #C6B287, 0 6px 7px rgba(3, 12, 7, 0.55)',
+  hand: '0 -2px 6px rgba(3, 12, 7, 0.4)',
+  none: undefined,
+}
+
+// Board tiles are 40×80 (or 80×40) px, 1:1 with the viewBox
+const SLOT = 2      // gap between the two faces
+const BODY_R = 6
+const FACE_R = 5
+const RIVET_R = 3.5
+
+export function DominoTile({
+  pip1, pip2, orientation = 'vertical', isSelected, isNew, faceDown, depth = 'board', className, style, onClick,
+}: DominoTileProps) {
+  const vertical = orientation === 'vertical'
+  const W = vertical ? 40 : 80
+  const H = vertical ? 80 : 40
+  // Each face is a square half of the tile, minus half the slot
+  const half = (vertical ? H : W) / 2 - SLOT / 2
+  const face1 = { x: 0, y: 0, w: vertical ? W : half, h: vertical ? half : H }
+  const face2 = vertical
+    ? { x: 0, y: half + SLOT, w: W, h: half }
+    : { x: half + SLOT, y: 0, w: half, h: H }
 
   return (
     <svg
-      viewBox="0 0 80 40"
-      className={`domino-tile ${animClass} ${selectedClass} ${playableClass} ${className ?? ''}`}
-      style={{ cursor: onClick ? 'pointer' : 'default', display: 'block', ...style }}
+      viewBox={`0 0 ${W} ${H}`}
+      className={`domino-tile ${isNew ? 'tile-new' : ''} ${className ?? ''}`}
+      style={{
+        display: 'block',
+        borderRadius: BODY_R,
+        boxShadow: DEPTH_SHADOW[depth],
+        cursor: onClick ? 'pointer' : 'default',
+        ...style,
+      }}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
+      aria-hidden={onClick ? undefined : true}
     >
-      {/* Background */}
-      <rect x="1" y="1" width="78" height="38" rx="4" fill={bgColor} stroke={borderColor} strokeWidth="1.5" />
-      {/* Center divider */}
-      <line x1="40" y1="4" x2="40" y2="36" stroke={borderColor} strokeWidth="1" />
-      {/* Pips */}
-      <DotPattern count={pip1} xMin={4} yMin={4} xMax={36} yMax={36} />
-      <DotPattern count={pip2} xMin={44} yMin={4} xMax={76} yMax={36} />
+      <rect x="0" y="0" width={W} height={H} rx={BODY_R} fill={BODY} />
+      {faceDown ? (
+        // The back: plain ink body with a faint cream edge — never cream,
+        // which would read as the double blank (0·0)
+        <rect x="1" y="1" width={W - 2} height={H - 2} rx={BODY_R - 1} fill="none" stroke="rgba(241, 227, 194, 0.55)" strokeWidth="2" />
+      ) : (
+        <>
+          <rect x={face1.x} y={face1.y} width={face1.w} height={face1.h} rx={FACE_R} fill={FACE} />
+          <rect x={face2.x} y={face2.y} width={face2.w} height={face2.h} rx={FACE_R} fill={FACE} />
+          <DotPattern count={pip1} xMin={face1.x} yMin={face1.y} xMax={face1.x + face1.w} yMax={face1.y + face1.h} />
+          <DotPattern count={pip2} xMin={face2.x} yMin={face2.y} xMax={face2.x + face2.w} yMax={face2.y + face2.h} />
+        </>
+      )}
+      <circle cx={W / 2} cy={H / 2} r={RIVET_R - 0.5} fill={BRASS} stroke={BRASS_EDGE} strokeWidth="1" />
+      {isSelected && (
+        <rect x="1" y="1" width={W - 2} height={H - 2} rx={BODY_R - 1} fill="none" stroke={BRASS} strokeWidth="2" />
+      )}
     </svg>
   )
-}
-
-// Vertical SVG: 40 × 80 viewBox
-function VerticalTile({
-  pip1, pip2, isPlayable, isSelected, isNew, faceDown, className, style, onClick
-}: DominoTileProps) {
-  if (faceDown) {
-    return (
-      <svg
-        viewBox="0 0 40 80"
-        className={`domino-tile ${className ?? ''}`}
-        style={{ display: 'block', ...style }}
-      >
-        <rect x="1" y="1" width="38" height="78" rx="4" fill="#2D4A3E" stroke="#1A332A" strokeWidth="1.5" />
-        <rect x="3" y="3" width="34" height="74" rx="3" fill="none" stroke="#3D5A4E" strokeWidth="1" />
-      </svg>
-    )
-  }
-
-  const borderColor = isSelected ? '#FFD93D' : isPlayable ? '#0D7377' : '#8899aa'
-  const bgColor = '#FFF8F0'
-  const animClass = isNew ? 'tile-new' : ''
-  const selectedClass = isSelected ? 'tile-selected' : ''
-  const playableClass = isPlayable ? 'tile-playable' : ''
-
-  return (
-    <svg
-      viewBox="0 0 40 80"
-      className={`domino-tile ${animClass} ${selectedClass} ${playableClass} ${className ?? ''}`}
-      style={{ cursor: onClick ? 'pointer' : 'default', display: 'block', ...style }}
-      onClick={onClick}
-      role={onClick ? 'button' : undefined}
-    >
-      {/* Background */}
-      <rect x="1" y="1" width="38" height="78" rx="4" fill={bgColor} stroke={borderColor} strokeWidth="1.5" />
-      {/* Center divider */}
-      <line x1="4" y1="40" x2="36" y2="40" stroke={borderColor} strokeWidth="1" />
-      {/* Pips */}
-      <DotPattern count={pip1} xMin={4} yMin={4} xMax={36} yMax={36} />
-      <DotPattern count={pip2} xMin={4} yMin={44} xMax={36} yMax={76} />
-    </svg>
-  )
-}
-
-export function DominoTile(props: DominoTileProps) {
-  const { orientation = 'vertical' } = props
-  return orientation === 'horizontal'
-    ? <HorizontalTile {...props} />
-    : <VerticalTile {...props} />
 }

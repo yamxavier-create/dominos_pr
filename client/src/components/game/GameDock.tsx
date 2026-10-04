@@ -3,11 +3,13 @@ import { socket } from '../../socket'
 import { useUIStore } from '../../store/uiStore'
 import { useCallStore } from '../../store/callStore'
 import { joinCallRef } from '../../hooks/useWebRTC'
+import { useCallToggles, MicIcon, CameraIcon } from '../player/CallControls'
 
 /*
- * In-game controls live in two matching capsules in the bottom corners of the
- * table grid, beside the player's hand: social (chat, reactions) on the left,
- * media (call, sound) on the right. One shape, one icon style, one active state.
+ * In-game controls: cream square buttons with a wood border («mesa de club»).
+ * Social (chat, reactions) on the left, media (call, sound) on the right.
+ * Phone portrait lays each group out in a row under the hand; landscape and
+ * desktop keep them stacked in the bottom corners of the table grid.
  */
 
 const REACTIONS = [
@@ -15,25 +17,18 @@ const REACTIONS = [
   '🤙', '😎', '🎯', '🤡', '💯', '😈',
 ] as const
 
-type Tone = 'default' | 'active' | 'call' | 'muted'
+export type DockDirection = 'row' | 'column'
 
-const ICON_COLOR: Record<Tone, string> = {
-  default: 'rgba(255,255,255,0.85)',
-  active: '#EAB308',
-  call: '#4ADE80',
-  muted: 'rgba(255,255,255,0.35)',
-}
-
-function Icon({ children, tone }: { children: ReactNode; tone: Tone }) {
+function Icon({ children }: { children: ReactNode }) {
   return (
     <svg
       viewBox="0 0 24 24"
       fill="none"
-      stroke={ICON_COLOR[tone]}
-      strokeWidth={2}
+      stroke="currentColor"
+      strokeWidth={1.8}
       strokeLinecap="round"
       strokeLinejoin="round"
-      className="w-[55%] h-[55%]"
+      className="w-[48%] h-[48%]"
       aria-hidden
     >
       {children}
@@ -41,34 +36,32 @@ function Icon({ children, tone }: { children: ReactNode; tone: Tone }) {
   )
 }
 
-function DockButton({ label, tone = 'default', size, onClick, disabled, badge, children }: {
+function DockButton({ label, size, onClick, disabled, pressed, badge, children }: {
   label: string
-  tone?: Tone
   size: number
   onClick: () => void
   disabled?: boolean
+  /** On/off state for toggles (open panel, muted mic): shown in brass */
+  pressed?: boolean
   badge?: number
   children: ReactNode
 }) {
-  const bg = tone === 'active'
-    ? 'rgba(234,179,8,0.14)'
-    : tone === 'call'
-      ? 'rgba(34,197,94,0.14)'
-      : 'transparent'
   return (
     <button
+      type="button"
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
+      aria-pressed={pressed}
       title={label}
-      className="relative rounded-full flex items-center justify-center transition-colors duration-150 hover:bg-white/[0.07] active:scale-90 disabled:opacity-50"
-      style={{ width: size, height: size, background: bg, touchAction: 'manipulation' }}
+      className="club-btn relative"
+      style={{ width: size, height: size }}
     >
       {children}
       {badge !== undefined && badge > 0 && (
         <span
-          className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center font-body font-bold text-[10px] text-white"
-          style={{ background: '#F97316', boxShadow: '0 0 0 2px #0A1A0F' }}
+          className="absolute -top-2 -right-2 min-w-[20px] h-5 px-1 rounded-full flex items-center justify-center font-club font-bold text-[11px] text-club-text"
+          style={{ background: '#B3261E', border: '2px solid #F1E3C2' }}
         >
           {badge > 9 ? '9+' : badge}
         </span>
@@ -77,25 +70,12 @@ function DockButton({ label, tone = 'default', size, onClick, disabled, badge, c
   )
 }
 
-function Capsule({ children }: { children: ReactNode }) {
-  return (
-    <div
-      className="flex flex-col items-center gap-1 p-1 rounded-full"
-      style={{
-        background: 'linear-gradient(180deg, rgba(15,35,24,0.92), rgba(8,22,13,0.92))',
-        border: '1px solid rgba(234,179,8,0.18)',
-        boxShadow: '0 8px 20px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)',
-        backdropFilter: 'blur(10px)',
-        WebkitBackdropFilter: 'blur(10px)',
-      }}
-    >
-      {children}
-    </div>
-  )
+function Group({ direction, children }: { direction: DockDirection; children: ReactNode }) {
+  return <div className={`flex ${direction === 'row' ? 'flex-row' : 'flex-col'} gap-2`}>{children}</div>
 }
 
 /** Left corner: chat + reactions */
-export function SocialDock({ size = 40 }: { size?: number }) {
+export function SocialDock({ size = 46, direction = 'row' }: { size?: number; direction?: DockDirection }) {
   const chatOpen = useUIStore(s => s.chatOpen)
   const unreadCount = useUIStore(s => s.unreadCount)
   const reactionsOpen = useUIStore(s => s.emojiBarOpen)
@@ -124,23 +104,20 @@ export function SocialDock({ size = 40 }: { size?: number }) {
         <>
           <div className="fixed inset-0 z-40" onClick={() => ui().setEmojiBarOpen(false)} />
           <div
-            className="emoji-bar-in fixed z-50 w-max grid grid-cols-4 gap-1 p-2 rounded-2xl"
+            className="emoji-bar-in fixed z-50 w-max grid grid-cols-4 gap-1 p-2 club-sign"
             style={{
               left: anchor.left,
-              bottom: window.innerHeight - anchor.top + 8,
-              background: 'linear-gradient(180deg, rgba(15,35,24,0.96), rgba(8,22,13,0.96))',
-              border: '1px solid rgba(234,179,8,0.18)',
-              boxShadow: '0 12px 28px rgba(0,0,0,0.45)',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
+              bottom: window.innerHeight - anchor.top + 10,
             }}
           >
             {REACTIONS.map(emoji => (
               <button
                 key={emoji}
+                type="button"
                 onClick={() => sendReaction(emoji)}
                 disabled={cooldown}
-                className="w-10 h-10 rounded-xl flex items-center justify-center text-2xl hover:bg-white/[0.07] active:scale-90 transition-transform duration-150 disabled:opacity-40"
+                aria-label={`Reaccionar ${emoji}`}
+                className="club-focus w-10 h-10 rounded-md flex items-center justify-center text-2xl hover:bg-club-ink/10 active:scale-90 transition-transform duration-150 disabled:opacity-40"
               >
                 {emoji}
               </button>
@@ -148,32 +125,38 @@ export function SocialDock({ size = 40 }: { size?: number }) {
           </div>
         </>
       )}
-      <Capsule>
-        <DockButton label="Chat" size={size} tone={chatOpen ? 'active' : 'default'} onClick={toggleChat} badge={chatOpen ? 0 : unreadCount}>
-          <Icon tone={chatOpen ? 'active' : 'default'}>
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      <Group direction={direction}>
+        <DockButton label={chatOpen ? 'Cerrar chat' : 'Abrir chat'} size={size} pressed={chatOpen} onClick={toggleChat} badge={chatOpen ? 0 : unreadCount}>
+          <Icon><path d="M4 5h16v11H9l-5 4z" /></Icon>
+        </DockButton>
+        <DockButton label={reactionsOpen ? 'Cerrar reacciones' : 'Enviar reacción'} size={size} pressed={reactionsOpen} onClick={toggleReactions}>
+          <Icon>
+            <circle cx="12" cy="12" r="8.5" />
+            <path d="M8.5 14c1 1.4 2.1 2 3.5 2s2.5-.6 3.5-2" />
+            <path d="M9 10h.01M15 10h.01" />
           </Icon>
         </DockButton>
-        <DockButton label={reactionsOpen ? 'Cerrar reacciones' : 'Reacciones'} size={size} tone={reactionsOpen ? 'active' : 'default'} onClick={toggleReactions}>
-          <Icon tone={reactionsOpen ? 'active' : 'default'}>
-            <circle cx="12" cy="12" r="10" />
-            <path d="M8 14s1.5 2 4 2 4-2 4-2" />
-            <line x1="9" y1="9" x2="9.01" y2="9" />
-            <line x1="15" y1="9" x2="15.01" y2="9" />
-          </Icon>
-        </DockButton>
-      </Capsule>
+      </Group>
     </div>
   )
 }
 
-/** Right corner: join call + sound */
-export function MediaDock({ size = 40 }: { size?: number }) {
+/**
+ * Right group: join the call (or, once in it, mic and camera when the seat
+ * that normally holds them isn't on screen) and sound.
+ */
+export function MediaDock({ size = 46, direction = 'row', callControls = false }: {
+  size?: number
+  direction?: DockDirection
+  /** Phone portrait: the player's own seat isn't drawn, so mic/camera live here */
+  callControls?: boolean
+}) {
   const sfxEnabled = useUIStore(s => s.sfxEnabled)
   const musicEnabled = useUIStore(s => s.musicEnabled)
   const inCall = useCallStore(s => s.myAudioEnabled || s.myVideoEnabled)
   const callError = useCallStore(s => s.callError)
   const [joining, setJoining] = useState(false)
+  const { micMuted, cameraOff, toggleMic, toggleCamera } = useCallToggles()
 
   const soundOn = sfxEnabled || musicEnabled
   const toggleSound = () => {
@@ -197,50 +180,49 @@ export function MediaDock({ size = 40 }: { size?: number }) {
     {callError && !inCall && (
       // Fixed, not anchored to the dock: the dock's grid cell clips overflow
       <button
+        type="button"
         onClick={() => useCallStore.getState().setCallError(null)}
-        className="fixed top-16 left-1/2 -translate-x-1/2 z-50 max-w-[18rem] rounded-xl px-4 py-2.5 text-left font-body text-xs text-white/90 shadow-2xl"
-        style={{ background: 'rgba(15,35,24,0.96)', border: '1px solid rgba(249,115,22,0.5)' }}
+        className="club-sign club-focus fixed top-16 left-1/2 -translate-x-1/2 z-50 max-w-[18rem] px-4 py-2.5 text-left font-club font-semibold text-sm"
+        style={{ borderColor: '#B3261E' }}
         role="alert"
       >
         {callError}
       </button>
     )}
-    <Capsule>
-      {/* Once in the call, mic/camera controls live on the player's own seat */}
+    <Group direction={direction}>
       {!inCall && (
         <DockButton
           label={joining ? 'Conectando…' : callError ? `${callError} Toca para reintentar.` : 'Unirse a la llamada'}
           size={size}
-          tone="call"
           onClick={joinCall}
           disabled={joining}
         >
           {joining ? (
-            <svg viewBox="0 0 24 24" fill="none" stroke={ICON_COLOR.call} strokeWidth={2.5} className="w-[50%] h-[50%] animate-spin" aria-hidden>
-              <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} className="w-[44%] h-[44%] animate-spin" aria-hidden>
+              <path d="M12 3a9 9 0 0 1 9 9" strokeLinecap="round" />
             </svg>
           ) : (
-            <Icon tone="call">
-              <polygon points="23 7 16 12 23 17 23 7" />
-              <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-            </Icon>
+            <Icon><path d="M3 7h11v10H3z" /><path d="M14 10.5l7-3.5v10l-7-3.5" /></Icon>
           )}
         </DockButton>
       )}
-      <DockButton label={soundOn ? 'Silenciar' : 'Activar sonido'} size={size} tone={soundOn ? 'default' : 'muted'} onClick={toggleSound}>
-        <Icon tone={soundOn ? 'default' : 'muted'}>
-          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-          {soundOn ? (
-            <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-          ) : (
-            <>
-              <line x1="22" y1="9" x2="16" y2="15" />
-              <line x1="16" y1="9" x2="22" y2="15" />
-            </>
-          )}
+      {inCall && callControls && (
+        <>
+          <DockButton label={micMuted ? 'Activar mic' : 'Silenciar mic'} size={size} pressed={micMuted} onClick={toggleMic}>
+            <Icon><MicIcon muted={micMuted} /></Icon>
+          </DockButton>
+          <DockButton label={cameraOff ? 'Activar camara' : 'Apagar camara'} size={size} pressed={cameraOff} onClick={toggleCamera}>
+            <Icon><CameraIcon off={cameraOff} /></Icon>
+          </DockButton>
+        </>
+      )}
+      <DockButton label={soundOn ? 'Silenciar sonido' : 'Activar sonido'} size={size} pressed={!soundOn} onClick={toggleSound}>
+        <Icon>
+          <path d="M4 9h4l5-4v14l-5-4H4z" />
+          {soundOn ? <path d="M17 9a4 4 0 0 1 0 6" /> : <path d="M16 9l5 6M21 9l-5 6" />}
         </Icon>
       </DockButton>
-    </Capsule>
+    </Group>
     </>
   )
 }
