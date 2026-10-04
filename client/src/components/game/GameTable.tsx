@@ -17,6 +17,7 @@ import { SocialDock, MediaDock } from './GameDock'
 import { TurnIndicator } from '../player/TurnIndicator'
 import { TurnStatus } from '../player/TurnStatus'
 import { CameraSeat } from '../player/CameraSeat'
+import { SelfView } from '../player/SelfView'
 import { ScorePanel } from './ScorePanel'
 import { ScoreHistoryPanel } from './ScoreHistoryPanel'
 import { BoneyardPile } from './BoneyardPile'
@@ -415,8 +416,9 @@ export function GameTable() {
             {hand}
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <SocialDock size={46} direction="row" />
+            <SelfView size={46} />
             <MediaDock size={46} direction="row" callControls />
           </div>
         </div>
