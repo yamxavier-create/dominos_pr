@@ -417,7 +417,8 @@ export function GameBoard({ board, allowZoom }: GameBoardProps) {
                 top: pos.y - h / 2,
                 width: w,
                 height: h,
-                overflow: 'hidden',
+                // No overflow clipping: the tile's edge (thickness) is a shadow
+                // below its box, and clipping it left only two points at the corners
                 opacity: isFlying ? 0 : undefined,
               }}
             >
