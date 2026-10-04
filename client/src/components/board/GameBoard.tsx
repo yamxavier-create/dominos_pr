@@ -324,9 +324,8 @@ export function GameBoard({ board, allowZoom }: GameBoardProps) {
   if (board.tiles.length === 0) {
     return (
       <div ref={containerRef} className="w-full h-full flex items-center justify-center">
-        <div className="text-white/30 text-center">
-          <div className="text-5xl mb-2">🁣</div>
-          <p className="font-body text-sm">Esperando la primera ficha...</p>
+        <div className="text-center">
+          <p className="font-club font-semibold text-sm text-club-muted">Esperando la primera ficha</p>
         </div>
       </div>
     )
@@ -363,7 +362,7 @@ export function GameBoard({ board, allowZoom }: GameBoardProps) {
   // So: rightExtent * scale <= dims.w / 2  (right side)
   //     leftExtent  * scale <= dims.w / 2  (left side)
   const BADGE_MARGIN = 20
-  // Extra inset to account for table-surface border/margin
+  // Extra inset to account for the felt's brass lip
   const BORDER_INSET = 10
   const availW = (vw / 2) - BORDER_INSET
   const availH = (vh / 2) - BORDER_INSET

@@ -15,6 +15,8 @@ import { OpponentHand } from '../player/OpponentHand'
 import { PlayerSeat } from '../player/PlayerSeat'
 import { SocialDock, MediaDock } from './GameDock'
 import { TurnIndicator } from '../player/TurnIndicator'
+import { TurnStatus } from '../player/TurnStatus'
+import { CameraSeat } from '../player/CameraSeat'
 import { ScorePanel } from './ScorePanel'
 import { ScoreHistoryPanel } from './ScoreHistoryPanel'
 import { BoneyardPile } from './BoneyardPile'
@@ -27,21 +29,22 @@ import { GameEndModal } from './GameEndModal'
 import { useIsLandscape } from '../../hooks/useIsLandscape'
 import { useIsDesktop } from '../../hooks/useIsDesktop'
 
+/** Camera background and label for a seat, relative to me: my side is green, rivals red */
 function teamInfo(playerIndex: number, myPlayerIndex: number, playerCount: number, players: { name: string }[]) {
   if (playerCount === 2) {
     return {
       teamLabel: players[playerIndex]?.name ?? (playerIndex === 0 ? 'J1' : 'J2'),
-      teamColor: playerIndex === myPlayerIndex ? '#22C55E' : '#F97316',
+      teamColor: playerIndex === myPlayerIndex ? '#1B5E3A' : '#8E2A22',
     }
   }
-  const isTeamA = playerIndex % 2 === 0
+  const sameTeam = playerIndex % 2 === myPlayerIndex % 2
   return {
-    teamLabel: isTeamA ? 'Equipo A' : 'Equipo B',
-    teamColor: isTeamA ? '#22C55E' : '#F97316',
+    teamLabel: playerIndex === myPlayerIndex ? 'Tú' : sameTeam ? 'Pareja' : 'Rival',
+    teamColor: sameTeam ? '#1B5E3A' : '#8E2A22',
   }
 }
 
-function LeaveGameButton() {
+function LeaveGameButton({ compact }: { compact?: boolean }) {
   const navigate = useNavigate()
   const [confirming, setConfirming] = useState(false)
 
@@ -54,16 +57,16 @@ function LeaveGameButton() {
   return (
     <>
       <button
+        type="button"
         onClick={() => setConfirming(true)}
-        className="fixed z-30 left-3 flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-black/40 border border-white/15 text-white/80 text-xs font-body font-bold active:scale-95 transition-transform"
-        style={{
-          top: 'calc(0.5rem + var(--safe-top))',
-          backdropFilter: 'blur(8px)',
-        }}
+        className="club-btn shrink-0 self-stretch"
+        style={{ width: compact ? 34 : 44 }}
         aria-label="Salir del juego"
+        title="Salir del juego"
       >
-        <span>←</span>
-        <span>Salir</span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M15 5l-7 7 7 7" />
+        </svg>
       </button>
 
       {confirming && (
@@ -229,21 +232,99 @@ export function GameTable() {
     }
   }
 
+  const portrait = !compact && !isDesktop
+  const nextPlayerName = players[(currentPlayerIndex + 1) % playerCount]?.name ?? ''
+
+  const overlaysFor = (idx: number, seat: 'top' | 'left' | 'right', anchored: boolean) => (
+    <>
+      {getPaso(idx) && (
+        <PasoChip show seat={seat} anchored={anchored} playerName={players[idx]?.name ?? ''} bonusPoints={getPaso(idx)!.passBonusAwarded} />
+      )}
+      {getFloatingMessages(idx).map(msg => (
+        <FloatingChatBubble key={msg.id} message={msg} />
+      ))}
+    </>
+  )
+
+  const board_ = (
+    <div className={`club-rail min-h-0 ${portrait ? 'flex-1' : 'w-full h-full'}`} style={compact ? { padding: 6, borderRadius: 10 } : undefined}>
+      <div className="club-felt relative overflow-hidden w-full h-full" data-board>
+        <GameBoard board={board} allowZoom={isDesktop} />
+        {!portrait && <TurnIndicator playerName={currentPlayerName} isMyTurn={isMyTurn} />}
+        {is2Player && (
+          <BoneyardPile
+            count={boneyardCount}
+            awaitingDraw={shouldAwaitDraw}
+            isMyTurn={isMyTurn}
+            onDraw={drawFromBoneyard}
+            currentPlayerName={players[currentPlayerIndex]?.name ?? ''}
+          />
+        )}
+        {is2Player && (
+          <BoneyardDrawAnimation
+            myPlayerIndex={myPlayerIndex}
+            playerCount={playerCount}
+          />
+        )}
+      </div>
+    </div>
+  )
+
+  const endChooser = showEndChooser && (
+    <div className="flex justify-center gap-2 mb-1" role="group" aria-label="¿En qué punta?">
+      <button
+        type="button"
+        onClick={() => playTileOnEnd('left')}
+        onTouchEnd={(e) => { e.preventDefault(); playTileOnEnd('left') }}
+        className="club-btn gap-1.5 px-3 h-9 font-club font-bold text-sm"
+        aria-label={`Jugar en la punta ${board.leftEnd}`}
+      >
+        ◀ <span className="font-club-display text-base">{board.leftEnd}</span>
+      </button>
+      <button
+        type="button"
+        onClick={() => playTileOnEnd('right')}
+        onTouchEnd={(e) => { e.preventDefault(); playTileOnEnd('right') }}
+        className="club-btn gap-1.5 px-3 h-9 font-club font-bold text-sm"
+        aria-label={`Jugar en la punta ${board.rightEnd}`}
+      >
+        <span className="font-club-display text-base">{board.rightEnd}</span> ▶
+      </button>
+    </div>
+  )
+
+  const hand = (
+    <PlayerHand
+      tiles={myTiles}
+      validPlayIds={validPlayIds}
+      isMyTurn={isMyTurn}
+      forcedFirstTileId={forcedFirstTileId}
+      compact={compact}
+      large={isDesktop}
+    />
+  )
+
   return (
-    <div className="fixed inset-0 flex flex-col overflow-hidden select-none game-room-bg">
-      {/* Score bar */}
-      <ScorePanel
-        scores={scores}
-        players={players}
-        myPlayerIndex={myPlayerIndex}
-        gameMode={gameMode}
-        targetScore={targetScore}
-        handNumber={handNumber}
-        onClick={handleScoreBarClick}
-        isOpen={showScoreHistory}
-        compact={compact}
-        showTeamNames={isDesktop}
-      />
+    <div className="fixed inset-0 flex flex-col overflow-hidden select-none game-room-bg font-club">
+      {/* Top row: leave + score sign */}
+      <div
+        className={`flex items-stretch gap-2 ${compact ? 'px-2 pb-1' : 'px-3 pb-2.5'}`}
+        style={{ paddingTop: `calc(${compact ? '0.25rem' : '0.875rem'} + var(--safe-top))` }}
+      >
+        <LeaveGameButton compact={compact} />
+        <ScorePanel
+          scores={scores}
+          players={players}
+          myPlayerIndex={myPlayerIndex}
+          gameMode={gameMode}
+          targetScore={targetScore}
+          handNumber={handNumber}
+          onClick={handleScoreBarClick}
+          isOpen={showScoreHistory}
+          compact={compact}
+          showTeamNames={isDesktop}
+        />
+      </div>
 
       {/* Score history panel */}
       <ScoreHistoryPanel
@@ -255,7 +336,92 @@ export function GameTable() {
         gameMode={gameMode}
       />
 
-      {/* Main table area */}
+      {portrait ? (
+        /* ─── Phone portrait: «mesa de club» ─── */
+        <div
+          className="flex-1 min-h-0 flex flex-col gap-2.5 px-3"
+          style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
+        >
+          {/* The other players in a row: rival · partner · rival (2 players: just the rival) */}
+          <div className="grid grid-cols-3 gap-2 relative z-20">
+            {!is2Player && leftPlayer && (
+              <CameraSeat
+                seat="left"
+                player={leftPlayer}
+                isPartner={false}
+                isCurrentTurn={currentPlayerIndex === leftIndex}
+                stream={seatCallProps(leftIndex).stream}
+                isCameraOff={seatCallProps(leftIndex).isCameraOff}
+                isSpeaking={seatCallProps(leftIndex).isSpeaking}
+              >
+                {overlaysFor(leftIndex, 'left', true)}
+              </CameraSeat>
+            )}
+            {topPlayer && (
+              <div className={is2Player ? 'col-start-2' : undefined}>
+                <CameraSeat
+                  seat="top"
+                  player={topPlayer}
+                  isPartner={!is2Player}
+                  isCurrentTurn={currentPlayerIndex === topIndex}
+                  stream={seatCallProps(topIndex).stream}
+                  isCameraOff={seatCallProps(topIndex).isCameraOff}
+                  isSpeaking={seatCallProps(topIndex).isSpeaking}
+                >
+                  {overlaysFor(topIndex, 'top', true)}
+                </CameraSeat>
+              </div>
+            )}
+            {!is2Player && rightPlayer && (
+              <CameraSeat
+                seat="right"
+                player={rightPlayer}
+                isPartner={false}
+                isCurrentTurn={currentPlayerIndex === rightIndex}
+                stream={seatCallProps(rightIndex).stream}
+                isCameraOff={seatCallProps(rightIndex).isCameraOff}
+                isSpeaking={seatCallProps(rightIndex).isSpeaking}
+              >
+                {overlaysFor(rightIndex, 'right', true)}
+              </CameraSeat>
+            )}
+          </div>
+          <AvatarReaction reactions={getReactions(topIndex)} position="top" offset={{ dx: 0, dy: 70 }} />
+          {!is2Player && <AvatarReaction reactions={getReactions(leftIndex)} position="left" offset={{ dx: 0, dy: 70 }} />}
+          {!is2Player && <AvatarReaction reactions={getReactions(rightIndex)} position="right" offset={{ dx: 0, dy: 70 }} />}
+
+          {board_}
+
+          <TurnStatus
+            isMyTurn={isMyTurn}
+            currentPlayerName={currentPlayerName}
+            nextPlayerName={nextPlayerName}
+            leftEnd={board.leftEnd}
+            rightEnd={board.rightEnd}
+          />
+
+          {/* My hand on the shelf. data-seat="bottom" anchors my animations and overlays */}
+          <div className="relative min-w-0" data-seat="bottom">
+            <div className="absolute inset-x-0 bottom-full mb-1 z-30 flex flex-col items-center gap-1 pointer-events-none">
+              {getPaso(myPlayerIndex) && (
+                <PasoChip show seat="bottom" anchored playerName={myPlayer?.name ?? ''} bonusPoints={getPaso(myPlayerIndex)!.passBonusAwarded} />
+              )}
+              {getFloatingMessages(myPlayerIndex).map(msg => (
+                <FloatingChatBubble key={msg.id} message={msg} />
+              ))}
+            </div>
+            <AvatarReaction reactions={getReactions(myPlayerIndex)} position="bottom" />
+            {endChooser}
+            {hand}
+          </div>
+
+          <div className="flex items-center justify-between">
+            <SocialDock size={46} direction="row" />
+            <MediaDock size={46} direction="row" callControls />
+          </div>
+        </div>
+      ) : (
+      /* ─── Landscape and desktop: the original grid, in the club materials ─── */
       <div
         className="flex-1 overflow-hidden"
         style={{
@@ -264,9 +430,9 @@ export function GameTable() {
           // minmax(0, …) lets the center shrink instead of pushing the side columns off screen
           gridTemplateColumns: 'minmax(52px, auto) minmax(0, 1fr) minmax(52px, auto)',
           minHeight: 0,
-          // Keep the hand and the corner capsules above the home indicator and
+          // Keep the hand and the corner controls above the home indicator and
           // out of the rounded screen corners on iPhone (0 everywhere else)
-          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          paddingBottom: `calc(${compact ? '0.25rem' : '0.75rem'} + env(safe-area-inset-bottom, 0px))`,
         }}
       >
         {/* Top-left corner */}
@@ -287,12 +453,7 @@ export function GameTable() {
               />
               <AvatarReaction reactions={getReactions(topIndex)} position="top" />
               <OpponentHand player={topPlayer} position="top" compact={compact} large={isDesktop} />
-              {getPaso(topIndex) && (
-                <PasoChip show seat="top" playerName={topPlayer.name} bonusPoints={getPaso(topIndex)!.passBonusAwarded} />
-              )}
-              {getFloatingMessages(topIndex).map(msg => (
-                <FloatingChatBubble key={msg.id} message={msg} />
-              ))}
+              {overlaysFor(topIndex, 'top', false)}
             </>
           )}
         </div>
@@ -314,38 +475,14 @@ export function GameTable() {
               />
               <AvatarReaction reactions={getReactions(leftIndex)} position="left" />
               <OpponentHand player={leftPlayer} position="left" compact={compact} large={isDesktop} />
-              {getPaso(leftIndex) && (
-                <PasoChip show seat="left" playerName={leftPlayer.name} bonusPoints={getPaso(leftIndex)!.passBonusAwarded} />
-              )}
-              {getFloatingMessages(leftIndex).map(msg => (
-                <FloatingChatBubble key={msg.id} message={msg} />
-              ))}
+              {overlaysFor(leftIndex, 'left', false)}
             </>
           )}
         </div>
 
         {/* Board center */}
-        <div className="relative overflow-hidden w-full h-full table-surface" data-board>
-          <GameBoard board={board} allowZoom={isDesktop} />
-          <TurnIndicator
-            playerName={currentPlayerName}
-            isMyTurn={isMyTurn}
-          />
-          {is2Player && (
-            <BoneyardPile
-              count={boneyardCount}
-              awaitingDraw={shouldAwaitDraw}
-              isMyTurn={isMyTurn}
-              onDraw={drawFromBoneyard}
-              currentPlayerName={players[currentPlayerIndex]?.name ?? ''}
-            />
-          )}
-          {is2Player && (
-            <BoneyardDrawAnimation
-              myPlayerIndex={myPlayerIndex}
-              playerCount={playerCount}
-            />
-          )}
+        <div className={`relative min-h-0 min-w-0 ${compact ? 'p-0.5' : 'p-1'}`}>
+          {board_}
         </div>
 
         {/* Right opponent (4-player only) */}
@@ -362,26 +499,21 @@ export function GameTable() {
               />
               <AvatarReaction reactions={getReactions(rightIndex)} position="right" />
               <OpponentHand player={rightPlayer} position="right" compact={compact} large={isDesktop} />
-              {getPaso(rightIndex) && (
-                <PasoChip show seat="right" playerName={rightPlayer.name} bonusPoints={getPaso(rightIndex)!.passBonusAwarded} />
-              )}
-              {getFloatingMessages(rightIndex).map(msg => (
-                <FloatingChatBubble key={msg.id} message={msg} />
-              ))}
+              {overlaysFor(rightIndex, 'right', false)}
             </>
           )}
         </div>
 
         {/* Bottom-left corner: chat + reactions */}
-        <div className={`flex items-end justify-center ${compact ? 'pb-1 px-1' : isDesktop ? 'pb-2 px-1.5' : 'pb-2 px-1'}`}>
-          <SocialDock size={isDesktop ? 46 : compact ? 34 : 36} />
+        <div className={`flex items-end justify-center ${compact ? 'pb-1 px-1' : 'pb-2 px-1.5'}`}>
+          <SocialDock size={isDesktop ? 46 : 34} direction="column" />
         </div>
 
         {/* My hand (bottom) */}
         <div className={`flex flex-col items-center justify-end relative min-w-0 ${compact ? 'gap-0 overflow-hidden' : 'gap-1'}`} data-seat="bottom">
           {myPlayer && (
             <PlayerSeat
-                large={isDesktop}
+              large={isDesktop}
               player={myPlayer}
               isCurrentTurn={isMyTurn}
               position="bottom"
@@ -397,41 +529,16 @@ export function GameTable() {
           {!compact && getFloatingMessages(myPlayerIndex).map(msg => (
             <FloatingChatBubble key={msg.id} message={msg} />
           ))}
-          {showEndChooser && (
-            <div className="flex gap-2 mb-1">
-              <button
-                onClick={() => playTileOnEnd('left')}
-                onTouchEnd={(e) => { e.preventDefault(); playTileOnEnd('left') }}
-                className="flex items-center gap-1 rounded-full bg-surface border border-gold/40 text-gold font-bold font-body shadow-lg active:scale-90 transition-transform px-3 py-1.5 text-sm"
-                style={{ touchAction: 'manipulation' }}
-              >
-                ◀ <span className="font-header text-lg">{board.leftEnd}</span>
-              </button>
-              <button
-                onClick={() => playTileOnEnd('right')}
-                onTouchEnd={(e) => { e.preventDefault(); playTileOnEnd('right') }}
-                className="flex items-center gap-1 rounded-full bg-surface border border-gold/40 text-gold font-bold font-body shadow-lg active:scale-90 transition-transform px-3 py-1.5 text-sm"
-                style={{ touchAction: 'manipulation' }}
-              >
-                <span className="font-header text-lg">{board.rightEnd}</span> ▶
-              </button>
-            </div>
-          )}
-          <PlayerHand
-            tiles={myTiles}
-            validPlayIds={validPlayIds}
-            isMyTurn={isMyTurn}
-            forcedFirstTileId={forcedFirstTileId}
-            compact={compact}
-            large={isDesktop}
-          />
+          {endChooser}
+          {hand}
         </div>
 
         {/* Bottom-right corner: call + sound */}
-        <div className={`flex items-end justify-center ${compact ? 'pb-1 px-1' : isDesktop ? 'pb-2 px-1.5' : 'pb-2 px-1'}`}>
-          <MediaDock size={isDesktop ? 46 : compact ? 34 : 36} />
+        <div className={`flex items-end justify-center ${compact ? 'pb-1 px-1' : 'pb-2 px-1.5'}`}>
+          <MediaDock size={isDesktop ? 46 : 34} direction="column" />
         </div>
       </div>
+      )}
 
       {/* Remote audio elements — always rendered when in call to prevent audio loss */}
       {(myAudioEnabled || myVideoEnabled) && (
@@ -443,7 +550,6 @@ export function GameTable() {
       )}
 
       {/* Overlays */}
-      <LeaveGameButton />
       <RoundEndModal />
       <GameEndModal />
     </div>

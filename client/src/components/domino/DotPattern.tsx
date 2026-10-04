@@ -1,37 +1,44 @@
 interface DotPatternProps {
   count: number   // 0–6
-  xMin: number    // left edge of the half-tile area
+  xMin: number    // left edge of the half-tile face
   yMin: number    // top edge
   xMax: number    // right edge
   yMax: number    // bottom edge
 }
 
-// Fractional positions [fx, fy] for each pip count
-const DOT_POSITIONS: Record<number, Array<[number, number]>> = {
+// Pips sit on a 3×3 grid (cells 0–8, row by row), as on a real tile
+const GRID_CELLS: Record<number, number[]> = {
   0: [],
-  1: [[0.5, 0.5]],
-  2: [[0.25, 0.25], [0.75, 0.75]],
-  3: [[0.25, 0.25], [0.5, 0.5], [0.75, 0.75]],
-  4: [[0.25, 0.25], [0.75, 0.25], [0.25, 0.75], [0.75, 0.75]],
-  5: [[0.25, 0.25], [0.75, 0.25], [0.5, 0.5], [0.25, 0.75], [0.75, 0.75]],
-  6: [[0.25, 0.2], [0.25, 0.5], [0.25, 0.8], [0.75, 0.2], [0.75, 0.5], [0.75, 0.8]],
+  1: [4],
+  2: [0, 8],
+  3: [0, 4, 8],
+  4: [0, 2, 6, 8],
+  5: [0, 2, 4, 6, 8],
+  6: [0, 2, 3, 5, 6, 8],
 }
 
+// Face padding and pip size, as fractions of the face (36px face: 5px pad, 6px pip)
+const PAD = 5 / 36
+const PIP = 6 / 36
+
 export function DotPattern({ count, xMin, yMin, xMax, yMax }: DotPatternProps) {
-  const positions = DOT_POSITIONS[count] ?? []
+  const cells = GRID_CELLS[count] ?? []
   const w = xMax - xMin
   const h = yMax - yMin
-  const r = Math.min(w, h) * 0.11
+  const size = Math.min(w, h)
+  const cellW = (w - 2 * PAD * size) / 3
+  const cellH = (h - 2 * PAD * size) / 3
+  const r = (PIP * size) / 2
 
   return (
     <>
-      {positions.map(([fx, fy], i) => (
+      {cells.map(cell => (
         <circle
-          key={i}
-          cx={xMin + fx * w}
-          cy={yMin + fy * h}
+          key={cell}
+          cx={xMin + PAD * size + (cell % 3 + 0.5) * cellW}
+          cy={yMin + PAD * size + (Math.floor(cell / 3) + 0.5) * cellH}
           r={r}
-          fill="#1a1a2e"
+          fill="#1C1410"
         />
       ))}
     </>

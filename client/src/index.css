@@ -1,5 +1,5 @@
 /* Google Fonts — must be before @tailwind directives */
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Barlow:wght@500;600;700&family=Bebas+Neue&family=Nunito:wght@400;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -166,10 +166,6 @@ body {
 }
 
 /* Bounce for turn indicator */
-@keyframes bounce-slow {
-  0%, 100% { transform: translateY(0); }
-  50%       { transform: translateY(-4px); }
-}
 
 /* ─── Utility Classes ─── */
 
@@ -197,9 +193,6 @@ body {
   animation: modal-enter 0.25s ease-out forwards;
 }
 
-.bounce-slow {
-  animation: bounce-slow 1s ease-in-out infinite;
-}
 
 /* Chat bubble float up and fade */
 @keyframes chat-bubble-anim {
@@ -220,7 +213,7 @@ body {
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
 }
-/* game-room-bg: NO padding here — safe-area-inset-top is on .game-glass-panel (ScorePanel) */
+/* game-room-bg: NO padding here — safe-area-inset-top is on the game screen's top row (GameTable) */
 
 /* Chat panel slide in from right */
 @keyframes slide-in-right {
@@ -240,15 +233,6 @@ body {
 
 .animate-slide-down {
   animation: slide-down 0.3s ease-out forwards;
-}
-
-/* Pulsing gold ring for the active player's avatar */
-@keyframes avatar-turn-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(234,179,8,0.55), 0 0 14px rgba(234,179,8,0.45); }
-  50%      { box-shadow: 0 0 0 6px rgba(234,179,8,0),    0 0 22px rgba(234,179,8,0.65); }
-}
-.avatar-turn-pulse {
-  animation: avatar-turn-pulse 1.8s ease-in-out infinite;
 }
 
 /* Boneyard draw — tile flies from pile to player hand */
@@ -473,117 +457,83 @@ body {
     radial-gradient(ellipse at center, #173022 0%, #0A1A0F 80%, #060E08 100%);
 }
 
+/* ─── «Mesa de club»: the game screen ───
+ * Flat green room, a wooden rail with a brass lip around the felt, and a wood
+ * shelf for the hand. No glass, glows or decorative gradients. The only
+ * gradient fades the top into the html color that iOS paints under the
+ * status bar, so there is no seam.
+ */
 .game-room-bg {
-  background:
-    /* Subtle vertical pinstripe texture */
-    repeating-linear-gradient(
-      90deg,
-      rgba(15, 35, 24, 0.25) 0px,
-      rgba(15, 35, 24, 0.25) 1px,
-      transparent 1px,
-      transparent 24px
-    ),
-    /* Faint diamond crosshatch for depth */
-    repeating-linear-gradient(
-      45deg,
-      transparent 0px,
-      transparent 40px,
-      rgba(234, 179, 8, 0.015) 40px,
-      rgba(234, 179, 8, 0.015) 41px
-    ),
-    repeating-linear-gradient(
-      -45deg,
-      transparent 0px,
-      transparent 40px,
-      rgba(234, 179, 8, 0.015) 40px,
-      rgba(234, 179, 8, 0.015) 41px
-    ),
-    /* Radial vignette — dark edges, slightly lit center */
-    radial-gradient(ellipse at 50% 40%, rgba(23, 48, 34, 0.4) 0%, transparent 60%),
-    /* Base gradient — rich dark green, ending on the app background color (see .felt-table) */
-    linear-gradient(180deg, #0F1A14 0%, #0A1A0F 40%, #060E08 85%, #0A1A0F 100%);
+  background: linear-gradient(180deg, #0A1A0F 0, #0F2A1B calc(var(--safe-top) + 24px));
+  background-color: #0F2A1B;
+  color: #F3EAD3;
 }
 
-.table-surface {
-  background:
-    /* Subtle felt noise texture */
-    radial-gradient(circle at 30% 25%, rgba(23, 48, 34, 0.5) 0%, transparent 50%),
-    radial-gradient(circle at 70% 75%, rgba(23, 48, 34, 0.3) 0%, transparent 50%),
-    radial-gradient(ellipse at center, #1A3828 0%, #122A1E 40%, #0A1A0F 80%, #060E08 100%);
-  border-radius: 20px;
-  border: 2px solid rgba(234, 179, 8, 0.12);
-  box-shadow:
-    /* Inner gold glow — very subtle */
-    inset 0 0 30px rgba(234, 179, 8, 0.03),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    inset 0 2px 8px rgba(0, 0, 0, 0.3),
-    /* Outer depth */
-    0 0 0 1px rgba(0, 0, 0, 0.3),
-    0 8px 32px rgba(0, 0, 0, 0.6),
-    0 2px 8px rgba(0, 0, 0, 0.4);
-  margin: 2px;
+/* Wooden rail: vertical planks, 40px apart */
+.club-rail {
+  padding: 10px;
+  border-radius: 14px;
+  background: repeating-linear-gradient(90deg, #7A4A2B 0px, #7A4A2B 38px, #633A20 38px, #633A20 40px);
+  box-shadow: 0 6px 14px rgba(3, 12, 7, 0.6);
 }
 
-/* ─── Game HUD glass elements ─── */
-
-/* Glass card for in-game overlays (lighter than menu-card) */
-.game-glass-card {
-  background: linear-gradient(
-    145deg,
-    rgba(15, 35, 24, 0.7) 0%,
-    rgba(10, 26, 15, 0.82) 100%
-  );
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(234, 179, 8, 0.08);
-  border-radius: 16px;
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.03) inset,
-    0 8px 24px rgba(0, 0, 0, 0.4),
-    0 2px 8px rgba(0, 0, 0, 0.2);
+/* Felt inside the rail, behind a 2px brass lip */
+.club-felt {
+  background: #1B4A30;
+  border: 2px solid #C9A24A;
+  border-radius: 6px;
+  box-shadow: inset 0 3px 10px rgba(3, 12, 7, 0.55);
 }
 
-/* Horizontal glass bar for score panel */
-.game-glass-panel {
-  background: linear-gradient(
-    180deg,
-    rgba(15, 35, 24, 0.8) 0%,
-    rgba(10, 26, 15, 0.88) 100%
-  );
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(234, 179, 8, 0.08);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.02) inset,
-    0 4px 16px rgba(0, 0, 0, 0.3);
+/* Thin wood shelf the hand stands on */
+.club-shelf {
+  height: 10px;
+  background: #7A4A2B;
+  border-top: 2px solid #C9A24A;
+  border-radius: 0 0 4px 4px;
+  box-shadow: 0 6px 10px rgba(3, 12, 7, 0.6);
 }
 
-/* Premium circular button (replaces plain bg-black/60) */
-.game-btn-circle {
-  background: linear-gradient(
-    145deg,
-    rgba(15, 35, 24, 0.8) 0%,
-    rgba(10, 26, 15, 0.9) 100%
-  );
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(234, 179, 8, 0.1);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.03) inset,
-    0 4px 12px rgba(0, 0, 0, 0.3);
-  transition: all 0.2s ease;
+/* Cream sign (score) and cream buttons with a wood border */
+.club-sign {
+  background: #F1E3C2;
+  color: #2B1B12;
+  border: 3px solid #5A351E;
+  border-radius: 6px;
+  box-shadow: 0 4px 0 #07160E;
 }
 
-.game-btn-circle:hover {
-  border-color: rgba(234, 179, 8, 0.2);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.05) inset,
-    0 4px 16px rgba(0, 0, 0, 0.4),
-    0 0 12px rgba(234, 179, 8, 0.06);
+.club-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: #F1E3C2;
+  color: #2B1B12;
+  border: 2px solid #5A351E;
+  border-radius: 6px;
+  box-shadow: 0 3px 0 #07160E;
+  transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+  touch-action: manipulation;
+}
+.club-btn:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #07160E;
+}
+.club-btn:disabled { opacity: 0.55; }
+.club-btn:focus-visible,
+.club-focus:focus-visible {
+  outline: 3px solid #F1E3C2;
+  outline-offset: 3px;
+}
+.club-btn[aria-pressed='true'] {
+  background: #C9A24A;
+  border-color: #7A5A1E;
 }
 
-.game-btn-circle:active {
-  transform: scale(0.95);
+.game-room-bg ::selection {
+  background: #C9A24A;
+  color: #0F2A1B;
 }
 
 /* ─── Landscape safe-area handling ─── */
@@ -595,10 +545,5 @@ body {
   .game-room-bg {
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
-  }
-  .table-surface {
-    border-radius: 16px;
-    border-width: 2px;
-    margin: 2px;
   }
 }

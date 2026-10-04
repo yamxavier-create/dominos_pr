@@ -29,9 +29,9 @@ export function BoneyardPile({ count, awaitingDraw, isMyTurn, onDraw, currentPla
     return (
       <div
         className="absolute inset-x-0 bottom-0 z-20 flex flex-col items-center pb-2 pt-3"
-        style={{ background: 'linear-gradient(to top, rgba(10,26,15,0.92) 85%, rgba(10,26,15,0.4) 95%, transparent)' }}
+        style={{ background: '#143A25', borderTop: '2px solid #C9A24A' }}
       >
-        <p className="text-white/70 text-xs font-body mb-2">
+        <p className="font-club font-semibold text-sm text-club-text mb-2">
           {isMyTurn ? 'Toca una ficha para jalar' : `${currentPlayerName} está jalando...`}
         </p>
         <div className="flex flex-wrap items-center justify-center gap-1.5 px-3">
@@ -41,6 +41,7 @@ export function BoneyardPile({ count, awaitingDraw, isMyTurn, onDraw, currentPla
               onClick={() => handleTap(i)}
               onTouchEnd={(e) => { e.preventDefault(); handleTap(i) }}
               disabled={!isMyTurn || tappedIndex !== null}
+              aria-label="Jalar una ficha del pozo"
               className={`
                 relative transition-transform duration-150 rounded shrink-0
                 ${isMyTurn && tappedIndex === null ? 'cursor-pointer hover:-translate-y-2 active:scale-95' : 'cursor-default'}
@@ -67,7 +68,7 @@ export function BoneyardPile({ count, awaitingDraw, isMyTurn, onDraw, currentPla
   return (
     <div className="absolute bottom-2 right-2 z-10">
       {awaitingDraw && !isMyTurn && (
-        <p className="text-white/60 text-[10px] font-body mb-1 text-center whitespace-nowrap">
+        <p className="font-club font-semibold text-club-muted text-[11px] mb-1 text-center whitespace-nowrap">
           {currentPlayerName} jalando...
         </p>
       )}
@@ -93,7 +94,7 @@ export function BoneyardPile({ count, awaitingDraw, isMyTurn, onDraw, currentPla
           </div>
         ))}
         <div
-          className="absolute bg-surface/80 text-white/70 text-xs font-bold px-1.5 py-0.5 rounded-full border border-gold/15 backdrop-blur-sm"
+          className="absolute bg-club-cream text-club-ink font-club text-xs font-bold px-1.5 py-0.5 rounded"
           style={{ bottom: -6, right: -8, minWidth: 20, textAlign: 'center' }}
         >
           {count}

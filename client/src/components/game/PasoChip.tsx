@@ -3,6 +3,8 @@ interface PasoChipProps {
   playerName: string
   bonusPoints: number | null
   seat: 'top' | 'bottom' | 'left' | 'right'
+  /** Rendered inside the seat's own overlay (phone portrait) instead of at a fixed screen spot */
+  anchored?: boolean
 }
 
 const wrapperStyles: Record<string, string> = {
@@ -12,18 +14,17 @@ const wrapperStyles: Record<string, string> = {
   right: 'fixed inset-y-0 right-16 flex items-center',
 }
 
-export function PasoChip({ show, playerName, bonusPoints, seat }: PasoChipProps) {
+export function PasoChip({ show, playerName, bonusPoints, seat, anchored }: PasoChipProps) {
   if (!show) return null
 
   return (
-    <div className={`${wrapperStyles[seat]} z-30 pointer-events-none`}>
-      <div className="paso-toast flex items-center gap-2 bg-gradient-to-r from-red-900/90 to-red-800/85 border-2 border-red-500/50 rounded-full px-4 py-2 shadow-2xl shadow-red-900/30 backdrop-blur-sm whitespace-nowrap">
-        <span className="text-base">✋</span>
-        <span className="font-body font-bold text-white text-sm">{playerName}</span>
-        <span className="font-body text-white/80 text-sm font-semibold">PASA</span>
+    <div className={`${anchored ? 'flex justify-center' : wrapperStyles[seat]} z-30 pointer-events-none`} role="status">
+      <div className="paso-toast club-sign flex items-baseline gap-1.5 px-3 py-1 whitespace-nowrap font-club">
+        <span className="font-bold text-sm">{playerName}</span>
+        <span className="font-club-display text-sm text-club-them">pasa</span>
         {bonusPoints !== null && (
-          <span className="bg-primary text-white text-xs font-bold rounded-full px-2 py-0.5">
-            +{bonusPoints}pts
+          <span className="rounded px-1.5 py-0.5 bg-club-brass text-club-ink text-xs font-bold">
+            +{bonusPoints}
           </span>
         )}
       </div>
