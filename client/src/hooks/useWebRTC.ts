@@ -296,6 +296,14 @@ export function useWebRTC() {
         ignoreOfferRef.current[from] = !polite && offerCollision
         if (ignoreOfferRef.current[from]) return
 
+        if (offerCollision) {
+          // After an implicit rollback Chrome keeps the received tracks muted:
+          // media arrives but never plays. Answer from a fresh connection instead.
+          console.log(`[WebRTC] Offer collision with peer ${from}, answering from a fresh PC`)
+          closePeer(from)
+          pc = createPC(from)
+        }
+
         await pc.setRemoteDescription(desc)
         if (desc.type === 'offer') {
           await pc.setLocalDescription()
@@ -311,7 +319,7 @@ export function useWebRTC() {
     } catch (err) {
       console.error('[WebRTC] signal handling error', err)
     }
-  }, [roomCode, createPC])
+  }, [roomCode, createPC, closePeer])
 
   const cleanup = useCallback(() => {
     // Ends the session first: any pending permission prompt or recovery becomes stale
