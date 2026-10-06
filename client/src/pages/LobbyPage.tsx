@@ -24,17 +24,24 @@ export function LobbyPage() {
   }
 
   return (
-    <div className="fixed inset-0 felt-table flex items-center justify-center px-4 py-4 overflow-y-auto">
-      <button
-        type="button"
-        onClick={handleBack}
-        className="fixed left-4 z-30 font-body text-white/40 hover:text-white/70 text-sm transition-colors"
-        style={{ top: 'max(16px, env(safe-area-inset-top))' }}
-      >
-        ← Menú
-      </button>
-      <RoomLobby />
-      <AudioControls />
+    // my-auto rather than items-center: a lobby taller than the screen scrolls from its top instead of being cut off
+    <div
+      className="fixed inset-0 felt-table flex flex-col items-center px-4 pb-4 overflow-y-auto"
+      style={{ paddingTop: 'max(16px, env(safe-area-inset-top))' }}
+    >
+      <div className="my-auto w-full max-w-sm flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={handleBack}
+            className="font-body text-white/40 hover:text-white/70 text-sm transition-colors"
+          >
+            ← Menú
+          </button>
+          <AudioControls />
+        </div>
+        <RoomLobby />
+      </div>
     </div>
   )
 }

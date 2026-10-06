@@ -411,7 +411,7 @@ export function RoomLobby() {
             </p>
           )}
           <GoldCTA onClick={startGame} disabled={!canStart} size="md">
-            {canStart ? '¡INICIAR PARTIDA!' : `${playerCount} JUGADORES`}
+            {canStart ? '¡INICIAR PARTIDA!' : `${playerCount} ${playerCount === 1 ? 'JUGADOR' : 'JUGADORES'}`}
           </GoldCTA>
         </div>
       ) : (
