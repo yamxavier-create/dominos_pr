@@ -175,11 +175,33 @@ test('the call joined in the room keeps running into the game', async ({ page })
   expect(leftover).toBe(0)
 })
 
+test('the menu button in the room leaves it and hangs up the call', async ({ page }) => {
+  await page.goto('/')
+  await page.waitForFunction(() => window.__domino?.socket?.connected)
+  await page.evaluate(() => window.__domino.socket.emit('room:create', { playerName: 'Tester', gameMode: 'modo200' }))
+  await page.waitForURL('**/lobby')
+  await page.getByRole('button', { name: 'Unirse a la llamada' }).click()
+  await expect.poll(async () => (await callState(page)).inCall).toBe(true)
+
+  await page.getByRole('button', { name: '← Menú' }).click()
+  await page.waitForURL(url => new URL(url).pathname === '/')
+  expect(await page.evaluate(() => window.__domino.roomStore.getState().roomCode)).toBeFalsy()
+  const leftover = await page.evaluate(() =>
+    window.__media.streams.flatMap(s => s.getTracks()).filter(t => t.readyState === 'live').length)
+  expect(leftover).toBe(0)
+})
+
 /** Connection state and remote stream id this page has for a seat. */
 const peer = (page: Page, seat: number) => page.evaluate(i => {
   const s = window.__domino.callStore.getState()
   const stream = s.remoteStreams[i]
   return { state: s.peerStates[i] ?? null, streamId: stream?.id ?? null, tracks: stream?.getTracks().length ?? 0 }
+}, seat)
+
+/** Tracks from a seat that are actually playing: a track stays muted until media reaches it. */
+const playing = (page: Page, seat: number) => page.evaluate(i => {
+  const stream = window.__domino.callStore.getState().remoteStreams[i]
+  return (stream?.getTracks() ?? []).filter((t: MediaStreamTrack) => !t.muted && t.readyState === 'live').length
 }, seat)
 
 test('two players talk in the room, swap seats, and keep talking in the game', async ({ page, browser }) => {
@@ -203,6 +225,9 @@ test('two players talk in the room, swap seats, and keep talking in the game', a
     await expect.poll(async () => (await peer(page, 1)).state).toBe('connected')
     await expect.poll(async () => (await peer(guest, 0)).state).toBe('connected')
     await expect.poll(async () => (await peer(page, 1)).tracks).toBe(2)
+    // Both ways: the guest answers the offer collision and used to get the host's tracks muted for good
+    await expect.poll(() => playing(page, 1)).toBe(2)
+    await expect.poll(() => playing(guest, 0)).toBe(2)
     await expect(page.locator('video')).toHaveCount(2)
     await expect(guest.locator('video')).toHaveCount(2)
 
@@ -212,6 +237,8 @@ test('two players talk in the room, swap seats, and keep talking in the game', a
     await expect.poll(async () => (await peer(page, 0)).state).toBe('connected')
     await expect.poll(async () => (await peer(guest, 1)).state).toBe('connected')
     await expect.poll(async () => (await peer(page, 0)).tracks).toBe(2)
+    await expect.poll(() => playing(page, 0)).toBe(2)
+    await expect.poll(() => playing(guest, 1)).toBe(2)
     expect((await peer(page, 1)).streamId).toBeNull()
 
     // The guest is on seat 0 now, so they host the game; the call carries over untouched
