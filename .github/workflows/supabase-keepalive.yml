@@ -1,14 +1,30 @@
 name: Supabase Keepalive
 
+# Supabase pausa los proyectos free sin actividad por 7 días y no cuenta las conexiones
+# directas a Postgres (Prisma, psql) como requests. Por eso, además del ping a la base de
+# datos, este job hace pedidos a la API del proyecto todos los días.
+
 on:
   schedule:
-    - cron: "0 12 */3 * *"
+    - cron: "0 12 * * *"
   workflow_dispatch:
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
+      - name: Ping API (Auth y REST)
+        env:
+          SUPABASE_URL: https://azajsmltxmdgwknbrdjn.supabase.co
+          SUPABASE_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_KEY" ]; then
+            echo "::error::SUPABASE_ANON_KEY secret is not set"
+            exit 1
+          fi
+          curl -fsS -o /dev/null -w "auth health: %{http_code}\n" "$SUPABASE_URL/auth/v1/health" -H "apikey: $SUPABASE_KEY"
+          curl -sS -o /dev/null -w "rest: %{http_code}\n" "$SUPABASE_URL/rest/v1/" -H "apikey: $SUPABASE_KEY"
+
       - name: Install psql
         run: |
           sudo apt-get update -qq
@@ -22,4 +38,4 @@ jobs:
             echo "::error::SUPABASE_DATABASE_URL secret is not set"
             exit 1
           fi
-          psql "$DATABASE_URL" -c "SELECT 1 AS keepalive, now() AS ts;"
+          psql "$DATABASE_URL" -c 'SELECT count(*) AS users, now() AS ts FROM "User";'
