@@ -5,7 +5,12 @@ import { useGameStore } from '../../store/gameStore'
 import { useUIStore } from '../../store/uiStore'
 
 const GAP = 1
-const SNAKE_CAP = 620  // max snake row width (~7 tiles per row at 80px)
+// Snake widths tried for each board: from 3 tiles per row up to a single long line
+const SNAKE_WIDTHS = Array.from({ length: 24 }, (_, i) => 240 + i * 80)
+// Keep the current width unless another one makes the tiles this much bigger,
+// so the snake doesn't reflow on every play over a few pixels
+const REFLOW_GAIN = 1.08
+const EDGE_INSET = 14 // the felt's brass lip plus breathing room
 
 interface TilePos { x: number; y: number }
 interface LayoutItem { pos: TilePos; flipped: boolean; corner: boolean }
@@ -25,20 +30,18 @@ function tileSize(bt: BoardTileType) {
 }
 
 /**
- * Snake layout anchored to canvas center.
+ * Snake layout around the first-played tile (lowest sequence) at the origin.
  *
- * The first-played tile (lowest sequence) is fixed at (boardW/2, boardH/2).
  * The right arm (tiles added to right end) extends rightward from the anchor;
  * the left arm (tiles added to left end) extends leftward. Each arm wraps
  * independently at ±snakeW/2 from the anchor, so adding tiles to one side
  * never shifts tiles on the other side.
  */
-function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: number): LayoutItem[] {
+function computeSnakeLayout(tiles: BoardTileType[], snakeW: number): LayoutItem[] {
   const n = tiles.length
   if (n === 0) return []
 
   const EDGE_PAD = 6
-  const snakeW = Math.min(boardW - 40, SNAKE_CAP)
   const half = snakeW / 2  // each arm gets ±half from anchor
 
   // Find anchor: first-played tile = lowest sequence number
@@ -286,17 +289,61 @@ function computeSnakeLayout(tiles: BoardTileType[], boardW: number, boardH: numb
     }
   }
 
-  // Anchor tile is always fixed at (boardW/2, boardH/2).
-  // Snake extends rightward/downward (right arm) and leftward/upward (left arm)
-  // from that fixed point — adding tiles never moves existing tiles.
-  const offsetX = boardW / 2
-  const offsetY = boardH / 2
-
   return raw.map((p, i) => ({
-    pos: { x: p.x + offsetX, y: p.y + offsetY },
+    pos: p,
     flipped: flippedFlags[i],
     corner: cornerFlags[i],
   }))
+}
+
+interface FittedLayout {
+  layout: LayoutItem[]
+  snakeW: number
+  scale: number
+  // Center of the snake's bounding box, in layout coordinates
+  cx: number
+  cy: number
+}
+
+/** Lay the snake out at one width and measure how big it can be drawn on the board */
+function fitLayout(tiles: BoardTileType[], snakeW: number, boardW: number, boardH: number): FittedLayout {
+  const layout = computeSnakeLayout(tiles, snakeW)
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+  tiles.forEach((bt, idx) => {
+    const item = layout[idx]
+    if (!item) return
+    const { w, h } = tileDisplaySize(bt, item.corner)
+    minX = Math.min(minX, item.pos.x - w / 2)
+    minY = Math.min(minY, item.pos.y - h / 2)
+    maxX = Math.max(maxX, item.pos.x + w / 2)
+    maxY = Math.max(maxY, item.pos.y + h / 2)
+  })
+  const raw = Math.min(1, (boardW - 2 * EDGE_INSET) / (maxX - minX), (boardH - 2 * EDGE_INSET) / (maxY - minY))
+  return {
+    layout,
+    snakeW,
+    scale: Number.isFinite(raw) ? Math.max(0.15, raw) : 1,
+    cx: (minX + maxX) / 2,
+    cy: (minY + maxY) / 2,
+  }
+}
+
+/**
+ * Pick the snake width that draws the tiles biggest on this board. Among
+ * near-equal widths the widest wins (fewer bends), and the previous width
+ * stays until another one is clearly better.
+ */
+function bestLayout(tiles: BoardTileType[], boardW: number, boardH: number, prevW: number | null): FittedLayout {
+  let best: FittedLayout | null = null
+  for (const w of SNAKE_WIDTHS) {
+    const fit = fitLayout(tiles, w, boardW, boardH)
+    if (!best || fit.scale >= best.scale * 0.995) best = fit
+  }
+  if (prevW !== null) {
+    const kept = fitLayout(tiles, prevW, boardW, boardH)
+    if (kept.scale * REFLOW_GAIN >= best!.scale) return kept
+  }
+  return best!
 }
 
 interface GameBoardProps {
@@ -309,6 +356,7 @@ export function GameBoard({ board, allowZoom }: GameBoardProps) {
   const [dims, setDims] = useState({ w: 0, h: 0 })
   const lastTileSequence = useGameStore(s => s.lastTileSequence)
   const flyingTileId = useUIStore(s => s.flyingTile?.tileId ?? null)
+  const snakeWRef = useRef<number | null>(null)
 
   useEffect(() => {
     const el = containerRef.current
@@ -322,6 +370,7 @@ export function GameBoard({ board, allowZoom }: GameBoardProps) {
   }, [])
 
   if (board.tiles.length === 0) {
+    snakeWRef.current = null
     return (
       <div ref={containerRef} className="w-full h-full flex items-center justify-center">
         <div className="text-center">
@@ -342,46 +391,13 @@ export function GameBoard({ board, allowZoom }: GameBoardProps) {
   const vw = dims.w / zoom
   const vh = dims.h / zoom
 
-  const layout = computeSnakeLayout(board.tiles, vw, vh)
-
-  // Compute bounding box of all tiles to determine if scaling is needed
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
-  board.tiles.forEach((bt, idx) => {
-    const item = layout[idx]
-    if (!item) return // guard against layout/tiles mismatch
-    const { pos } = item
-    const { w, h } = tileDisplaySize(bt, item.corner)
-    minX = Math.min(minX, pos.x - w / 2)
-    minY = Math.min(minY, pos.y - h / 2)
-    maxX = Math.max(maxX, pos.x + w / 2)
-    maxY = Math.max(maxY, pos.y + h / 2)
-  })
-  // Scale so content fits within the container, accounting for transform-origin: center.
-  // With scale() at the center, each side must fit independently:
-  //   rendered position = center + (original - center) * scale
-  // So: rightExtent * scale <= dims.w / 2  (right side)
-  //     leftExtent  * scale <= dims.w / 2  (left side)
-  const BADGE_MARGIN = 20
-  // Extra inset to account for the felt's brass lip
-  const BORDER_INSET = 10
-  const availW = (vw / 2) - BORDER_INSET
-  const availH = (vh / 2) - BORDER_INSET
-  const cx = vw / 2
-  const cy = vh / 2
-  const rightExtent = maxX - cx + BADGE_MARGIN
-  const leftExtent  = cx - minX + BADGE_MARGIN
-  const bottomExtent = maxY - cy + BADGE_MARGIN
-  const topExtent    = cy - minY + BADGE_MARGIN
-  const rawScale = Math.min(
-    1,
-    rightExtent  > 0 ? availW / rightExtent  : 1,
-    leftExtent   > 0 ? availW / leftExtent   : 1,
-    bottomExtent > 0 ? availH / bottomExtent : 1,
-    topExtent    > 0 ? availH / topExtent    : 1,
-  )
-  // Guard against NaN or invalid values
-  const fitScale = Number.isFinite(rawScale) ? Math.max(0.15, rawScale) : 1
-  const scale = fitScale * zoom
+  const fitted = bestLayout(board.tiles, vw, vh, snakeWRef.current)
+  snakeWRef.current = fitted.snakeW
+  const { layout } = fitted
+  const scale = fitted.scale * zoom
+  // Center the snake's bounding box on the board, not the first tile
+  const offsetX = vw / 2 - fitted.cx
+  const offsetY = vh / 2 - fitted.cy
 
 
   return (
@@ -415,8 +431,8 @@ export function GameBoard({ board, allowZoom }: GameBoardProps) {
               data-board-end={isLeftEnd ? 'left' : isRightEnd ? 'right' : undefined}
               data-board-single={isOnlyTile || undefined}
               style={{
-                left: pos.x - w / 2,
-                top: pos.y - h / 2,
+                left: pos.x + offsetX - w / 2,
+                top: pos.y + offsetY - h / 2,
                 width: w,
                 height: h,
                 // No overflow clipping: the tile's edge (thickness) is a shadow
