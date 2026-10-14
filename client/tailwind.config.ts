@@ -15,7 +15,8 @@ export default {
         // «Mesa de club»: the game screen. Menu, lobby and modals keep the tokens above.
         club: {
           bg:        '#0F2A1B', // screen behind the table
-          felt:      '#1B4A30',
+          felt:      '#E9DCBC', // linen
+          rail:      '#1E1E1C', // rail and shelf
           wood:      '#7A4A2B',
           grain:     '#633A20', // wood grain and shadow
           'wood-edge': '#5A351E',

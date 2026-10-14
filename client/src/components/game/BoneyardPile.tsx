@@ -29,7 +29,7 @@ export function BoneyardPile({ count, awaitingDraw, isMyTurn, onDraw, currentPla
     return (
       <div
         className="absolute inset-x-0 bottom-0 z-20 flex flex-col items-center pb-2 pt-3"
-        style={{ background: '#143A25', borderTop: '2px solid #C9A24A' }}
+        style={{ background: '#1E1E1C', borderTop: '2px solid #C9A24A' }}
       >
         <p className="font-club font-semibold text-sm text-club-text mb-2">
           {isMyTurn ? 'Toca una ficha para jalar' : `${currentPlayerName} está jalando...`}
@@ -68,7 +68,7 @@ export function BoneyardPile({ count, awaitingDraw, isMyTurn, onDraw, currentPla
   return (
     <div className="absolute bottom-2 right-2 z-10">
       {awaitingDraw && !isMyTurn && (
-        <p className="font-club font-semibold text-club-muted text-[11px] mb-1 text-center whitespace-nowrap">
+        <p className="font-club font-semibold text-club-ink text-[11px] mb-1 text-center whitespace-nowrap">
           {currentPlayerName} jalando...
         </p>
       )}

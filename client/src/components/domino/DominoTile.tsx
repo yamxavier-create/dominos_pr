@@ -22,10 +22,12 @@ const BODY = '#2B1B12'
 const FACE = '#F4EBD3'
 const BRASS = '#C9A24A'
 const BRASS_EDGE = '#7A5A1E'
+// On the linen felt a cream tile needs a fine ink edge to separate from the cloth
+const BOARD_EDGE = 'rgba(43, 27, 18, 0.55)'
 
 // Only a soft shadow lifts the tile off the felt: no hard edge band, no outline
 const DEPTH_SHADOW: Record<NonNullable<DominoTileProps['depth']>, string | undefined> = {
-  board: '0 2px 5px rgba(3, 12, 7, 0.5)',
+  board: '0 2px 4px rgba(60, 40, 20, 0.45)',
   hand: '0 -2px 6px rgba(3, 12, 7, 0.4)',
   none: undefined,
 }
@@ -75,6 +77,9 @@ export function DominoTile({
       ) : (
         <>
           <rect x="0" y="0" width={W} height={H} rx={BODY_R} fill={FACE} />
+          {depth === 'board' && (
+            <rect x="0.5" y="0.5" width={W - 1} height={H - 1} rx={BODY_R - 0.5} fill="none" stroke={BOARD_EDGE} strokeWidth="1" />
+          )}
           <line {...divider} stroke={BODY} strokeWidth="1.5" strokeLinecap="round" />
           <DotPattern count={pip1} xMin={face1.x} yMin={face1.y} xMax={face1.x + face1.w} yMax={face1.y + face1.h} />
           <DotPattern count={pip2} xMin={face2.x} yMin={face2.y} xMax={face2.x + face2.w} yMax={face2.y + face2.h} />

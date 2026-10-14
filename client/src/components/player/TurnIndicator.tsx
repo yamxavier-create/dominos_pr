@@ -8,8 +8,8 @@ export function TurnIndicator({ playerName, isMyTurn }: TurnIndicatorProps) {
   return (
     <div
       className={`absolute top-2 right-2 z-20 px-2.5 py-1 rounded-md pointer-events-none whitespace-nowrap font-club font-bold text-xs leading-none
-        ${isMyTurn ? 'bg-club-cream text-club-ink' : 'bg-club-strip text-club-muted'}`}
-      style={{ boxShadow: '0 2px 0 rgba(7, 22, 14, 0.9)' }}
+        ${isMyTurn ? 'bg-club-ink text-club-cream' : 'bg-club-strip text-club-muted'}`}
+      style={{ boxShadow: '0 2px 0 rgba(60, 40, 20, 0.45)' }}
       role="status"
       aria-live="polite"
     >
