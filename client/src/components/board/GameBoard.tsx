@@ -407,11 +407,13 @@ export function GameBoard({ board, allowZoom }: GameBoardProps) {
           // Mark the end tiles so drag-drop and fly animation can find them
           const isLeftEnd = idx === 0 && board.tiles.length > 1
           const isRightEnd = idx === board.tiles.length - 1 && board.tiles.length > 1
+          const isOnlyTile = board.tiles.length === 1
           return (
             <div
               key={bt.tile.id}
               className="absolute"
               data-board-end={isLeftEnd ? 'left' : isRightEnd ? 'right' : undefined}
+              data-board-single={isOnlyTile || undefined}
               style={{
                 left: pos.x - w / 2,
                 top: pos.y - h / 2,

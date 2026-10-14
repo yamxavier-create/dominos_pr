@@ -35,12 +35,26 @@ interface DragState {
   tileEl: HTMLElement | null
 }
 
-/** Get the screen-center of a board end tile element */
+/** Get the screen point of a board end: the end tile's center, or the matching edge of the only tile */
 function getEndTileCenter(end: 'left' | 'right'): { x: number; y: number } | null {
   const el = document.querySelector(`[data-board-end="${end}"]`)
-  if (!el) return null
-  const r = el.getBoundingClientRect()
-  return { x: r.left + r.width / 2, y: r.top + r.height / 2 }
+  if (el) {
+    const r = el.getBoundingClientRect()
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 }
+  }
+  // One tile on the board (the opening double): both ends live on it
+  const single = document.querySelector('[data-board-single]')
+  if (!single) return null
+  const r = single.getBoundingClientRect()
+  return { x: end === 'left' ? r.left : r.right, y: r.top + r.height / 2 }
+}
+
+/** True when the pointer is over the board area */
+function isOverBoard(px: number, py: number): boolean {
+  const boardEl = document.querySelector('[data-board]')
+  if (!boardEl) return false
+  const r = boardEl.getBoundingClientRect()
+  return !(py < r.top - 20 || py > r.bottom + 20 || px < r.left - 20 || px > r.right + 20)
 }
 
 /** Detect which end the pointer is closest to (within DROP_RADIUS) */
@@ -62,10 +76,7 @@ function detectNearEnd(px: number, py: number): 'left' | 'right' | null {
 
   // Also allow drop if pointer is over the board area generally
   if (!bestEnd) {
-    const boardEl = document.querySelector('[data-board]')
-    if (!boardEl) return null
-    const r = boardEl.getBoundingClientRect()
-    if (py < r.top - 20 || py > r.bottom + 20 || px < r.left - 20 || px > r.right + 20) return null
+    if (!isOverBoard(px, py)) return null
     // Over the board but not near an end — pick closest end
     const dL = leftC ? Math.hypot(px - leftC.x, py - leftC.y) : Infinity
     const dR = rightC ? Math.hypot(px - rightC.x, py - rightC.y) : Infinity
@@ -150,11 +161,14 @@ export function PlayerHand({ tiles, validPlayIds, isMyTurn, forcedFirstTileId, c
     }
 
     const dropEnd = detectNearEnd(e.clientX, e.clientY)
+    // Both ends show the same number: the side doesn't change the play, so any drop on the board counts
+    const endsMatch = gs.board.leftEnd === gs.board.rightEnd
+    const overBoard = dropEnd !== null || isOverBoard(e.clientX, e.clientY)
 
     if (dropEnd && playsForTile.some(vp => vp.targetEnd === dropEnd)) {
       socket.emit('game:play_tile', { roomCode: rc, tileId, targetEnd: dropEnd })
       useUIStore.getState().setSelectedTile(null)
-    } else if (playsForTile.length === 1 && dropEnd) {
+    } else if (overBoard && (playsForTile.length === 1 || endsMatch)) {
       socket.emit('game:play_tile', { roomCode: rc, tileId, targetEnd: playsForTile[0].targetEnd })
       useUIStore.getState().setSelectedTile(null)
     }

@@ -25,8 +25,9 @@ export function useGameActions() {
       return
     }
 
-    if (playsForTile.length === 1) {
-      // Only one valid end — play immediately
+    // One valid end, or both ends show the same number (the side doesn't change the play)
+    if (playsForTile.length === 1 || gameState.board.leftEnd === gameState.board.rightEnd) {
+      // Play immediately
       socket.emit('game:play_tile', {
         roomCode,
         tileId,
