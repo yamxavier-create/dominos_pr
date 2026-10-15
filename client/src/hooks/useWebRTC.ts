@@ -58,8 +58,19 @@ function humanPeers(): number[] {
   return players.filter(p => !p.isBot && p.index !== me).map(p => p.index)
 }
 
+/** "offer", "answer" or "cand relay/udp" — for the ?debug=call log. */
+function describeSignal({ desc, candidate }: { desc?: RTCSessionDescriptionInit | null; candidate?: RTCIceCandidateInit | null }) {
+  if (desc) return desc.type
+  const c = candidate?.candidate ?? ''
+  if (!c) return 'cand end'
+  const typ = / typ (\w+)/.exec(c)?.[1] ?? '?'
+  const proto = c.split(' ')[2]?.toLowerCase() ?? '?'
+  return `cand ${typ}/${proto}`
+}
+
 /** Every signal carries the seat layout it was meant for; the server drops stale ones. */
 function sendSignal(roomCode: string, payload: { to: number; desc?: RTCSessionDescription | null; candidate?: RTCIceCandidate }) {
+  console.log(`[WebRTC] → ${describeSignal(payload)} to ${payload.to}`)
   socket.emit('webrtc:signal', { roomCode, epoch: useRoomStore.getState().room?.callEpoch, ...payload })
 }
 
@@ -281,6 +292,7 @@ export function useWebRTC() {
     candidate,
   }: { from: number; desc?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit }) => {
     if (!sessionRef.current.isCurrent(sessionRef.current.current())) return
+    console.log(`[WebRTC] ← ${describeSignal({ desc, candidate })} from ${from}`)
     let pc = pcsRef.current[from]
     if (!pc) {
       console.log(`[WebRTC] Creating PC for incoming signal from peer ${from}`)

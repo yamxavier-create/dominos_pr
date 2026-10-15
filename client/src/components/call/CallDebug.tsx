@@ -3,6 +3,25 @@ import { peerConnectionsRef } from '../../hooks/useWebRTC'
 import { useCallStore } from '../../store/callStore'
 
 const FLAG = 'debug_call'
+const LOG_MAX = 40
+const callLog: string[] = []
+const t0 = Date.now()
+
+/** Mirror every [WebRTC] console line into a ring buffer the overlay shows. */
+function captureCallLog() {
+  for (const level of ['log', 'warn', 'error'] as const) {
+    const original = console[level].bind(console)
+    console[level] = (...args: unknown[]) => {
+      original(...args)
+      const first = args[0]
+      if (typeof first === 'string' && first.startsWith('[WebRTC]')) {
+        const text = args.map(a => typeof a === 'string' ? a : a instanceof Error ? a.message : String(a)).join(' ')
+        callLog.push(`${((Date.now() - t0) / 1000).toFixed(1)}s ${level === 'log' ? '' : level + ' '}${text.slice(9)}`)
+        if (callLog.length > LOG_MAX) callLog.shift()
+      }
+    }
+  }
+}
 
 /** On with ?debug=call, off with ?debug=off; remembered so it survives the home-screen app. */
 export function callDebugEnabled(): boolean {
@@ -10,7 +29,9 @@ export function callDebugEnabled(): boolean {
     const q = new URLSearchParams(location.search).get('debug')
     if (q === 'call') localStorage.setItem(FLAG, '1')
     if (q === 'off') localStorage.removeItem(FLAG)
-    return localStorage.getItem(FLAG) === '1'
+    const on = localStorage.getItem(FLAG) === '1'
+    if (on) captureCallLog()
+    return on
   } catch {
     return false
   }
@@ -23,6 +44,14 @@ async function describePeer(seat: number, pc: RTCPeerConnection, stream: MediaSt
   const stats = await pc.getStats()
   const byId = new Map<string, any>()
   stats.forEach((r: any) => byId.set(r.id, r))
+  const pairStates: Record<string, number> = {}
+  let localCands = 0, remoteCands = 0
+  stats.forEach((r: any) => {
+    if (r.type === 'candidate-pair') pairStates[r.state] = (pairStates[r.state] ?? 0) + 1
+    if (r.type === 'local-candidate') localCands++
+    if (r.type === 'remote-candidate') remoteCands++
+  })
+  lines.push(`  cands local=${localCands} remote=${remoteCands} pairs ${Object.entries(pairStates).map(([k, v]) => `${k}:${v}`).join(' ') || 'none'}`)
   stats.forEach((r: any) => {
     if (r.type === 'candidate-pair' && (r.nominated || r.selected) && r.state === 'succeeded') {
       const l = byId.get(r.localCandidateId), rem = byId.get(r.remoteCandidateId)
@@ -69,6 +98,7 @@ export function CallDebug() {
         const s = v.srcObject as MediaStream | null
         if (s) lines.push(`<video ${i}> ${v.videoWidth}x${v.videoHeight} paused=${v.paused} ready=${v.readyState} tracks=${s.getVideoTracks().length}`)
       })
+      if (callLog.length) lines.push('— log —', ...callLog.slice(-25))
       if (!stop) setText(lines.join('\n') || 'sin peers')
     }
     tick()
@@ -78,7 +108,7 @@ export function CallDebug() {
 
   return (
     <pre
-      className="fixed left-1 z-[9999] max-w-[95vw] max-h-[60vh] overflow-auto p-1.5 rounded bg-black/80 text-[9px] leading-tight text-lime-300 pointer-events-auto select-text whitespace-pre-wrap"
+      className="fixed left-1 z-[9999] max-w-[95vw] max-h-[70vh] overflow-auto p-1.5 rounded bg-black/80 text-[9px] leading-tight text-lime-300 pointer-events-auto select-text whitespace-pre-wrap"
       style={{ top: 'calc(48px + var(--safe-top, 0px))' }}
     >
       {text}
