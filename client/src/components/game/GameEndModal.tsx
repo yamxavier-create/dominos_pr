@@ -107,12 +107,12 @@ export function GameEndModal() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex overflow-y-auto bg-black/80 backdrop-blur-sm p-4">
       {/* Peek button — hides modal to reveal the final board */}
       <button
         onClick={() => setPeek(true)}
-        className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/50 border border-white/25 text-white/90 text-xs font-body font-bold active:scale-95 transition-transform"
-        style={{ backdropFilter: 'blur(8px)' }}
+        className="absolute right-4 flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/50 border border-white/25 text-white/90 text-xs font-body font-bold active:scale-95 transition-transform"
+        style={{ backdropFilter: 'blur(8px)', top: 'calc(16px + var(--safe-top))' }}
         aria-label="Ver mesa"
       >
         <span>👁</span>
@@ -120,7 +120,7 @@ export function GameEndModal() {
       </button>
       {/* Animated gradient border wrapper */}
       <div
-        className="modal-enter p-0.5 rounded-2xl w-full max-w-sm"
+        className="modal-enter m-auto p-0.5 rounded-2xl w-full max-w-sm"
         style={{
           background: `linear-gradient(135deg, ${winTeamColor}, #EAB308, ${winTeamColor})`,
           backgroundSize: '200% 200%',

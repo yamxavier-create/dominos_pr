@@ -547,3 +547,9 @@ body {
     padding-right: env(safe-area-inset-right);
   }
 }
+
+/* Hand-end bar: over the bottom buttons; a phone held sideways keeps its hand there, so the bar goes on top */
+.hand-end-bar { bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
+@media (orientation: landscape) and (max-height: 600px) {
+  .hand-end-bar { bottom: auto; top: calc(4px + var(--safe-top)); }
+}

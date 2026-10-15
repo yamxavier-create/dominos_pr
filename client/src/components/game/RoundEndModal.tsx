@@ -12,18 +12,23 @@ export function RoundEndModal() {
   const gameEndData = useGameStore(s => s.gameEndData)
   const gameState = useGameStore(s => s.gameState)
   const showRoundEnd = useUIStore(s => s.showRoundEnd)
-  const { setShowRoundEnd } = useUIStore()
+  const showGameEnd = useUIStore(s => s.showGameEnd)
+  const { setShowRoundEnd, setShowGameEnd } = useUIStore()
   const { clearRoundEnd } = useGameStore()
   const myPlayerIndex = useRoomStore(s => s.myPlayerIndex)
   const room = useRoomStore(s => s.room)
   const { startNextHand } = useGameActions()
 
-  const [peek, setPeek] = useState(false)
+  // The hand opens on the table, not the summary: everyone sees how it ended
+  // and opens the summary when ready
+  const [peek, setPeek] = useState(true)
   useEffect(() => {
-    if (!showRoundEnd) setPeek(false)
+    if (showRoundEnd) setPeek(true)
   }, [showRoundEnd])
 
-  if (!showRoundEnd || !roundEndData || gameEndData) return null
+  // The last hand of a game gets its summary too, before the final result
+  if (!showRoundEnd || !roundEndData || showGameEnd) return null
+  const isFinalHand = gameEndData !== null
 
   // BUG-02: compare hostSocketId to live socket.id — correct after host promotion
   const isHost = room?.hostSocketId === socket.id
@@ -33,6 +38,11 @@ export function RoundEndModal() {
     startNextHand()
     setShowRoundEnd(false)
     clearRoundEnd()
+  }
+
+  const handleShowResult = () => {
+    setShowRoundEnd(false)
+    setShowGameEnd(true)
   }
 
   const playerCount = gameState?.playerCount ?? 4
@@ -47,38 +57,50 @@ export function RoundEndModal() {
     ? 'from-primary/25 to-transparent'
     : 'from-accent/15 to-transparent'
 
+  const outcome = blocked ? 'Trancado' : weWon ? (is2Player ? 'Ganaste' : 'Ganamos') : (is2Player ? 'Perdiste' : 'Perdimos')
+  const handPoints = roundEndData.totalPointsScored + (roundEndData.passPointsThisHand ?? 0)
+
   if (peek) {
     return (
-      <button
-        onClick={() => setPeek(false)}
-        className="fixed z-40 bottom-6 left-1/2 -translate-x-1/2 px-5 py-3 rounded-full font-body font-bold text-white shadow-xl active:scale-95 transition-transform"
-        style={{
-          background: 'linear-gradient(135deg, #22C55E, #16a34a)',
-          paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))',
-        }}
+      <div
+        // A full-width band over the bottom button row (over the score sign on a
+        // phone held sideways, where the bottom row is your hand)
+        className="hand-end-bar fixed inset-x-0 z-40 flex justify-center px-3 pointer-events-none"
       >
-        Ver resumen
-      </button>
+        <div
+          className="pointer-events-auto flex items-center justify-between gap-3 w-full max-w-lg pl-4 pr-2 py-2 rounded-lg bg-club-strip font-club"
+          style={{ border: '2px solid #C9A24A', boxShadow: '0 6px 18px rgba(0,0,0,0.45)' }}
+          role="status"
+        >
+          <div className="min-w-0 leading-tight">
+            <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-club-muted">
+              {isFinalHand ? 'Última mano' : 'Fin de mano'}
+            </p>
+            <p className="text-base font-bold text-club-text truncate">
+              {outcome}{handPoints > 0 && <span className="text-club-brass"> · +{handPoints}</span>}
+            </p>
+          </div>
+          <button
+            onClick={() => setPeek(false)}
+            className="club-btn shrink-0 h-10 whitespace-nowrap font-club font-bold text-sm"
+            style={{ paddingInline: 18 }}
+          >
+            Ver resumen
+          </button>
+        </div>
+      </div>
     )
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-      <button
-        onClick={() => setPeek(true)}
-        className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/50 border border-white/25 text-white/90 text-xs font-body font-bold active:scale-95 transition-transform z-10"
-        style={{ backdropFilter: 'blur(8px)' }}
-        aria-label="Ver mesa"
-      >
-        <span>👁</span>
-        <span>Ver mesa</span>
-      </button>
-      <div className="modal-enter w-full max-w-sm shadow-2xl overflow-hidden rounded-2xl"
+    // Scrolls when the card is taller than the screen (phone landscape)
+    <div className="fixed inset-0 z-40 flex overflow-y-auto bg-black/75 backdrop-blur-sm p-4">
+      <div className="modal-enter m-auto w-full max-w-sm shadow-2xl overflow-hidden rounded-2xl"
         style={{ background: '#0F2318', border: '1px solid rgba(255,255,255,0.10)' }}
       >
         {/* Header */}
         <div className={`px-6 pt-6 pb-4 text-center bg-gradient-to-b ${headerGradient} flex flex-col items-center gap-1.5`}>
-          <GoldCaption>Fin de Mano</GoldCaption>
+          <GoldCaption>{isFinalHand ? 'Última mano' : 'Fin de Mano'}</GoldCaption>
           {blocked ? (
             <>
               <div className="text-4xl mb-0.5">🔒</div>
@@ -212,15 +234,25 @@ export function RoundEndModal() {
           </div>
         </div>
 
-        {/* Next hand button */}
-        <div className="px-6 pb-6 pt-3">
-          {isHost ? (
+        {/* Next hand (or the final result), and back to the table */}
+        <div className="px-6 pb-6 pt-3 flex flex-col gap-3">
+          {isFinalHand ? (
+            <GoldCTA onClick={handleShowResult} size="md">
+              VER RESULTADO
+            </GoldCTA>
+          ) : isHost ? (
             <GoldCTA onClick={handleNextHand} size="md">
               SIGUIENTE MANO
             </GoldCTA>
           ) : (
             <p className="text-center font-body text-white/40 text-sm">Esperando al host...</p>
           )}
+          <button
+            onClick={() => setPeek(true)}
+            className="club-btn h-10 w-full font-club font-bold text-sm"
+          >
+            Ver mesa
+          </button>
         </div>
       </div>
     </div>

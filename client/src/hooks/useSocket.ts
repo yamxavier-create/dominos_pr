@@ -207,7 +207,9 @@ export function useSocket() {
 
     socket.on('game:game_ended', (data: GameEndPayload) => {
       setGameEnd(data)
-      setTimeout(() => setShowGameEnd(true), 1500)
+      // After a last hand, its summary leads to the result (Ver resultado);
+      // a game that ends without one shows the result on its own
+      if (!useGameStore.getState().roundEndData) setTimeout(() => setShowGameEnd(true), 1500)
     })
 
     socket.on('game:rematch_vote_update', (data: RematchVoteUpdate) => {
