@@ -19,8 +19,12 @@ interface PlayerHandProps {
 // Phone portrait matches the «mesa de club» mock: 46px faces standing on the shelf
 const HAND_W = 46
 const HAND_H = 92
-const HAND_W_COMPACT = 24
-const HAND_H_COMPACT = 48
+// Phone landscape: the hand row has width to spare, the table needs the height
+const HAND_W_COMPACT = 36
+const HAND_H_COMPACT = 72
+// Two rows (drawing from the boneyard) would eat the table, so they stay small
+const HAND_W_COMPACT_ROWS = 24
+const HAND_H_COMPACT_ROWS = 48
 const HAND_W_LARGE = 46
 const HAND_H_LARGE = 92
 const DRAG_THRESHOLD = 10
@@ -88,8 +92,9 @@ function detectNearEnd(px: number, py: number): 'left' | 'right' | null {
 }
 
 export function PlayerHand({ tiles, validPlayIds, isMyTurn, forcedFirstTileId, compact, large }: PlayerHandProps) {
-  const handW = large ? HAND_W_LARGE : compact ? HAND_W_COMPACT : HAND_W
-  const handH = large ? HAND_H_LARGE : compact ? HAND_H_COMPACT : HAND_H
+  const compactRows = compact && tiles.length > MAX_PER_ROW
+  const handW = large ? HAND_W_LARGE : compactRows ? HAND_W_COMPACT_ROWS : compact ? HAND_W_COMPACT : HAND_W
+  const handH = large ? HAND_H_LARGE : compactRows ? HAND_H_COMPACT_ROWS : compact ? HAND_H_COMPACT : HAND_H
   const selectedTileId = useUIStore(s => s.selectedTileId)
   const { selectTile } = useGameActions()
 
