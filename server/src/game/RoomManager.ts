@@ -2,16 +2,25 @@ import { randomUUID, timingSafeEqual } from 'crypto'
 import { Room, GameMode, RoomPlayer } from './GameState'
 import { generateBotName, generateBotSocketId } from './BotPlayer'
 
-const PR_WORDS = ['COQUI', 'PALMA', 'FARO', 'PONCE', 'GALLO', 'CEIBA', 'PLAYA', 'MONTE', 'SALSA', 'BOMBA']
+// Short words so a code stays easy to say and type: COQUI482
+const PR_WORDS = [
+  'COQUI', 'PALMA', 'FARO', 'PONCE', 'GALLO', 'CEIBA', 'PLAYA', 'MONTE', 'SALSA', 'BOMBA',
+  'PLENA', 'GUIRO', 'MANGO', 'MAMEY', 'LARES', 'YAUCO', 'CIDRA', 'COAMO', 'LOIZA', 'COCO',
+]
 
 function generateRoomCode(existing: Set<string>): string {
   let code: string
   do {
     const word = PR_WORDS[Math.floor(Math.random() * PR_WORDS.length)]
-    const digits = Math.floor(1000 + Math.random() * 9000)
-    code = `${word}-${digits}`
+    const digits = Math.floor(100 + Math.random() * 900)
+    code = `${word}${digits}`
   } while (existing.has(code))
   return code
+}
+
+/** A code as people type it: any case, with spaces or a dash (old COQUI-1234 style). */
+export function normalizeRoomCode(input: string): string {
+  return input.toUpperCase().replace(/[^A-Z0-9]/g, '')
 }
 
 /** Proof of seat ownership: the authenticated userId or the seat's secret reconnect token. */

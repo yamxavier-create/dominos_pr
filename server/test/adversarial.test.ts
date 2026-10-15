@@ -207,8 +207,23 @@ describe('malformed payloads', () => {
     const socket = await connect()
     socket.emit('room:create', { playerName: 'Eva', gameMode: 'modo200' })
     const created = await waitFor(socket, 'room:created')
-    assert.match(created.roomCode, /^[A-Z]+-\d{4}$/)
+    assert.match(created.roomCode, /^[A-Z]{4,5}\d{3}$/)
     assert.deepEqual(h.processErrors, [])
+  })
+
+  test('room:join takes the code in lowercase, with spaces or a dash', async () => {
+    const host = await connect()
+    host.emit('room:create', { playerName: 'Host', gameMode: 'modo200' })
+    const { roomCode } = await waitFor(host, 'room:created')
+    const word = roomCode.slice(0, -3), digits = roomCode.slice(-3)
+    for (const typed of [roomCode.toLowerCase(), `${word} ${digits}`, `${word}-${digits}`]) {
+      const guest = await connect()
+      guest.emit('room:join', { roomCode: typed, playerName: 'Guest' })
+      const joined = await waitFor(guest, 'room:joined')
+      assert.equal(joined.roomCode, roomCode)
+      guest.emit('room:leave', { roomCode })
+      await sleep(50)
+    }
   })
 
   test('room:create rejects an unknown game mode', async () => {

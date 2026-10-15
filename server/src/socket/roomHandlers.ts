@@ -1,5 +1,5 @@
 import { Socket, Server } from 'socket.io'
-import { RoomManager } from '../game/RoomManager'
+import { RoomManager, normalizeRoomCode } from '../game/RoomManager'
 import { PresenceManager } from '../presence/PresenceManager'
 import { GameMode, Room } from '../game/GameState'
 import { buildClientGameState } from '../game/GameEngine'
@@ -80,7 +80,7 @@ export function registerRoomHandlers(socket: Socket, io: Server, rooms: RoomMana
     if (!isNonEmptyString(roomCode)) {
       return socket.emit('room:error', { code: 'ROOM_NOT_FOUND', message: 'Sala no encontrada o llena' })
     }
-    const code = roomCode.toUpperCase()
+    const code = normalizeRoomCode(roomCode)
     if (!rooms.getRoom(code)) {
       return socket.emit('room:error', { code: 'ROOM_NOT_FOUND', message: 'Sala no encontrada o llena' })
     }

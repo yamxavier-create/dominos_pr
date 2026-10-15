@@ -506,10 +506,13 @@ export function MainMenu() {
 
         <Input
           label="Código de sala"
-          placeholder="COQUI-1234"
+          placeholder="COQUI123"
           value={roomCode}
-          onChange={e => setRoomCode(e.target.value.toUpperCase())}
-          maxLength={10}
+          onChange={e => setRoomCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+          maxLength={8}
+          autoCapitalize="characters"
+          autoCorrect="off"
+          spellCheck={false}
           onKeyDown={e => e.key === 'Enter' && handleJoin()}
         />
 
