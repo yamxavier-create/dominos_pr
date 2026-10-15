@@ -55,8 +55,11 @@ export function AvatarVideo({
   const borderColor = isCurrentTurn ? '#C9A24A' : isSpeaking ? '#F1E3C2' : 'rgba(241, 227, 194, 0.45)'
 
   return (
+    // Same box as CameraSeat: Safari paints a remote WebRTC video black when it
+    // sits in flow inside a rounded overflow-hidden box; positioned inside its
+    // own containment it draws
     <div
-      className="overflow-hidden flex-shrink-0"
+      className="relative overflow-hidden flex-shrink-0 [container-type:inline-size]"
       style={{
         width: size,
         height: size,
@@ -72,7 +75,7 @@ export function AvatarVideo({
           autoPlay
           playsInline
           muted
-          className="w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover"
         />
       ) : (
         <div
