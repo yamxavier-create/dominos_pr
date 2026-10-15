@@ -14,6 +14,8 @@ interface PlayerHandProps {
   forcedFirstTileId: string | null
   compact?: boolean
   large?: boolean
+  /** Tablet held upright: the phone layout with room for bigger tiles */
+  tablet?: boolean
 }
 
 // Phone portrait matches the «mesa de club» mock: 46px faces standing on the shelf
@@ -27,6 +29,8 @@ const HAND_W_COMPACT_ROWS = 24
 const HAND_H_COMPACT_ROWS = 48
 const HAND_W_LARGE = 46
 const HAND_H_LARGE = 92
+const HAND_W_TABLET = 60
+const HAND_H_TABLET = 120
 const DRAG_THRESHOLD = 10
 const DROP_RADIUS = 80 // px proximity to snap to an end tile
 const MAX_PER_ROW = 7
@@ -91,10 +95,10 @@ function detectNearEnd(px: number, py: number): 'left' | 'right' | null {
   return bestEnd
 }
 
-export function PlayerHand({ tiles, validPlayIds, isMyTurn, forcedFirstTileId, compact, large }: PlayerHandProps) {
+export function PlayerHand({ tiles, validPlayIds, isMyTurn, forcedFirstTileId, compact, large, tablet }: PlayerHandProps) {
   const compactRows = compact && tiles.length > MAX_PER_ROW
-  const handW = large ? HAND_W_LARGE : compactRows ? HAND_W_COMPACT_ROWS : compact ? HAND_W_COMPACT : HAND_W
-  const handH = large ? HAND_H_LARGE : compactRows ? HAND_H_COMPACT_ROWS : compact ? HAND_H_COMPACT : HAND_H
+  const handW = tablet ? HAND_W_TABLET : large ? HAND_W_LARGE : compactRows ? HAND_W_COMPACT_ROWS : compact ? HAND_W_COMPACT : HAND_W
+  const handH = tablet ? HAND_H_TABLET : large ? HAND_H_LARGE : compactRows ? HAND_H_COMPACT_ROWS : compact ? HAND_H_COMPACT : HAND_H
   const selectedTileId = useUIStore(s => s.selectedTileId)
   const { selectTile } = useGameActions()
 

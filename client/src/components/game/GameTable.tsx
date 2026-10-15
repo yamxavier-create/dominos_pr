@@ -157,7 +157,11 @@ export function GameTable() {
   }, [showRoundEnd, setShowScoreHistory])
 
   const isLandscape = useIsLandscape()
-  const isDesktop = useIsDesktop()
+  // A tablet held upright (1024×1366) is big but tall: it gets the phone's
+  // portrait layout with the camera row, not the desktop one with small avatars
+  const bigScreen = useIsDesktop()
+  const isDesktop = bigScreen && isLandscape
+  const tabletPortrait = bigScreen && !isLandscape
   // Compact layout is for phones held sideways; a desktop screen is landscape but has room
   const compact = isLandscape && !isDesktop
   const handleScoreBarClick = () => setShowScoreHistory(!showScoreHistory)
@@ -232,7 +236,7 @@ export function GameTable() {
   const board_ = (
     <div className={`club-rail min-h-0 ${portrait || compact ? 'flex-1' : 'w-full h-full'}`} style={compact ? { padding: 6, borderRadius: 10 } : undefined}>
       <div className="club-felt relative overflow-hidden w-full h-full" data-board>
-        <GameBoard board={board} allowZoom={isDesktop} />
+        <GameBoard board={board} allowZoom={bigScreen} />
         {!portrait && <TurnIndicator playerName={currentPlayerName} isMyTurn={isMyTurn} />}
         {is2Player && (
           <BoneyardPile
@@ -284,6 +288,7 @@ export function GameTable() {
       forcedFirstTileId={forcedFirstTileId}
       compact={compact}
       large={isDesktop}
+      tablet={tabletPortrait}
     />
   )
 
