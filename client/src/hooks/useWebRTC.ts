@@ -90,6 +90,7 @@ export function useWebRTC() {
   const roomCode = useRoomStore.getState().roomCode
 
   const pcsRef = useRef<Record<number, RTCPeerConnection>>({})
+  peerConnectionsRef.current = () => pcsRef.current
   const makingOfferRef = useRef<Record<number, boolean>>({})
   const ignoreOfferRef = useRef<Record<number, boolean>>({})
   const localStreamRef = useRef<MediaStream | null>(null)
@@ -475,6 +476,11 @@ export function useWebRTC() {
   }, [])
 
   return { handleSignal, cleanup, joinCall }
+}
+
+/** The live peer connections, for the ?debug=call overlay. */
+export const peerConnectionsRef = {
+  current: (() => ({})) as () => Record<number, RTCPeerConnection>
 }
 
 export const signalHandlerRef = {

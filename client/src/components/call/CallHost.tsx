@@ -3,6 +3,9 @@ import { useWebRTC } from '../../hooks/useWebRTC'
 import { useSpeakingDetection } from '../../hooks/useSpeakingDetection'
 import { useCallStore } from '../../store/callStore'
 import { useRoomStore } from '../../store/roomStore'
+import { CallDebug, callDebugEnabled } from './CallDebug'
+
+const showDebug = callDebugEnabled()
 
 function RemoteAudio({ stream }: { stream: MediaStream | null }) {
   const audioRef = useRef<HTMLAudioElement>(null)
@@ -29,9 +32,10 @@ export function CallHost() {
 
   useSpeakingDetection(remoteStreams, localStream, myPlayerIndex)
 
-  if (!inCall) return null
+  if (!inCall) return showDebug ? <CallDebug /> : null
   return (
     <>
+      {showDebug && <CallDebug />}
       {Object.entries(remoteStreams).map(([idx, stream]) => (
         <RemoteAudio key={`audio-${idx}`} stream={stream} />
       ))}
