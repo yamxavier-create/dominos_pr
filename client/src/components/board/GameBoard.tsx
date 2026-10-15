@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect, useState, useMemo } from 'react'
 import { BoardState, BoardTile as BoardTileType } from '../../types/game'
 import { BoardTileItem, TILE_H_W, TILE_H_H, TILE_V_W, TILE_V_H } from './BoardTile'
 import { useGameStore } from '../../store/gameStore'
@@ -7,9 +7,29 @@ import { useUIStore } from '../../store/uiStore'
 const GAP = 1
 // Snake widths tried for each board: from 3 tiles per row up to a single long line
 const SNAKE_WIDTHS = Array.from({ length: 24 }, (_, i) => 240 + i * 80)
-// Keep the current width unless another one makes the tiles this much bigger,
-// so the snake doesn't reflow on every play over a few pixels
-const REFLOW_GAIN = 1.08
+// The snake width is fixed per board size, so the snake bends where it will
+// bend for the rest of the hand instead of starting as a straight line and
+// reflowing once it gets too long. It's picked against a reference hand that
+// grows to both ends with a few doubles, sampled from 8 to 24 tiles.
+const REFERENCE_SIDES = 'RLRLRRLLRLRLRRLLRLRLRLRL'
+const REFERENCE_DOUBLES = [0, 5, 11]
+const REFERENCE_HANDS: BoardTileType[][] = (() => {
+  const hands: BoardTileType[][] = []
+  let tiles: BoardTileType[] = []
+  for (let k = 0; k < REFERENCE_SIDES.length; k++) {
+    const bt: BoardTileType = {
+      tile: { id: `ref-${k}`, high: 0, low: 0, isDouble: false },
+      orientation: REFERENCE_DOUBLES.includes(k) ? 'vertical' : 'horizontal',
+      leftPip: 0,
+      rightPip: 0,
+      playedByIndex: 0,
+      sequence: k,
+    }
+    tiles = REFERENCE_SIDES[k] === 'L' ? [bt, ...tiles] : [...tiles, bt]
+    if (tiles.length >= 8 && tiles.length % 2 === 0) hands.push(tiles)
+  }
+  return hands
+})()
 const EDGE_INSET = 14 // the felt's brass lip plus breathing room
 
 interface TilePos { x: number; y: number }
@@ -328,22 +348,20 @@ function fitLayout(tiles: BoardTileType[], snakeW: number, boardW: number, board
   }
 }
 
-/**
- * Pick the snake width that draws the tiles biggest on this board. Among
- * near-equal widths the widest wins (fewer bends), and the previous width
- * stays until another one is clearly better.
- */
-function bestLayout(tiles: BoardTileType[], boardW: number, boardH: number, prevW: number | null): FittedLayout {
-  let best: FittedLayout | null = null
+/** Pick the snake width that draws the reference hand biggest, on average, on this board */
+function snakeWidthFor(boardW: number, boardH: number): number {
+  let bestW = SNAKE_WIDTHS[0]
+  let bestScore = -Infinity
   for (const w of SNAKE_WIDTHS) {
-    const fit = fitLayout(tiles, w, boardW, boardH)
-    if (!best || fit.scale >= best.scale * 0.995) best = fit
+    let score = 0
+    for (const hand of REFERENCE_HANDS) score += fitLayout(hand, w, boardW, boardH).scale
+    // Among near-equal widths the widest wins (fewer bends)
+    if (score >= bestScore * 0.995) {
+      bestW = w
+      bestScore = Math.max(bestScore, score)
+    }
   }
-  if (prevW !== null) {
-    const kept = fitLayout(tiles, prevW, boardW, boardH)
-    if (kept.scale * REFLOW_GAIN >= best!.scale) return kept
-  }
-  return best!
+  return bestW
 }
 
 interface GameBoardProps {
@@ -356,7 +374,13 @@ export function GameBoard({ board, allowZoom }: GameBoardProps) {
   const [dims, setDims] = useState({ w: 0, h: 0 })
   const lastTileSequence = useGameStore(s => s.lastTileSequence)
   const flyingTileId = useUIStore(s => s.flyingTile?.tileId ?? null)
-  const snakeWRef = useRef<number | null>(null)
+
+  // On big screens, lay the snake out in a smaller virtual board and scale it up,
+  // so tiles grow with the table instead of staying phone-sized in the middle
+  const zoom = allowZoom ? Math.min(1.6, Math.max(1, Math.min(dims.w / 760, dims.h / 480))) : 1
+  const vw = dims.w / zoom
+  const vh = dims.h / zoom
+  const snakeW = useMemo(() => snakeWidthFor(vw, vh), [vw, vh])
 
   useEffect(() => {
     const el = containerRef.current
@@ -370,7 +394,6 @@ export function GameBoard({ board, allowZoom }: GameBoardProps) {
   }, [])
 
   if (board.tiles.length === 0) {
-    snakeWRef.current = null
     return (
       <div ref={containerRef} className="w-full h-full flex items-center justify-center">
         <div className="text-center">
@@ -385,14 +408,7 @@ export function GameBoard({ board, allowZoom }: GameBoardProps) {
     return <div ref={containerRef} className="w-full h-full" />
   }
 
-  // On big screens, lay the snake out in a smaller virtual board and scale it up,
-  // so tiles grow with the table instead of staying phone-sized in the middle
-  const zoom = allowZoom ? Math.min(1.6, Math.max(1, Math.min(dims.w / 760, dims.h / 480))) : 1
-  const vw = dims.w / zoom
-  const vh = dims.h / zoom
-
-  const fitted = bestLayout(board.tiles, vw, vh, snakeWRef.current)
-  snakeWRef.current = fitted.snakeW
+  const fitted = fitLayout(board.tiles, snakeW, vw, vh)
   const { layout } = fitted
   const scale = fitted.scale * zoom
   // Center the snake's bounding box on the board, not the first tile
