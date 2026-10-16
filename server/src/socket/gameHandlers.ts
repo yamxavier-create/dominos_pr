@@ -277,6 +277,12 @@ function processAutoPassCascade(
   // counts as a point — it was caused by their own teammate's play.
   // In 2-player mode there are no partners, so partnerOfTilePlayer = -1 (no partner).
   const partnerOfTilePlayer = is2Player ? -1 : (tilePlayerIndex + 2) % 4
+  // A tranque: nobody can play and there's nothing to draw. The passes that close
+  // it are part of the tranque, not passes, so they award no bonus — the hand is
+  // scored by handleBlockedGame (+2 to the team that closed it, then the pips).
+  const tranque = game.boneyard.length === 0 && game.players.every(p =>
+    getValidPlays(p.tiles, game.board, game.firstPlayMade, game.forcedFirstTileId).length === 0
+  )
 
   for (let i = 0; i < playerCount; i++) {
     const validPlays = getValidPlays(
@@ -302,7 +308,7 @@ function processAutoPassCascade(
 
     // Auto-pass this player (boneyard empty and no valid plays)
     let passBonusAwarded: number | null = null
-    if (game.gameMode === 'modo200') {
+    if (game.gameMode === 'modo200' && !tranque) {
       const isPartnerPass = idx === partnerOfTilePlayer
 
       if (!isPartnerPass) {

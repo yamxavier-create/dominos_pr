@@ -161,8 +161,8 @@ export function setupTestServer(roomOptions: RoomManagerOptions = {}) {
     return { roomCode, room: rooms.getRoom(roomCode)!, seats }
   }
 
-  async function startFourPlayerGame(specs: SeatSpec[] = FOUR_PLAYERS) {
-    const { roomCode, seats } = await createLobby(specs)
+  async function startFourPlayerGame(specs: SeatSpec[] = FOUR_PLAYERS, gameMode = 'modo500') {
+    const { roomCode, seats } = await createLobby(specs, gameMode)
     const started = seats.map(s => waitFor(s.socket, 'game:started'))
     seats[0].socket.emit('game:start', { roomCode })
     await Promise.all(started)
