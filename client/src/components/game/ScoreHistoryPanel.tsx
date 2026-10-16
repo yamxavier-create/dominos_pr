@@ -69,12 +69,12 @@ export function ScoreHistoryPanel({ isOpen, entries, myPlayerIndex, playerCount 
                     Trancado
                   </span>
                 )}
-                {gameMode !== 'modo200' && entry.data.isCapicu && (
+                {gameMode === 'modo500' && entry.data.isCapicu && (
                   <span className="bg-gold text-bg font-bold text-[10px] px-1.5 py-0.5 rounded-full shrink-0">
                     Capicú
                   </span>
                 )}
-                {gameMode !== 'modo200' && entry.data.isChuchazo && (
+                {gameMode === 'modo500' && entry.data.isChuchazo && (
                   <span className="bg-accent text-club-text font-bold text-[10px] px-1.5 py-0.5 rounded-full shrink-0">
                     Chuchazo
                   </span>

@@ -307,6 +307,7 @@ export function GameTable() {
           gameMode={gameMode}
           targetScore={targetScore}
           handNumber={handNumber}
+          timeLeftMs={gameState.timeLeftMs}
           onClick={handleScoreBarClick}
           isOpen={showScoreHistory}
           compact={compact}

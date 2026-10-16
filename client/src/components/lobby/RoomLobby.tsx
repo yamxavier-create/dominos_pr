@@ -10,6 +10,8 @@ import { GoldCTA, GoldCaption, Starburst } from '../ui/GoldCTA'
 import { joinCallRef } from '../../hooks/useWebRTC'
 import { useVideoStream } from '../player/AvatarVideo'
 import { useCallToggles, MicIcon, CameraIcon } from '../player/CallControls'
+import { RulesModal } from './RulesModal'
+import { MODE_NAMES, RULE_KEYS, RULE_OPTIONS, editableRules, ruleValueLabel } from '../../rules'
 
 const teamColors = ['#22C55E', '#F97316', '#22C55E', '#F97316']
 const seatLabels = ['Host', 'Jugador 2', 'Jugador 3', 'Jugador 4']
@@ -146,6 +148,15 @@ export function RoomLobby() {
   const [selectedSeat, setSelectedSeat] = useState<number | null>(null)
   const [showInvite, setShowInvite] = useState(false)
   const [invitedIds, setInvitedIds] = useState<Set<string>>(new Set())
+  const [showRules, setShowRules] = useState(false)
+  // The host sees the rules once when a room opens, before anyone starts
+  const rulesShownFor = useRef<string | null>(null)
+  const hostOfNewRoom = myPlayerIndex === 0 && room?.status === 'waiting' && room.players.length === 1
+  useEffect(() => {
+    if (!room || !hostOfNewRoom || rulesShownFor.current === room.roomCode) return
+    rulesShownFor.current = room.roomCode
+    if (editableRules(room.gameMode).length > 0) setShowRules(true)
+  }, [room?.roomCode, hostOfNewRoom])
   const lobbyOpts = useCallStore(s => s.lobbyOpts)
   const mutedPeers = useCallStore(s => s.mutedPeers)
   const myMicMuted = useCallStore(s => s.micMuted)
@@ -216,7 +227,7 @@ export function RoomLobby() {
             {room.roomCode}
           </p>
           <p className="font-body text-white/40 text-xs mt-2">
-            Modo: <span style={{ color: '#22C55E' }}>{room.gameMode === 'modo200' ? 'Modo 200 (20 pts)' : 'Modo 500'}</span>
+            Modo: <span style={{ color: '#22C55E' }}>{room.gameMode === 'modo200' ? 'Modo 200 (20 pts)' : MODE_NAMES[room.gameMode]}</span>
           </p>
         </div>
       </div>
@@ -394,6 +405,37 @@ export function RoomLobby() {
             </div>
           )}
         </div>
+      )}
+
+      {/* House rules: the host changes them, everyone can read them */}
+      {room.rules && (
+        <button
+          onClick={() => setShowRules(true)}
+          className="w-full rounded-xl px-3 py-2.5 text-left transition-all btn-outline-shine flex items-center gap-3"
+        >
+          <span className="flex-1 min-w-0">
+            <span className="block font-body text-white/80 text-sm font-semibold">Reglas de la mesa</span>
+            <span className="block font-body text-white/45 text-xs truncate">
+              {room.gameMode === 'torneo'
+                ? 'Reglas oficiales del torneo'
+                : RULE_KEYS.filter(key => editableRules(room.gameMode).includes(key))
+                    .map(key => `${RULE_OPTIONS[key].title}: ${ruleValueLabel(key, room.rules[key]).toLowerCase()}`)
+                    .join(' · ')}
+            </span>
+          </span>
+          <span className="font-body text-gold text-xs font-bold shrink-0">
+            {isHost && editableRules(room.gameMode).length > 0 ? 'Cambiar' : 'Ver'}
+          </span>
+        </button>
+      )}
+
+      {showRules && room.rules && (
+        <RulesModal
+          gameMode={room.gameMode}
+          rules={room.rules}
+          canEdit={isHost && room.status === 'waiting'}
+          onClose={() => setShowRules(false)}
+        />
       )}
 
       <div className="gold-divider" />

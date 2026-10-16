@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { API_BASE } from '../apiBase'
+import { MODE_SHORT } from '../rules'
+import { GameMode } from '../types/game'
 
 type Tab = 'stats' | 'history' | 'leaderboard'
 
@@ -134,7 +136,7 @@ export function StatsPage() {
                   <div>
                     <p className="font-body text-white text-sm font-semibold">
                       {g.won ? '✓ Victoria' : '✗ Derrota'}
-                      <span className="text-white/30 font-normal ml-2">{g.gameMode === 'modo200' ? 'M·200' : 'M·500'}</span>
+                      <span className="text-white/30 font-normal ml-2">{MODE_SHORT[g.gameMode as GameMode] ?? g.gameMode}</span>
                       {g.ranked === false && <span className="text-white/30 font-normal ml-2">· Práctica (no cuenta)</span>}
                     </p>
                     <p className="font-body text-white/30 text-xs mt-0.5">

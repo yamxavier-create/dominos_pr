@@ -7,6 +7,7 @@ import {
   TeamScores,
   GameMode,
 } from './GameState'
+import { gameTimeLeftMs } from './rules'
 
 // ─── Tile Generation ──────────────────────────────────────────────────────────
 
@@ -354,7 +355,7 @@ export function applyScore(
   scores: TeamScores,
   winningTeam: 0 | 1,
   points: number,
-  targetScore: 20 | 500
+  targetScore: number
 ): { updatedScores: TeamScores; gameOver: boolean } {
   const updatedScores: TeamScores = {
     team0: winningTeam === 0 ? scores.team0 + points : scores.team0,
@@ -365,7 +366,7 @@ export function applyScore(
 }
 
 /** Check if current scores have already reached target (from mid-hand bonuses) */
-export function scoresReachedTarget(scores: TeamScores, targetScore: 20 | 500): boolean {
+export function scoresReachedTarget(scores: TeamScores, targetScore: number): boolean {
   return scores.team0 >= targetScore || scores.team1 >= targetScore
 }
 
@@ -386,6 +387,8 @@ export function buildClientGameState(
     roomCode: game.roomCode,
     gameMode: game.gameMode,
     targetScore: game.targetScore,
+    rules: game.rules,
+    timeLeftMs: gameTimeLeftMs(game),
     phase: game.phase,
     handNumber: game.handNumber,
     myPlayerIndex: forPlayerIndex,

@@ -2,6 +2,7 @@ import { Socket, Server } from 'socket.io'
 import { randomUUID } from 'crypto'
 import { persistMatchResult, matchResultFrom } from '../stats/persistMatch'
 import { RoomManager } from '../game/RoomManager'
+import { targetScoreFor, gameTimeLeftMs } from '../game/rules'
 import { chooseBotPlay, isBotSocketId, BOT_THINK_DELAY, BOT_DRAW_DELAY } from '../game/BotPlayer'
 import {
   ServerGameState,
@@ -23,7 +24,6 @@ import {
   calculateBlockedResult,
   calculateMode500Bonuses,
   applyPassBonus200,
-  applyScore,
   scoresReachedTarget,
   isCapicu,
   isChuchazo,
@@ -97,60 +97,13 @@ function executeBotPlay(io: Server, game: ServerGameState, rooms: RoomManager) {
 
   // Check if bot won the hand (played out)
   if (player.tiles.length === 0) {
-    const winningTeam = player.index % 2 as 0 | 1
-    let pointsScored: number
-    let blockBonusPoints = 0
-
-    const rawPips = calculatePlayOutPoints(game.players, player.index)
-    if (game.gameMode === 'modo200') {
-      pointsScored = pipsToModo200Points(rawPips)
-    } else {
-      pointsScored = rawPips
-      blockBonusPoints = calculateMode500Bonuses(game.handNumber, capicuTriggered, chuchazoTriggered)
-    }
-
-    const { updatedScores, gameOver } = applyScore(game.scores, winningTeam, pointsScored + blockBonusPoints, game.targetScore)
-    game.scores = updatedScores
-    game.phase = 'round_end'
-
     broadcastStateWithAction(io, game, {
       type: 'play_tile',
       playerIndex: player.index,
       tile,
       targetEnd,
     })
-
-    io.to(game.roomCode).emit('game:round_ended', {
-      reason: 'played_out',
-      winnerIndex: player.index,
-      winningTeam,
-      rawPipCount: rawPips,
-      pointsFromPips: pointsScored,
-      bonusPoints: blockBonusPoints,
-      totalPointsScored: pointsScored + blockBonusPoints,
-      remainingTiles: game.players.map(p => ({
-        playerIndex: p.index,
-        playerName: p.name,
-        tiles: p.tiles,
-        pipSum: handPipSum(p.tiles),
-      })),
-      isCapicu: capicuTriggered,
-      isChuchazo: chuchazoTriggered,
-      scores: updatedScores,
-      passPointsThisHand: game.passPointsThisHand,
-      nextStarterIndex: player.index,
-    })
-
-    if (gameOver) {
-      game.phase = 'game_end'
-      const winTeam = updatedScores.team0 >= game.targetScore ? 0 : 1
-      io.to(game.roomCode).emit('game:game_ended', {
-        winningTeam: winTeam,
-        finalScores: updatedScores,
-        totalRounds: game.handNumber,
-      })
-      persistMatchResult(matchResultFrom(game, winTeam))
-    }
+    finishPlayedOutHand(io, game, player.index, capicuTriggered, chuchazoTriggered)
     return
   }
 
@@ -308,7 +261,7 @@ function processAutoPassCascade(
 
     // Auto-pass this player (boneyard empty and no valid plays)
     let passBonusAwarded: number | null = null
-    if (game.gameMode === 'modo200' && !tranque) {
+    if (game.rules.passPoints && !tranque) {
       const isPartnerPass = idx === partnerOfTilePlayer
 
       if (!isPartnerPass) {
@@ -357,89 +310,149 @@ function processAutoPassCascade(
 }
 
 function handleBlockedGame(io: Server, game: ServerGameState): boolean {
-  const isModo200 = game.gameMode === 'modo200'
-  let gameOver = false
+  const { rules } = game
 
-  // Modo 200: +2 for team that caused the block (last tile player)
+  // +2 for the team that closed the tranque (last tile played)
   let blockBonusPoints = 0
-  if (isModo200) {
+  if (rules.blockBonus) {
     const lastTile = game.board.tiles.reduce((a, b) => a.sequence > b.sequence ? a : b)
-    const blockingTeam = playerTeam(lastTile.playedByIndex)
     blockBonusPoints = 2
-    const blockResult = applyScore(game.scores, blockingTeam, 2, game.targetScore)
-    game.scores = blockResult.updatedScores
-    if (blockResult.gameOver) gameOver = true
+    game.scores = addPoints(game.scores, playerTeam(lastTile.playedByIndex), blockBonusPoints)
   }
 
-  // Determine winner — Modo 200 uses individual pips, Modo 500 uses team sums
-  let winnerIndex: number | null = null
-  let winningTeam: 0 | 1 | null
-  let rawPips: number
-  let pointsScored: number
+  // Individual: the lightest hand wins. Pareja: the lighter team sum wins.
+  const result = rules.tranque === 'individual'
+    ? calculateBlockedResult200(game.players)
+    : calculateBlockedResult(game.players)
+  let { winnerIndex, winningTeam } = result
+  let rawPips = result.pointsScored
 
-  if (isModo200) {
-    const result = calculateBlockedResult200(game.players)
-    winnerIndex = result.winnerIndex
-    winningTeam = result.winningTeam
-    rawPips = result.pointsScored
-    pointsScored = pipsToModo200Points(rawPips)
-  } else {
-    const result = calculateBlockedResult(game.players)
-    winnerIndex = result.winnerIndex
-    winningTeam = result.winningTeam
-    rawPips = result.pointsScored
-    pointsScored = rawPips
+  // A tied tranque goes to the team that led the hand, if the table plays it that way
+  if (winningTeam === null && rules.tiedTranque === 'salida') {
+    winnerIndex = game.handStarterIndex
+    winningTeam = playerTeam(winnerIndex)
+    rawPips = game.players
+      .filter(p => rules.tranque === 'individual' ? p.index !== winnerIndex : playerTeam(p.index) !== winningTeam)
+      .reduce((sum, p) => sum + handPipSum(p.tiles), 0)
   }
 
-  // Apply winner's points
-  let updatedScores = { ...game.scores }
-  if (winningTeam !== null) {
-    const scoreResult = applyScore(game.scores, winningTeam, pointsScored, game.targetScore)
-    updatedScores = scoreResult.updatedScores
-    if (scoreResult.gameOver) gameOver = true
-    game.scores = updatedScores
-  }
+  const pointsFromPips = winningTeam === null ? 0 : scaledPips(game, rawPips)
+  if (winningTeam !== null) game.scores = addPoints(game.scores, winningTeam, pointsFromPips)
 
-  // Winner of blocked hand starts next (individual winner in Modo 200)
-  const nextStarter = winnerIndex ?? game.handStarterIndex
-  game.handStarterIndex = nextStarter
-  if (gameOver) game.gameWinnerIndex = nextStarter
-
-  game.phase = gameOver ? 'game_end' : 'round_end'
-
-  io.to(game.roomCode).emit('game:round_ended', {
+  endHand(io, game, {
     reason: 'blocked',
     winnerIndex,
     winningTeam,
     rawPipCount: rawPips,
-    pointsFromPips: pointsScored,
+    pointsFromPips,
     bonusPoints: blockBonusPoints,
-    totalPointsScored: pointsScored + blockBonusPoints,
+    isCapicu: false,
+    isChuchazo: false,
+  })
+  return true
+}
+
+/** A player emptied their hand: their team scores every pip left on the table */
+function finishPlayedOutHand(io: Server, game: ServerGameState, winnerIndex: number, isCapicu: boolean, isChuchazo: boolean) {
+  const winningTeam = playerTeam(winnerIndex)
+  const rawPips = calculatePlayOutPoints(game.players, winnerIndex)
+  const pointsFromPips = scaledPips(game, rawPips)
+  const bonusPoints = game.gameMode === 'modo500'
+    ? calculateMode500Bonuses(game.handNumber, isCapicu, isChuchazo)
+    : 0
+  game.scores = addPoints(game.scores, winningTeam, pointsFromPips + bonusPoints)
+
+  endHand(io, game, {
+    reason: 'played_out',
+    winnerIndex,
+    winningTeam,
+    rawPipCount: rawPips,
+    pointsFromPips,
+    bonusPoints,
+    isCapicu,
+    isChuchazo,
+  })
+}
+
+/** Modo 200 counts pips in tens (A 20); the other modes count them as they are */
+function scaledPips(game: ServerGameState, rawPips: number): number {
+  return game.gameMode === 'modo200' ? pipsToModo200Points(rawPips) : rawPips
+}
+
+function addPoints(scores: TeamScores, team: 0 | 1, points: number): TeamScores {
+  return {
+    team0: team === 0 ? scores.team0 + points : scores.team0,
+    team1: team === 1 ? scores.team1 + points : scores.team1,
+  }
+}
+
+/**
+ * Who leads the next hand. Torneo rotates (reglamento DRD: "la rotación
+ * continúa"); the other modes give it to the hand's winner, or keep the same
+ * leader after a tied tranque.
+ */
+function nextHandStarter(game: ServerGameState, winnerIndex: number | null): number {
+  if (game.gameMode === 'torneo') return nextPlayerIndex(game.handStarterIndex, game.players.length)
+  return winnerIndex ?? game.handStarterIndex
+}
+
+/**
+ * The team that wins the game after this hand, or null to keep playing.
+ * A team reaching the target wins. In Torneo, once the clock runs out the team
+ * ahead wins; if they're tied, another hand breaks the tie.
+ */
+function gameWinningTeam(game: ServerGameState, handTeam: 0 | 1 | null): 0 | 1 | null {
+  const { team0, team1 } = game.scores
+  const reached = team0 >= game.targetScore || team1 >= game.targetScore
+  const timeUp = gameTimeLeftMs(game) === 0
+  if (!reached && !timeUp) return null
+  if (team0 !== team1) return team0 > team1 ? 0 : 1
+  // Both reached the target tied (tranque bonus to one team, pips to the other)
+  return reached ? handTeam ?? 0 : null
+}
+
+interface HandResult {
+  reason: 'played_out' | 'blocked'
+  winnerIndex: number | null
+  winningTeam: 0 | 1 | null
+  rawPipCount: number
+  pointsFromPips: number
+  bonusPoints: number
+  isCapicu: boolean
+  isChuchazo: boolean
+}
+
+/** Close the hand with game.scores already updated: pick the next leader, tell the room, end the game if it's over */
+function endHand(io: Server, game: ServerGameState, hand: HandResult) {
+  const nextStarter = nextHandStarter(game, hand.winnerIndex)
+  game.handStarterIndex = nextStarter
+  const winTeam = gameWinningTeam(game, hand.winningTeam)
+  game.phase = winTeam === null ? 'round_end' : 'game_end'
+  // The last hand's winner leads the next game
+  if (winTeam !== null) game.gameWinnerIndex = hand.winnerIndex ?? nextStarter
+
+  io.to(game.roomCode).emit('game:round_ended', {
+    ...hand,
+    totalPointsScored: hand.pointsFromPips + hand.bonusPoints,
     remainingTiles: game.players.map(p => ({
       playerIndex: p.index,
       playerName: p.name,
       tiles: p.tiles,
       pipSum: handPipSum(p.tiles),
     })),
-    isCapicu: false,
-    isChuchazo: false,
-    scores: updatedScores,
+    scores: game.scores,
     passPointsThisHand: game.passPointsThisHand,
     nextStarterIndex: nextStarter,
   })
 
-  if (gameOver) {
-    game.phase = 'game_end'
-    const winTeam = updatedScores.team0 >= game.targetScore ? 0 : 1
+  if (winTeam !== null) {
     io.to(game.roomCode).emit('game:game_ended', {
       winningTeam: winTeam,
-      finalScores: updatedScores,
+      finalScores: game.scores,
       totalRounds: game.handNumber,
     })
     persistMatchResult(matchResultFrom(game, winTeam))
   }
-
-  return true
 }
 
 function handleGameEnd(io: Server, game: ServerGameState): boolean {
@@ -543,7 +556,8 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
       startedAt: Date.now(),
       roomCode: room.roomCode,
       gameMode: room.gameMode,
-      targetScore: room.gameMode === 'modo200' ? 20 : 500,
+      targetScore: targetScoreFor(room.gameMode),
+      rules: { ...room.rules },
       phase: 'playing',
       handNumber: 1,
       players: [...room.players].sort((a, b) => a.seatIndex - b.seatIndex).map((rp, i) => ({
@@ -642,28 +656,6 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
 
     // Check if this player won (emptied hand)
     if (player.tiles.length === 0) {
-      const winningTeam = playerTeam(player.index)
-      const rawPips = calculatePlayOutPoints(game.players, player.index)
-      const pipsFromOthers = game.gameMode === 'modo200' ? pipsToModo200Points(rawPips) : rawPips
-
-      let bonusPoints = 0
-      if (game.gameMode === 'modo500') {
-        bonusPoints = calculateMode500Bonuses(game.handNumber, capicuTriggered, chuchazoTriggered)
-      }
-
-      const totalPoints = pipsFromOthers + bonusPoints
-      const { updatedScores, gameOver } = applyScore(
-        game.scores,
-        winningTeam,
-        totalPoints,
-        game.targetScore
-      )
-      game.scores = updatedScores
-      game.phase = gameOver ? 'game_end' : 'round_end'
-      // Winner of this hand starts the next hand/game
-      game.handStarterIndex = player.index
-      if (gameOver) game.gameWinnerIndex = player.index
-
       // Broadcast final state before emitting round_ended
       broadcastStateWithAction(io, game, {
         type: 'play_tile',
@@ -671,36 +663,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
         tile,
         targetEnd,
       })
-
-      io.to(roomCode).emit('game:round_ended', {
-        reason: 'played_out',
-        winnerIndex: player.index,
-        winningTeam,
-        rawPipCount: rawPips,
-        pointsFromPips: pipsFromOthers,
-        bonusPoints,
-        totalPointsScored: totalPoints,
-        remainingTiles: game.players.map(p => ({
-          playerIndex: p.index,
-          playerName: p.name,
-          tiles: p.tiles,
-          pipSum: handPipSum(p.tiles),
-        })),
-        isCapicu: capicuTriggered,
-        isChuchazo: chuchazoTriggered,
-        scores: updatedScores,
-        passPointsThisHand: game.passPointsThisHand,
-        nextStarterIndex: player.index,
-      })
-
-      if (gameOver) {
-        io.to(roomCode).emit('game:game_ended', {
-          winningTeam,
-          finalScores: updatedScores,
-          totalRounds: game.handNumber,
-        })
-        persistMatchResult(matchResultFrom(game, winningTeam))
-      }
+      finishPlayedOutHand(io, game, player.index, capicuTriggered, chuchazoTriggered)
       return
     }
 

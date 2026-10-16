@@ -1,3 +1,5 @@
+import type { HouseRules } from './rules'
+
 // ─── Tile ─────────────────────────────────────────────────────────────────────
 
 export type PipValue = 0 | 1 | 2 | 3 | 4 | 5 | 6
@@ -28,7 +30,7 @@ export interface BoardState {
 
 // ─── Players & Room ───────────────────────────────────────────────────────────
 
-export type GameMode = 'modo200' | 'modo500'
+export type GameMode = 'modo200' | 'modo500' | 'torneo'
 export type GamePhase = 'waiting' | 'playing' | 'round_end' | 'game_end'
 
 export interface PlayerState {
@@ -56,7 +58,8 @@ export interface ServerGameState {
   startedAt: number         // Date.now() when this game began
   roomCode: string
   gameMode: GameMode
-  targetScore: 20 | 500
+  targetScore: 20 | 200 | 500
+  rules: HouseRules         // copied from the room when the game starts
   phase: GamePhase
   handNumber: number        // 1-indexed count of hands in current game
   players: PlayerState[]
@@ -98,6 +101,7 @@ export interface Room {
   roomCode: string
   hostSocketId: string
   gameMode: GameMode
+  rules: HouseRules           // the host can change them in the lobby
   players: RoomPlayer[]       // up to 4 entries, indexed by seat
   status: 'waiting' | 'in_game'
   game: ServerGameState | null
@@ -132,7 +136,9 @@ export interface ClientPlayer {
 export interface ClientGameState {
   roomCode: string
   gameMode: GameMode
-  targetScore: 20 | 500
+  targetScore: 20 | 200 | 500
+  rules: HouseRules
+  timeLeftMs: number | null         // Torneo: time left on the game clock; null in modes without one
   phase: GamePhase
   handNumber: number
   myPlayerIndex: number

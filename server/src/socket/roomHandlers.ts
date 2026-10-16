@@ -5,9 +5,10 @@ import { GameMode, Room } from '../game/GameState'
 import { buildClientGameState } from '../game/GameEngine'
 import { getSocketUser } from './authMiddleware'
 import { isNonEmptyString } from './payloadGuard'
+import { applyRuleChange } from '../game/rules'
 import { announceLeave, detachReplacedSocket, emitLobbyState, leaveCurrentRoom } from './roomEvents'
 
-const GAME_MODES: readonly GameMode[] = ['modo200', 'modo500']
+const GAME_MODES: readonly GameMode[] = ['modo200', 'modo500', 'torneo']
 
 function optionalString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined
@@ -126,6 +127,20 @@ export function registerRoomHandlers(socket: Socket, io: Server, rooms: RoomMana
         myPlayerIndex: p.seatIndex,
       })
     }
+  })
+
+  // Host only, before the game starts: change the house rules this mode allows
+  socket.on('room:set_rules', (payload: unknown) => {
+    const change = typeof payload === 'object' && payload !== null ? (payload as { rules?: unknown }).rules : undefined
+    const roomCode = rooms.getRoomCodeBySocket(socket.id)
+    if (!roomCode) return
+    const room = rooms.getRoom(roomCode)
+    if (!room || room.hostSocketId !== socket.id) return
+    if (room.status !== 'waiting') return
+    const rules = applyRuleChange(room.gameMode, room.rules, change)
+    if (!rules) return socket.emit('room:error', { code: 'INVALID_RULES', message: 'Esa regla no se puede cambiar en este modo' })
+    room.rules = rules
+    io.to(roomCode).emit('room:updated', { room: rooms.getRoomInfo(room) })
   })
 
   socket.on('room:add_bot', () => {

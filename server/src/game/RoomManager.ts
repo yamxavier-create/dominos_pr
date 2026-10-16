@@ -1,6 +1,7 @@
 import { randomUUID, timingSafeEqual } from 'crypto'
 import { Room, GameMode, RoomPlayer } from './GameState'
 import { generateBotName, generateBotSocketId } from './BotPlayer'
+import { defaultRules } from './rules'
 
 // Short words so a code stays easy to say and type: COQUI482
 const PR_WORDS = [
@@ -110,6 +111,7 @@ export class RoomManager {
       roomCode,
       hostSocketId: socketId,
       gameMode,
+      rules: defaultRules(gameMode),
       players: [{ socketId, name: playerName, seatIndex: 0, connected: true, userId, reconnectToken: randomUUID() }],
       status: 'waiting',
       game: null,
@@ -333,6 +335,7 @@ export class RoomManager {
       roomCode: room.roomCode,
       hostSocketId: room.hostSocketId,
       gameMode: room.gameMode,
+      rules: room.rules,
       players: room.players.map(p => ({
         index: p.seatIndex,
         name: p.name,

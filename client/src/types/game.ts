@@ -1,7 +1,15 @@
 // Mirror of server GameState types (client-filtered subset)
 
 export type PipValue = 0 | 1 | 2 | 3 | 4 | 5 | 6
-export type GameMode = 'modo200' | 'modo500'
+export type GameMode = 'modo200' | 'modo500' | 'torneo'
+
+/** House rules the host picks in the lobby (mirror of server/src/game/rules.ts) */
+export interface HouseRules {
+  tranque: 'individual' | 'pareja'
+  passPoints: boolean
+  blockBonus: boolean
+  tiedTranque: 'nadie' | 'salida'
+}
 export type GamePhase = 'waiting' | 'playing' | 'round_end' | 'game_end'
 
 export interface Tile {
@@ -44,7 +52,9 @@ export interface TeamScores {
 export interface ClientGameState {
   roomCode: string
   gameMode: GameMode
-  targetScore: 20 | 500
+  targetScore: 20 | 200 | 500
+  rules: HouseRules
+  timeLeftMs: number | null         // Torneo: time left on the game clock when this snapshot was sent
   phase: GamePhase
   handNumber: number
   myPlayerIndex: number
@@ -65,6 +75,7 @@ export interface RoomInfo {
   roomCode: string
   hostSocketId: string
   gameMode: GameMode
+  rules: HouseRules
   players: Array<{
     index: number
     name: string

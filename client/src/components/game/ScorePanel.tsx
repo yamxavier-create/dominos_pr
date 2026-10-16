@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react'
 import { TeamScores, ClientPlayer, GameMode } from '../../types/game'
 
 interface ScorePanelProps {
@@ -11,6 +12,22 @@ interface ScorePanelProps {
   isOpen?: boolean
   compact?: boolean
   showTeamNames?: boolean  // wide screens only; on phones the names live in the history panel
+  timeLeftMs?: number | null  // Torneo: time left on the game clock when the last snapshot arrived
+}
+
+/** Torneo's game clock as m:ss, counting down from the last snapshot; null without one */
+function useGameClock(timeLeftMs: number | null | undefined): string | null {
+  const deadline = useMemo(() => timeLeftMs == null ? null : Date.now() + timeLeftMs, [timeLeftMs])
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    if (deadline === null) return
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [deadline])
+  if (deadline === null) return null
+  const seconds = Math.max(0, Math.ceil((deadline - now) / 1000))
+  if (seconds === 0) return 'Tiempo'
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
 }
 
 /**
@@ -18,7 +35,8 @@ interface ScorePanelProps {
  * the left and theirs on the right; the target and hand number sit between.
  * Tapping it opens the hand-by-hand history.
  */
-export function ScorePanel({ scores, players, myPlayerIndex, targetScore, handNumber, onClick, isOpen, compact, showTeamNames }: ScorePanelProps) {
+export function ScorePanel({ scores, players, myPlayerIndex, targetScore, handNumber, onClick, isOpen, compact, showTeamNames, timeLeftMs }: ScorePanelProps) {
+  const clock = useGameClock(timeLeftMs)
   const is2Player = players.length === 2
   const myTeam = myPlayerIndex % 2 === 0 ? 0 : 1
   const theirTeam = myTeam === 0 ? 1 : 0
@@ -39,7 +57,7 @@ export function ScorePanel({ scores, players, myPlayerIndex, targetScore, handNu
       type="button"
       onClick={onClick}
       aria-expanded={onClick ? !!isOpen : undefined}
-      aria-label={`${ourLabel} ${ourScore}, ${theirLabel} ${theirScore}. A ${targetScore}, mano ${handNumber}. ${isOpen ? 'Cerrar' : 'Ver'} historial`}
+      aria-label={`${ourLabel} ${ourScore}, ${theirLabel} ${theirScore}. A ${targetScore}, mano ${handNumber}${clock ? `, ${clock === 'Tiempo' ? 'se acabó el tiempo' : `quedan ${clock}`}` : ''}. ${isOpen ? 'Cerrar' : 'Ver'} historial`}
       className={`club-sign club-focus w-full min-w-0 flex items-center justify-between gap-2 font-club ${compact ? 'px-2 py-0.5' : 'px-3 py-1.5'}`}
       style={{ cursor: onClick ? 'pointer' : 'default' }}
     >
@@ -52,7 +70,9 @@ export function ScorePanel({ scores, players, myPlayerIndex, targetScore, handNu
       </span>
 
       <span className={`flex items-center gap-1 shrink-0 font-bold ${compact ? 'text-[11px]' : 'text-[13px]'}`}>
-        A {targetScore} · Mano {handNumber}
+        {clock
+          ? <span className="tabular-nums">{clock} · Mano {handNumber}</span>
+          : <>A {targetScore} · Mano {handNumber}</>}
         {onClick && (
           <svg
             className={`w-3 h-3 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}

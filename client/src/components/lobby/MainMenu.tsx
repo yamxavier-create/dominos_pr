@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { GameMode } from '../../types/game'
+import { MODE_SHORT, MODE_SUMMARY } from '../../rules'
 import { Input } from '../ui/Input'
 import { useRoomStore } from '../../store/roomStore'
 import { useAuthStore, AuthUser } from '../../store/authStore'
@@ -436,31 +437,32 @@ export function MainMenu() {
           onKeyDown={e => e.key === 'Enter' && handleCreate()}
         />
 
-        <div className="flex gap-3">
-          {(['modo200', 'modo500'] as GameMode[]).map(mode => {
+        <div className="flex gap-2">
+          {(['modo200', 'modo500', 'torneo'] as GameMode[]).map(mode => {
             const active = selectedMode === mode
+            const [target, extra] = MODE_SUMMARY[mode]
             return (
               <button
                 key={mode}
                 onClick={() => setSelectedMode(mode)}
-                className="flex-1 rounded-2xl p-4 text-center transition-all active:scale-[0.98]"
+                aria-pressed={active}
+                className="flex-1 min-w-0 rounded-2xl px-1.5 py-3 text-center transition-all active:scale-[0.98]"
                 style={{
                   background: active ? 'rgba(234,179,8,0.10)' : 'rgba(255,255,255,0.03)',
                   border: `1.5px solid ${active ? '#EAB308' : 'rgba(255,255,255,0.10)'}`,
                   boxShadow: active ? '0 0 20px rgba(234,179,8,0.20), inset 0 1px 0 rgba(255,255,255,0.08)' : 'inset 0 1px 0 rgba(255,255,255,0.03)',
                 }}
               >
-                <p className="font-header text-2xl text-gold">{mode === 'modo200' ? 'M·200' : 'M·500'}</p>
-                <p className="font-body text-white/60 text-xs mt-1">
-                  {mode === 'modo200' ? 'Hasta 20 pts' : 'Hasta 500 pts'}
-                </p>
-                <p className="font-body text-white/35 text-xs">
-                  {mode === 'modo200' ? 'Bonus por pase' : 'Capicú + Chuchazo'}
-                </p>
+                <p className="font-header text-xl sm:text-2xl text-gold">{MODE_SHORT[mode]}</p>
+                <p className="font-body text-white/60 text-[11px] sm:text-xs mt-1 leading-tight">{target}</p>
+                <p className="font-body text-white/35 text-[11px] sm:text-xs leading-tight mt-0.5">{extra}</p>
               </button>
             )
           })}
         </div>
+        <p className="font-body text-white/35 text-xs text-center -mt-2">
+          {selectedMode === 'torneo' ? 'Reglas fijas del torneo.' : 'Puedes ajustar las reglas en la sala.'}
+        </p>
 
         {error && <p className="font-body text-accent text-sm text-center">{error}</p>}
 

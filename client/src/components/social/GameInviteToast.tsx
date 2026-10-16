@@ -3,6 +3,8 @@ import { useSocialStore } from '../../store/socialStore'
 import { useGameActions } from '../../hooks/useGameActions'
 import { useAuthStore } from '../../store/authStore'
 import { useRoomStore } from '../../store/roomStore'
+import { MODE_NAMES } from '../../rules'
+import { GameMode } from '../../types/game'
 
 export function GameInviteToast() {
   const invite = useSocialStore((s) => s.gameInvite)
@@ -49,7 +51,7 @@ export function GameInviteToast() {
             {invite.from.displayName} te invita a jugar
           </p>
           <p className="font-body text-white/50 text-xs mt-0.5">
-            {invite.playerCount}/4 jugadores · {invite.gameMode === 'modo200' ? 'Modo 200' : 'Modo 500'}
+            {invite.playerCount}/4 jugadores · {MODE_NAMES[invite.gameMode as GameMode] ?? invite.gameMode}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">

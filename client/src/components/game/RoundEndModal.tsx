@@ -143,7 +143,7 @@ export function RoundEndModal() {
             </span>
           </div>
         )}
-        {!isModo200 && (roundEndData.isCapicu || roundEndData.isChuchazo) && (
+        {gameState?.gameMode === 'modo500' && (roundEndData.isCapicu || roundEndData.isChuchazo) && (
           <div className="flex justify-center gap-2 px-6 py-2">
             {roundEndData.isCapicu && (
               <span className="bg-gold text-bg font-bold text-sm px-3 py-1 rounded-full">
@@ -167,7 +167,7 @@ export function RoundEndModal() {
             </span>
             <span className="text-white font-bold">+{roundEndData.pointsFromPips}</span>
           </div>
-          {isModo200 && (roundEndData.passPointsThisHand ?? 0) > 0 && (
+          {(roundEndData.passPointsThisHand ?? 0) > 0 && (
             <div className="flex justify-between items-center text-sm font-body mb-1">
               <span className="text-white/60">Pases</span>
               <span className="text-white font-bold">+{roundEndData.passPointsThisHand}</span>
@@ -175,7 +175,7 @@ export function RoundEndModal() {
           )}
           {roundEndData.bonusPoints > 0 && (
             <div className="flex justify-between items-center text-sm font-body mb-1">
-              <span className="text-gold">Bonificación</span>
+              <span className="text-gold">{roundEndData.reason === 'blocked' ? 'Bono por trancar' : 'Bonificación'}</span>
               <span className="text-gold font-bold">+{roundEndData.bonusPoints}</span>
             </div>
           )}
