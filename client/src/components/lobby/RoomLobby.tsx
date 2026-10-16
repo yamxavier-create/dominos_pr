@@ -415,7 +415,14 @@ export function RoomLobby() {
 
       <div className="gold-divider" />
 
-      {/* Start / waiting */}
+      {/* Start / waiting: pinned to the bottom of the screen so it never scrolls out of sight */}
+      <div
+        className="sticky bottom-0 z-10 -mx-4 px-4 pt-4"
+        style={{
+          paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))',
+          background: 'linear-gradient(180deg, rgba(10,26,15,0) 0%, rgba(10,26,15,0.92) 28%, #0A1A0F 100%)',
+        }}
+      >
       {isHost ? (
         <div className="flex flex-col gap-2">
           {!canStart && (
@@ -438,6 +445,7 @@ export function RoomLobby() {
           </p>
         </div>
       )}
+      </div>
     </div>
   )
 }

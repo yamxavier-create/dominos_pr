@@ -27,7 +27,7 @@ export function LobbyPage() {
   return (
     // my-auto rather than items-center: a lobby taller than the screen scrolls from its top instead of being cut off
     <div
-      className="fixed inset-0 felt-table flex flex-col items-center px-4 pb-4 overflow-y-auto"
+      className="fixed inset-0 felt-table flex flex-col items-center px-4 overflow-y-auto"
       style={{ paddingTop: 'max(16px, env(safe-area-inset-top))' }}
     >
       <StageBackdrop still />
