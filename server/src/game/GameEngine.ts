@@ -437,7 +437,8 @@ export function torneoTurnLimitMs(game: import('./GameState').ServerGameState, p
   })
   if (closes) return TORNEO_TURN_MS.closing
   const tileCount = new Set(plays.map(p => p.tileId)).size
-  if (tileCount <= 1) return TORNEO_TURN_MS.oneTile
+  // One tile that fits both ends is still a choice: it gets the 20s clock (reglamento, Art. 15)
+  if (tileCount <= 1) return plays.length > 1 ? TORNEO_TURN_MS.twoTiles : TORNEO_TURN_MS.oneTile
   if (tileCount === 2) return TORNEO_TURN_MS.twoTiles
   return TORNEO_TURN_MS.moreTiles
 }

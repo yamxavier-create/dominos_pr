@@ -363,6 +363,11 @@ function handleBlockedGame(io: Server, game: ServerGameState): boolean {
       .reduce((sum, p) => sum + handPipSum(p.tiles), 0)
   }
 
+  // Torneo (reglamento, Art. 13): the winning team takes the pips of all four hands, its own included
+  if (winningTeam !== null && game.gameMode === 'torneo') {
+    rawPips = game.players.reduce((sum, p) => sum + handPipSum(p.tiles), 0)
+  }
+
   const pointsFromPips = winningTeam === null ? 0 : scaledPips(game, rawPips)
   if (winningTeam !== null) game.scores = addPoints(game.scores, winningTeam, pointsFromPips)
 

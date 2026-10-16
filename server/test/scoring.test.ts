@@ -194,6 +194,19 @@ describe('Torneo', () => {
     assert.ok(!(await events).includes('game:game_ended'))
   })
 
+  test('a tranque gives the winning team the pips of all four hands (reglamento, Art. 13)', async () => {
+    const { roomCode, seats, game } = await startWithRules('torneo', {})
+    // Nobody holds a 6 or a 3: seat 0's 1-3 closes the game. Nosotros 0 + 6, Ellos 3 + 11.
+    rigHand(game, [tile(0, 0)], [[tile(0, 1), tile(1, 1)], [tile(0, 2), tile(2, 2)], [tile(1, 2), tile(4, 4)]])
+    const result = await playAndWaitForHandEnd(seats[0], roomCode)
+    assert.equal(result.reason, 'blocked')
+    assert.equal(result.winningTeam, 0)
+    assert.equal(result.rawPipCount, 20)
+    assert.equal(result.bonusPoints, 0)
+    assert.deepEqual(game.scores, { team0: 20, team1: 0 })
+    game.turnId++
+  })
+
   test('its rules cannot be changed', async () => {
     const { seats, room } = await createLobby(undefined, 'torneo')
     seats[0].socket.emit('room:set_rules', { rules: { tranque: 'individual' } })
@@ -216,6 +229,12 @@ describe('Torneo turn clock', () => {
 
     // Two different tiles to play
     game.players[0].tiles = [tile(1, 3), tile(1, 4), tile(0, 0)]
+    assert.equal(torneoTurnLimitMs(game, 0), TORNEO_TURN_MS.twoTiles)
+
+    // One tile that fits both ends (2 and 4) is still a choice: 20s
+    game.board = { ...game.board, leftEnd: 2, rightEnd: 4 }
+    game.players[0].tiles = [tile(2, 4), tile(0, 0)]
+    game.players[1].tiles = [tile(2, 6), tile(4, 6)]
     assert.equal(torneoTurnLimitMs(game, 0), TORNEO_TURN_MS.twoTiles)
     game.turnId++  // the opening turn's clock is still running; let it lapse
   })
