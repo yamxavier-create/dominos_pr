@@ -341,6 +341,10 @@ body {
 .menu-reveal > *:nth-child(4) { animation-delay: 0.26s; }
 .menu-reveal > *:nth-child(5) { animation-delay: 0.33s; }
 .menu-reveal > *:nth-child(6) { animation-delay: 0.40s; }
+/* These start hidden and only the animation shows them: without motion they must just be there */
+@media (prefers-reduced-motion: reduce) {
+  .menu-reveal > * { opacity: 1; animation: none; }
+}
 
 /* Panel: dark green plate with an ink outline, a gold hairline and a 3D drop */
 .menu-card {
