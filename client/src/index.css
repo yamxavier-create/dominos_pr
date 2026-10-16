@@ -24,17 +24,23 @@
 /*
  * iOS home-screen apps measure the viewport short by the status-bar height:
  * 100dvh, 100% and position:fixed bottoms all stop ~59pt above the screen
- * bottom. main.tsx measures the shortfall into --vp-gap (0 wherever the
- * viewport is right) and every full-screen layer reaches down by it.
+ * bottom. main.tsx marks html.standalone and sets --app-h to the full screen
+ * height in px; every full-screen layer takes that height from the top.
  */
 @media (display-mode: standalone) {
   :root {
     --safe-top: env(safe-area-inset-top, 0px);
   }
 }
-.fixed.inset-0,
-.fixed.bottom-0 {
-  bottom: calc(0px - var(--vp-gap));
+html.standalone,
+html.standalone body,
+html.standalone #root {
+  height: var(--app-h);
+}
+html.standalone .fixed.inset-0,
+html.standalone .fixed.bottom-0 {
+  bottom: auto;
+  height: var(--app-h);
 }
 
 /* ─── Base Reset ─── */

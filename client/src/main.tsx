@@ -7,15 +7,21 @@ import App from './App'
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
 
 // iOS home-screen app: the viewport comes up one status bar short and leaves an
-// empty strip at the bottom. Measure the screen and publish the shortfall as
-// --vp-gap; full-screen layers reach down by it (index.css). Same fix as tren-mexicano.
+// empty strip at the bottom. Size the app to the whole screen ourselves: --app-h
+// is the full height in px and full-screen layers take it (index.css, under
+// .standalone). Same fix as tren-mexicano, confirmed on the iPhone.
 function fitStandalone() {
   const standalone = matchMedia('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone
   if (!standalone) return
+  const root = document.documentElement
+  root.classList.add('standalone')
   const fit = () => {
     const portrait = innerHeight > innerWidth
     const full = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height)
-    document.documentElement.style.setProperty('--vp-gap', `${Math.max(0, full - innerHeight)}px`)
+    const height = Math.max(innerHeight, full)
+    root.style.setProperty('--app-h', `${height}px`)
+    // What bottom-anchored fixed elements must drop to reach the real bottom
+    root.style.setProperty('--vp-gap', `${height - innerHeight}px`)
   }
   fit()
   addEventListener('resize', fit)
