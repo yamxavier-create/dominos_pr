@@ -143,7 +143,6 @@ export function RoomLobby() {
   const room = useRoomStore(s => s.room)
   const roomCode = useRoomStore(s => s.roomCode)
   const myPlayerIndex = useRoomStore(s => s.myPlayerIndex)
-  const { startGame } = useGameActions()
   const [selectedSeat, setSelectedSeat] = useState<number | null>(null)
   const [showInvite, setShowInvite] = useState(false)
   const [invitedIds, setInvitedIds] = useState<Set<string>>(new Set())
@@ -185,7 +184,6 @@ export function RoomLobby() {
 
   const isHost = myPlayerIndex === 0
   const playerCount = room.players.filter(p => p.connected).length
-  const canStart = playerCount === 2 || playerCount === 4
   const is2PlayerLobby = playerCount <= 2
   const inCallAt = (seatIndex: number) => seatIndex === myPlayerIndex ? iAmInCall : !!(lobbyOpts[seatIndex]?.audio || lobbyOpts[seatIndex]?.video)
   const peopleInCall = room.players.filter(p => !p.isBot && inCallAt(p.index)).length
@@ -413,17 +411,26 @@ export function RoomLobby() {
         />
       )}
 
-      <div className="gold-divider" />
+    </div>
+  )
+}
 
-      {/* Start / waiting: pinned to the bottom of the screen so it never scrolls out of sight */}
-      <div
-        data-lobby-start
-        className="sticky bottom-0 z-10 -mx-4 px-4 pt-4"
-        style={{
-          paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))',
-          background: 'linear-gradient(180deg, rgba(10,26,15,0) 0%, rgba(10,26,15,0.92) 28%, #0A1A0F 100%)',
-        }}
-      >
+/**
+ * Start / waiting, in the lobby's bottom bar: always on screen, however many
+ * seats and rules the lobby above has to scroll through.
+ */
+export function LobbyStartBar() {
+  const room = useRoomStore(s => s.room)
+  const myPlayerIndex = useRoomStore(s => s.myPlayerIndex)
+  const { startGame } = useGameActions()
+  if (!room) return null
+
+  const isHost = myPlayerIndex === 0
+  const playerCount = room.players.filter(p => p.connected).length
+  const canStart = playerCount === 2 || playerCount === 4
+
+  return (
+    <>
       {isHost ? (
         <div className="flex flex-col gap-2">
           {!canStart && (
@@ -446,7 +453,6 @@ export function RoomLobby() {
           </p>
         </div>
       )}
-      </div>
-    </div>
+    </>
   )
 }

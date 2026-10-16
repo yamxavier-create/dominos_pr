@@ -1,39 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useRoomStore } from '../store/roomStore'
 import { leaveRoomLocally } from '../store/leaveRoom'
 import { socket } from '../socket'
-import { RoomLobby } from '../components/lobby/RoomLobby'
+import { RoomLobby, LobbyStartBar } from '../components/lobby/RoomLobby'
 import { AudioControls } from '../components/game/AudioControls'
 import { StageBackdrop } from '../components/ui/Escenario'
-
-// TEMP (2026-10-16): measure the iOS home-screen viewport on the device; remove once the bottom gap is settled
-function ViewportProbe() {
-  const [text, setText] = useState('')
-  useEffect(() => {
-    if (!document.documentElement.classList.contains('standalone')) return
-    const probe = document.createElement('div')
-    probe.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;visibility:hidden;padding-bottom:env(safe-area-inset-bottom);padding-top:env(safe-area-inset-top)'
-    document.body.appendChild(probe)
-    const read = () => {
-      const cs = getComputedStyle(probe)
-      const root = document.documentElement
-      const scroller = document.querySelector('.felt-table')?.getBoundingClientRect()
-      const sticky = document.querySelector('[data-lobby-start]')?.getBoundingClientRect()
-      setText([
-        `in ${innerHeight}x${innerWidth}`, `scr ${screen.height}x${screen.width}`,
-        `vv ${Math.round(visualViewport?.height ?? 0)}`, `cli ${root.clientHeight}`,
-        `app ${root.style.getPropertyValue('--app-h')}`, `env ${cs.paddingTop}/${cs.paddingBottom}`,
-        `box ${Math.round(scroller?.bottom ?? 0)}`, `start ${Math.round(sticky?.bottom ?? 0)}`,
-      ].join(' · '))
-    }
-    read()
-    const t = setInterval(read, 1000)
-    return () => { clearInterval(t); probe.remove() }
-  }, [])
-  if (!text) return null
-  return <p className="fixed left-0 right-0 z-[60] text-center font-mono text-[10px] text-white bg-black/80 py-0.5" style={{ top: 'var(--safe-top)' }}>{text}</p>
-}
 
 export function LobbyPage() {
   const room = useRoomStore(s => s.room)
@@ -53,13 +25,15 @@ export function LobbyPage() {
   }
 
   return (
-    // my-auto rather than items-center: a lobby taller than the screen scrolls from its top instead of being cut off
-    <div
-      className="fixed inset-0 felt-table flex flex-col items-center px-4 overflow-y-auto"
-      style={{ paddingTop: 'max(16px, env(safe-area-inset-top))' }}
-    >
+    // A column: the lobby scrolls, the start bar stays at the bottom of the screen.
+    // Not position:sticky — iOS stops a sticky bottom at the home-indicator inset.
+    <div className="fixed inset-0 felt-table flex flex-col">
       <StageBackdrop still />
-      <ViewportProbe />
+      {/* my-auto rather than items-center: a lobby taller than the screen scrolls from its top instead of being cut off */}
+      <div
+        className="relative flex-1 min-h-0 overflow-y-auto flex flex-col items-center px-4 pb-3"
+        style={{ paddingTop: 'max(16px, env(safe-area-inset-top))' }}
+      >
       <div className="relative my-auto w-full max-w-sm flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <button
@@ -72,6 +46,19 @@ export function LobbyPage() {
           <AudioControls />
         </div>
         <RoomLobby />
+      </div>
+      </div>
+      {/* The home indicator needs ~20pt of its 34pt inset; the bar's own top padding covers the rest */}
+      <div
+        className="relative flex justify-center px-4 pt-3 border-t-2 border-[rgba(234,179,8,0.35)]"
+        style={{
+          paddingBottom: 'max(0.75rem, calc(env(safe-area-inset-bottom, 0px) - 0.5rem))',
+          background: 'linear-gradient(180deg, rgba(7,30,16,0.96), #0A1A0F)',
+        }}
+      >
+        <div className="w-full max-w-sm">
+          <LobbyStartBar />
+        </div>
       </div>
     </div>
   )
