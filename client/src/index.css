@@ -1,5 +1,5 @@
 /* Google Fonts — must be before @tailwind directives */
-@import url('https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Barlow:wght@500;600;700&family=Bebas+Neue&family=Nunito:wght@400;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Barlow:wght@500;600;700&family=Bebas+Neue&family=Lilita+One&family=Nunito:wght@400;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -552,4 +552,97 @@ body {
 .hand-end-bar { bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
 @media (orientation: landscape) and (max-height: 600px) {
   .hand-end-bar { bottom: auto; top: calc(4px + var(--safe-top)); }
+}
+
+/* ─── Main menu «Escenario»: glow stage, floating tiles, play dock ─── */
+.mm-stroke {
+  color: #fff;
+  text-shadow:
+    0 2px 0 #06140B, 0 -1px 0 #06140B, 1px 0 0 #06140B, -1px 0 0 #06140B,
+    1.5px 1.5px 0 #06140B, -1.5px 1.5px 0 #06140B, 0 4px 0 rgba(0,0,0,0.35);
+}
+.mm-stroke-dark {
+  text-shadow: 0 1px 0 rgba(255,255,255,0.55);
+}
+
+/* Slow-turning light rays behind the stage */
+@keyframes mm-spin { to { transform: rotate(360deg); } }
+.mm-rays { animation: mm-spin 70s linear infinite; }
+
+@keyframes mm-breathe {
+  0%, 100% { opacity: 0.75; transform: scale(1); }
+  50%      { opacity: 1;    transform: scale(1.06); }
+}
+.mm-breathe { animation: mm-breathe 5s ease-in-out infinite; }
+
+/* Each tile floats on its own phase */
+@keyframes mm-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-9px); }
+}
+.mm-float { animation: mm-float 3.6s ease-in-out infinite; }
+
+@keyframes mm-shadow {
+  0%, 100% { transform: scaleX(1);    opacity: 0.55; }
+  50%      { transform: scaleX(0.86); opacity: 0.35; }
+}
+.mm-shadow { animation: mm-shadow 3.6s ease-in-out infinite; }
+
+/* Sparks rising from the table */
+@keyframes mm-spark {
+  0%   { opacity: 0; transform: translateY(0) scale(0.6); }
+  15%  { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-140px) scale(1); }
+}
+.mm-spark { animation: mm-spark 4.5s ease-out infinite; }
+
+/* Gloss sweep across JUGAR every few seconds */
+@keyframes mm-shine {
+  0%, 62% { transform: translateX(-140%) skewX(-20deg); }
+  100%    { transform: translateX(260%) skewX(-20deg); }
+}
+.mm-shine { animation: mm-shine 3.8s ease-in-out infinite; }
+
+/* JUGAR ring pulse */
+@keyframes mm-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(253,208,75,0.55); }
+  70%  { box-shadow: 0 0 0 14px rgba(253,208,75,0); }
+  100% { box-shadow: 0 0 0 0 rgba(253,208,75,0); }
+}
+.mm-ring { animation: mm-ring 2.4s ease-out infinite; }
+
+/* Side medallions bob, out of phase with the tiles */
+@keyframes mm-bob {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50%      { transform: translateY(-6px) rotate(2deg); }
+}
+.mm-bob { animation: mm-bob 4.2s ease-in-out infinite; }
+
+/* Entrances */
+@keyframes mm-drop  { from { opacity: 0; transform: translateY(-24px); } to { opacity: 1; transform: none; } }
+@keyframes mm-rise  { from { opacity: 0; transform: translateY(40px); }  to { opacity: 1; transform: none; } }
+@keyframes mm-pop   {
+  0%   { opacity: 0; transform: scale(0.6); }
+  70%  { opacity: 1; transform: scale(1.05); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.mm-drop { animation: mm-drop 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+.mm-rise { animation: mm-rise 0.55s cubic-bezier(0.2, 0.9, 0.3, 1.15) 0.25s both; }
+.mm-pop  { animation: mm-pop 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.2) 0.1s both; }
+
+/* Mode number flips in when the mode changes */
+@keyframes mm-flip {
+  from { opacity: 0; transform: rotateX(90deg) scale(0.8); }
+  to   { opacity: 1; transform: none; }
+}
+.mm-flip { animation: mm-flip 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.3) both; }
+
+/* Thick 3D buttons press down */
+.mm-press { transition: transform 0.08s ease-out, filter 0.08s; }
+.mm-press:active { transform: translateY(3px); filter: brightness(0.95); }
+
+@media (prefers-reduced-motion: reduce) {
+  .mm-rays, .mm-breathe, .mm-float, .mm-shadow, .mm-spark, .mm-shine,
+  .mm-ring, .mm-bob, .mm-drop, .mm-rise, .mm-pop, .mm-flip { animation: none; }
+  .mm-spark, .mm-shine { display: none; }
 }

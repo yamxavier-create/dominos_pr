@@ -40,6 +40,7 @@ export default {
         body: ['Nunito', 'sans-serif'],
         'club-display': ['"Alfa Slab One"', 'serif'],
         club: ['Barlow', 'sans-serif'],
+        chunky: ['"Lilita One"', 'Nunito', 'sans-serif'], // main menu headings and 3D buttons
       },
     },
   },
