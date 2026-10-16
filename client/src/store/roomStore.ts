@@ -29,6 +29,39 @@ export function saveReconnectToken(roomCode: string, token: string) {
   }
 }
 
+// The room this device last sat in, so reopening the app puts the player back
+// in their seat. Only recent ones: an old room is gone or the game is over.
+const ACTIVE_ROOM_KEY = 'active_room'
+const RESUME_WINDOW_MS = 30 * 60_000
+
+/** Note that this device is (still) seated in the room, as of now. */
+export function rememberActiveRoom(roomCode: string) {
+  try {
+    localStorage.setItem(ACTIVE_ROOM_KEY, JSON.stringify({ roomCode, at: Date.now() }))
+  } catch {
+    // Storage unavailable: a reopened app starts at the menu
+  }
+}
+
+/** The room to go back to on launch, if this device left it recently. */
+export function loadResumableRoom(): string | undefined {
+  try {
+    const saved = JSON.parse(localStorage.getItem(ACTIVE_ROOM_KEY) ?? 'null')
+    if (typeof saved?.roomCode === 'string' && Date.now() - saved.at < RESUME_WINDOW_MS) return saved.roomCode
+  } catch {
+    // Unreadable: nothing to resume
+  }
+  return undefined
+}
+
+function forgetActiveRoom() {
+  try {
+    localStorage.removeItem(ACTIVE_ROOM_KEY)
+  } catch {
+    // Storage unavailable: nothing to forget
+  }
+}
+
 interface RoomStore {
   room: RoomInfo | null
   roomCode: string
@@ -61,7 +94,10 @@ export const useRoomStore = create<RoomStore>(set => ({
   error: null,
 
   setRoom: room => set({ room }),
-  setRoomCode: roomCode => set({ roomCode }),
+  setRoomCode: roomCode => {
+    rememberActiveRoom(roomCode)
+    set({ roomCode })
+  },
   setPlayerName: playerName => set({ playerName }),
   setReconnectToken: (roomCode, reconnectToken) => {
     saveReconnectToken(roomCode, reconnectToken)
@@ -74,6 +110,7 @@ export const useRoomStore = create<RoomStore>(set => ({
   clearRoom: () => set({ room: null, myPlayerIndex: null, error: null }),
   exitRoom: () => set(state => {
     if (state.roomCode) forgetReconnectToken(state.roomCode)
+    forgetActiveRoom()
     return { room: null, roomCode: '', reconnectToken: '', myPlayerIndex: null }
   }),
 }))

@@ -66,6 +66,7 @@ export function registerConnectionHandler(io: Server, rooms: RoomManager, presen
           io.to(roomCode).emit('connection:player_disconnected', {
             playerIndex: player.index,
             playerName: player.name,
+            graceMs: rooms.reconnectGraceMs,
           })
           // Broadcast updated state so other players see the disconnected indicator
           for (const p of room.game.players) {

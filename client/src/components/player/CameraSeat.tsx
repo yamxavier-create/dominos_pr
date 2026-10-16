@@ -3,6 +3,8 @@ import { ClientPlayer } from '../../types/game'
 import { useVideoStream } from './AvatarVideo'
 import { DominoTileBack } from '../domino/DominoTileBack'
 
+const PRESENCE_LABEL = { away: 'sin conexión', bot: 'juega un bot', left: 'se fue' } as const
+
 interface CameraSeatProps {
   player: ClientPlayer
   /** Visual seat this box stands for; animations fly from [data-seat]. Omitted for yourself (your hand is the anchor). */
@@ -81,8 +83,10 @@ export function CameraSeat({ player, seat, isPartner, isSelf, isCurrentTurn, str
             {isSpeaking && <span className="inline-block w-1.5 h-1.5 mr-1 align-middle rounded-full bg-club-brass" aria-label="hablando" />}
             {isSelf ? 'Tú' : player.name}
           </span>
-          {!player.connected ? (
-            <span className="shrink-0 font-semibold text-club-muted text-[11px]">sin conexión</span>
+          {player.presence !== 'here' ? (
+            <span className={`shrink-0 font-semibold text-[11px] ${player.presence === 'away' ? 'text-club-muted' : 'text-club-brass'}`}>
+              {PRESENCE_LABEL[player.presence]}
+            </span>
           ) : (
             <span className="shrink-0 flex items-center gap-[3px] font-semibold text-club-muted" aria-label={`${player.tileCount} fichas`}>
               <svg viewBox="0 0 10 18" className="h-3 w-auto" aria-hidden>

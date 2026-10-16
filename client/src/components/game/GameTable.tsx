@@ -26,6 +26,7 @@ import { FloatingChatBubble } from '../chat/FloatingChatBubble'
 import { AvatarReaction } from '../player/AvatarReaction'
 import { RoundEndModal } from './RoundEndModal'
 import { GameEndModal } from './GameEndModal'
+import { SeatNotices } from './SeatNotices'
 import { useIsLandscape } from '../../hooks/useIsLandscape'
 import { useIsDesktop } from '../../hooks/useIsDesktop'
 
@@ -165,6 +166,8 @@ export function GameTable() {
 
   // Before the early return: hooks run on every render
   const turnSeconds = useTurnClock(gameState?.turnTimeLeftMs, gameState?.turnId)
+  const { drawFromBoneyard, playTileOnEnd } = useGameActions()
+  const selectedTileId = useUIStore(s => s.selectedTileId)
 
   if (!gameState) {
     return (
@@ -175,8 +178,6 @@ export function GameTable() {
   }
 
   const { players, board, currentPlayerIndex, scores, gameMode, targetScore, handNumber, validPlays, isMyTurn, forcedFirstTileId, awaitingBoneyardDraw } = gameState
-  const { drawFromBoneyard, playTileOnEnd } = useGameActions()
-  const selectedTileId = useUIStore(s => s.selectedTileId)
 
   const playerCount = gameState.playerCount ?? 4
   const boneyardCount = gameState.boneyardCount ?? 0
@@ -314,6 +315,8 @@ export function GameTable() {
           showTeamNames={isDesktop}
         />
       </div>
+
+      <SeatNotices />
 
       {/* Score history panel */}
       <ScoreHistoryPanel

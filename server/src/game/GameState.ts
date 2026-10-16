@@ -43,6 +43,7 @@ export interface PlayerState {
   isBot?: boolean  // True for AI players, including a bot covering a disconnected human
   substitutedByBot?: boolean  // A bot is playing this human's seat until the owner reclaims it
   replacedByBot?: boolean     // A bot played this seat at some point in the current game (sticky)
+  left?: boolean              // The owner left on purpose and can't come back
 }
 
 export interface TeamScores {
@@ -131,9 +132,13 @@ export interface ClientPlayer {
   name: string
   tileCount: number
   connected: boolean
+  /** here: playing · away: connection lost, seat kept for the grace period · bot: a bot covers until the owner returns · left: gone for good, a bot plays */
+  presence: SeatPresence
   isMe: boolean
   tiles?: Tile[]  // only populated for the receiving player's own hand
 }
+
+export type SeatPresence = 'here' | 'away' | 'bot' | 'left'
 
 export interface ClientGameState {
   roomCode: string

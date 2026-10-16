@@ -6,6 +6,7 @@ import {
   PlayerState,
   TeamScores,
   GameMode,
+  SeatPresence,
 } from './GameState'
 import { gameTimeLeftMs, TORNEO_TURN_MS } from './rules'
 
@@ -376,6 +377,13 @@ export function getLeadingTeam(scores: TeamScores): 0 | 1 {
 
 // ─── Build personalised ClientGameState for a specific player ─────────────────
 
+/** How a seat's owner is doing, so the table can say who left and who may come back. */
+export function seatPresence(p: PlayerState): SeatPresence {
+  if (p.left) return 'left'
+  if (p.substitutedByBot) return 'bot'
+  return p.connected || p.isBot ? 'here' : 'away'
+}
+
 export function buildClientGameState(
   game: import('./GameState').ServerGameState,
   forPlayerIndex: number
@@ -399,6 +407,7 @@ export function buildClientGameState(
       name: p.name,
       tileCount: p.tiles.length,
       connected: p.connected,
+      presence: seatPresence(p),
       isMe: p.index === forPlayerIndex,
       tiles: p.index === forPlayerIndex ? p.tiles : undefined,
     })),

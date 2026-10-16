@@ -86,6 +86,36 @@ describe('disconnect during a game', () => {
       { isBot: false, substitutedByBot: false, connected: true, socketId: socket.id },
     )
   })
+  test('the table hears who dropped, who a bot covers, who came back and who left', async () => {
+    const { roomCode, room, seats } = await startFourPlayerGame()
+    const game = room.game!
+    const idle = (game.currentPlayerIndex + 2) % 4
+    const watcher = seats[game.currentPlayerIndex].socket
+    const presenceOf = (snap: any, i: number) => snap.gameState.players[i].presence
+
+    const dropped = waitUntil(watcher, 'connection:player_disconnected', d => d.playerIndex === idle)
+    const awaySnap = waitUntil(watcher, 'game:state_snapshot', d => presenceOf(d, idle) === 'away')
+    await dropSeat(seats[idle])
+    assert.deepEqual(await dropped, { playerIndex: idle, playerName: seats[idle].name, graceMs: GRACE })
+    await awaySnap
+
+    const replaced = waitUntil(watcher, 'connection:player_replaced', d => d.playerIndex === idle, GRACE + 1000)
+    const botSnap = waitUntil(watcher, 'game:state_snapshot', d => presenceOf(d, idle) === 'bot', GRACE + 1000)
+    assert.equal((await replaced).reason, 'timeout')
+    await botSnap
+
+    const back = waitUntil(watcher, 'connection:player_reconnected', d => d.playerIndex === idle)
+    await reconnect(roomCode, seats[idle])
+    assert.equal((await back).playerName, seats[idle].name)
+
+    const leaver = (idle + 1) % 4
+    const left = waitUntil(watcher, 'connection:player_replaced', d => d.playerIndex === leaver)
+    const leftSnap = waitUntil(watcher, 'game:state_snapshot', d => presenceOf(d, leaver) === 'left')
+    seats[leaver].socket.emit('room:leave')
+    assert.equal((await left).reason, 'left')
+    const snap = await leftSnap
+    assert.equal(presenceOf(snap, idle), 'here')
+  })
 })
 
 // ─── 2. Host rights never get stuck on a missing player ───────────────────────

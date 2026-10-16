@@ -528,6 +528,8 @@ export function handOverSeatToBot(io: Server, rooms: RoomManager, room: Room, se
   io.to(room.roomCode).emit('connection:player_replaced', {
     playerIndex: player.index,
     playerName: player.name,
+    // left: gone for good · timeout: didn't come back in time, but can still reclaim the seat
+    reason: player.left ? 'left' : 'timeout',
   })
   // The human behind this seat is gone: peers drop their video connection to it
   announcePeerLeft(io, room, player.index)

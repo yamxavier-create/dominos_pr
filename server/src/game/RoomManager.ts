@@ -253,7 +253,10 @@ export class RoomManager {
       rp.connected = false
       rp.reconnectToken = undefined
       const gp = room.game?.players.find(p => p.index === rp.seatIndex)
-      if (gp) gp.connected = false
+      if (gp) {
+        gp.connected = false
+        gp.left = true
+      }
       if (room.hostSocketId === socketId) this.transferHost(room)
     }
     this.releaseUser(rp.userId, room.roomCode)

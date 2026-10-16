@@ -34,11 +34,15 @@ export interface BoardState {
   rightEnd: number | null
 }
 
+export type SeatPresence = 'here' | 'away' | 'bot' | 'left'
+
 export interface ClientPlayer {
   index: number
   name: string
   tileCount: number
   connected: boolean
+  /** here: playing · away: connection lost, seat kept for a minute · bot: a bot covers until the owner returns · left: gone for good, a bot plays */
+  presence: SeatPresence
   isMe: boolean
   tiles?: Tile[]  // only for local player
   userId?: string // set for authenticated users

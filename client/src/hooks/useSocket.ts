@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { socket, setSocketAuth } from '../socket'
 import { useGameStore } from '../store/gameStore'
-import { useRoomStore, loadReconnectToken } from '../store/roomStore'
+import { useRoomStore, loadReconnectToken, loadResumableRoom, rememberActiveRoom } from '../store/roomStore'
 import { leaveRoomLocally } from '../store/leaveRoom'
 import { useAuthStore } from '../store/authStore'
 import { useUIStore, ChatMessage, ActiveReaction } from '../store/uiStore'
@@ -23,8 +23,11 @@ export function useSocket() {
 
     // Re-join room after socket reconnection (new socket ID needs to be registered)
     // The server matches the seat by userId or reconnect token, never by name.
+    // Right after launch the room comes from storage: the app was closed or reloaded mid-game.
+    let resumeCode = loadResumableRoom()
     const rejoin = () => {
-      const { roomCode, reconnectToken } = useRoomStore.getState()
+      const { roomCode: current, reconnectToken } = useRoomStore.getState()
+      const roomCode = current || resumeCode
       if (roomCode) {
         socket.emit('room:rejoin', { roomCode, reconnectToken: reconnectToken || loadReconnectToken(roomCode) })
       }
@@ -44,6 +47,9 @@ export function useSocket() {
     }
     const onVisibility = () => {
       if (document.visibilityState === 'visible') ensureConnected()
+      // Leaving the app (or locking the phone) mid-game: remember the seat as of now
+      const { roomCode } = useRoomStore.getState()
+      if (document.visibilityState === 'hidden' && roomCode) rememberActiveRoom(roomCode)
     }
     document.addEventListener('visibilitychange', onVisibility)
     window.addEventListener('focus', ensureConnected)
@@ -63,6 +69,7 @@ export function useSocket() {
     socket.on('room:joined', ({ roomCode, room, myPlayerIndex, reconnectToken }: {
       roomCode: string; room: any; myPlayerIndex: number; reconnectToken?: string
     }) => {
+      resumeCode = undefined
       useRoomStore.setState({ room, myPlayerIndex })
       setRoomCode(roomCode)
       if (reconnectToken) setReconnectToken(roomCode, reconnectToken)
@@ -76,7 +83,10 @@ export function useSocket() {
       if (myName) setPlayerName(myName)
       // Don't yank an in-progress game back to /lobby when we re-join after a
       // disconnect — the server will also send game:state_snapshot to resync.
-      if (window.location.pathname !== '/game') {
+      // Coming back to a game from anywhere else (the app was reopened) goes straight to the table.
+      if (room?.status === 'in_game') {
+        if (window.location.pathname !== '/game') navigate('/game')
+      } else if (window.location.pathname !== '/game') {
         navigate('/lobby')
       }
     })
@@ -100,6 +110,12 @@ export function useSocket() {
 
     // The server won't give this device the seat back: stop rejoining and go home
     const kickedOut = (message: string) => () => {
+      // A seat remembered from before the app was reopened is simply gone: no error for that
+      if (resumeCode && !useRoomStore.getState().roomCode) {
+        resumeCode = undefined
+        leaveRoomLocally()
+        return
+      }
       leaveRoomLocally()
       setError(message)
       if (window.location.pathname === '/lobby' || window.location.pathname === '/game') navigate('/')
@@ -274,12 +290,19 @@ export function useSocket() {
       useUIStore.getState().setChatMessages(messages)
     })
 
-    socket.on('connection:player_disconnected', ({ playerIndex, playerName }: { playerIndex: number; playerName: string }) => {
-      console.log(`Player ${playerName} (${playerIndex}) disconnected`)
+    // Seat changes are news for the others; your own drop already shows the reconnect banner
+    const isMe = (playerIndex: number) => playerIndex === useGameStore.getState().gameState?.myPlayerIndex
+
+    socket.on('connection:player_disconnected', ({ playerIndex, playerName, graceMs }: { playerIndex: number; playerName: string; graceMs?: number }) => {
+      if (!isMe(playerIndex)) useUIStore.getState().addSeatNotice({ playerName, kind: 'away', graceMs })
+    })
+
+    socket.on('connection:player_replaced', ({ playerIndex, playerName, reason }: { playerIndex: number; playerName: string; reason?: 'left' | 'timeout' }) => {
+      if (!isMe(playerIndex)) useUIStore.getState().addSeatNotice({ playerName, kind: reason === 'left' ? 'left' : 'bot' })
     })
 
     socket.on('connection:player_reconnected', ({ playerIndex, playerName }: { playerIndex: number; playerName: string }) => {
-      console.log(`Player ${playerName} (${playerIndex}) reconnected`)
+      if (!isMe(playerIndex)) useUIStore.getState().addSeatNotice({ playerName, kind: 'back' })
     })
 
     // Social events -- real-time friend updates
@@ -377,6 +400,7 @@ export function useSocket() {
       socket.off('chat:message')
       socket.off('chat:history')
       socket.off('connection:player_disconnected')
+      socket.off('connection:player_replaced')
       socket.off('connection:player_reconnected')
       socket.off('social:friend_request_received')
       socket.off('social:friend_request_sent')

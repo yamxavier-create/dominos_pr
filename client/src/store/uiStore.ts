@@ -16,6 +16,15 @@ export interface ActiveReaction {
   emoji: string
 }
 
+/** A player left, lost the connection or came back: the table says so for a few seconds. */
+export interface SeatNotice {
+  id: number
+  playerName: string
+  kind: 'away' | 'bot' | 'left' | 'back'
+  /** away only: how long the seat waits for its owner */
+  graceMs?: number
+}
+
 export interface FlyingTile {
   playerIndex: number
   tileId: string
@@ -31,6 +40,7 @@ interface UIStore {
   draggingTileId: string | null
   // Notifications
   pasoNotifications: PassPayload[]
+  seatNotices: SeatNotice[]
   // Modals
   showRoundEnd: boolean
   showGameEnd: boolean
@@ -56,6 +66,8 @@ interface UIStore {
   setDraggingTileId: (id: string | null) => void
   addPasoNotification: (payload: PassPayload) => void
   removePasoNotification: (playerIndex: number) => void
+  addSeatNotice: (notice: Omit<SeatNotice, 'id'>) => void
+  removeSeatNotice: (id: number) => void
   setShowRoundEnd: (v: boolean) => void
   setShowGameEnd: (v: boolean) => void
   setShowScoreHistory: (v: boolean) => void
@@ -74,10 +86,14 @@ interface UIStore {
   setFlyingTile: (v: FlyingTile | null) => void
 }
 
+const SEAT_NOTICE_MS = 7_000
+let seatNoticeSeq = 0
+
 export const useUIStore = create<UIStore>(set => ({
   selectedTileId: null,
   draggingTileId: null,
   pasoNotifications: [],
+  seatNotices: [],
   showRoundEnd: false,
   showGameEnd: false,
   showScoreHistory: false,
@@ -105,6 +121,15 @@ export const useUIStore = create<UIStore>(set => ({
     set(state => ({
       pasoNotifications: state.pasoNotifications.filter(n => n.playerIndex !== playerIndex),
     })),
+
+  addSeatNotice: notice => {
+    const id = ++seatNoticeSeq
+    set(state => ({ seatNotices: [...state.seatNotices, { ...notice, id }].slice(-3) }))
+    setTimeout(() => useUIStore.getState().removeSeatNotice(id), SEAT_NOTICE_MS)
+  },
+
+  removeSeatNotice: id =>
+    set(state => ({ seatNotices: state.seatNotices.filter(n => n.id !== id) })),
 
   setShowRoundEnd: showRoundEnd => set({ showRoundEnd }),
   setShowGameEnd: showGameEnd => set({ showGameEnd }),
