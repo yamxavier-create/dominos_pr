@@ -76,6 +76,8 @@ export interface ServerGameState {
   boneyard: Tile[]          // tiles remaining in draw pile. Empty [] in 4-player; 14 tiles in 2-player
   awaitingBoneyardDraw: boolean  // true when current player must draw before playing (2-player only)
   passPointsThisHand: number    // accumulated pass bonus points this hand (Modo 200)
+  turnId: number                // bumps on every turn, so a stale turn clock can tell it's late
+  turnDeadline: number | null   // Torneo: when the current human's turn clock runs out (epoch ms)
 }
 
 // ─── Room ─────────────────────────────────────────────────────────────────────
@@ -139,6 +141,8 @@ export interface ClientGameState {
   targetScore: 20 | 200 | 500
   rules: HouseRules
   timeLeftMs: number | null         // Torneo: time left on the game clock; null in modes without one
+  turnTimeLeftMs: number | null     // Torneo: time left to make this play; null when nobody is on the clock
+  turnId: number                    // changes on every turn, so the client restarts its countdown
   phase: GamePhase
   handNumber: number
   myPlayerIndex: number

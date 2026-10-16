@@ -77,6 +77,7 @@ export function ruleValueLabel<K extends keyof HouseRules>(key: K, value: HouseR
 export const TORNEO_NOTES = [
   'A 200 puntos o 35 minutos, lo que llegue primero. Al acabarse el tiempo se termina la mano y gana la pareja que va arriba; si van empatados, se juega otra mano.',
   'Tranque en pareja; si queda empatado, nadie anota.',
-  'La salida rota cada mano.',
+  'Reloj por jugada: 1 minuto si tu jugada tranca el juego, 5 segundos si solo tienes una ficha para jugar y 20 si tienes dos o más. Si se acaba, la app juega por ti.',
+  'La primera mano la sale la doble seis; después la salida rota cada mano.',
   'Sin puntos por pase ni bonos.',
 ]

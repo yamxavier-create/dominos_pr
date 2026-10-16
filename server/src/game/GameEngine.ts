@@ -7,7 +7,7 @@ import {
   TeamScores,
   GameMode,
 } from './GameState'
-import { gameTimeLeftMs } from './rules'
+import { gameTimeLeftMs, TORNEO_TURN_MS } from './rules'
 
 // ─── Tile Generation ──────────────────────────────────────────────────────────
 
@@ -389,6 +389,8 @@ export function buildClientGameState(
     targetScore: game.targetScore,
     rules: game.rules,
     timeLeftMs: gameTimeLeftMs(game),
+    turnTimeLeftMs: game.turnDeadline === null ? null : Math.max(0, game.turnDeadline - Date.now()),
+    turnId: game.turnId,
     phase: game.phase,
     handNumber: game.handNumber,
     myPlayerIndex: forPlayerIndex,
@@ -414,4 +416,28 @@ export function buildClientGameState(
     playerCount: game.players.length,
     awaitingBoneyardDraw: game.awaitingBoneyardDraw,
   }
+}
+
+/**
+ * Torneo: how long the player on turn has to play. A play that closes the game
+ * (nobody can play after it) gets the long clock; otherwise it goes by how many
+ * different tiles can be played.
+ */
+export function torneoTurnLimitMs(game: import('./GameState').ServerGameState, playerIndex: number): number {
+  const player = game.players[playerIndex]
+  const plays = getValidPlays(player.tiles, game.board, game.firstPlayMade, game.forcedFirstTileId)
+  // Playing your last tile wins the hand: that's a domino, not a tranque
+  const closes = game.boneyard.length === 0 && player.tiles.length > 1 && plays.some(play => {
+    const tile = player.tiles.find(t => t.id === play.tileId)!
+    const board = applyTileToBoard(game.board, tile, play.targetEnd, playerIndex)
+    return game.players.every(p => {
+      const tiles = p.index === playerIndex ? p.tiles.filter(t => t.id !== tile.id) : p.tiles
+      return getValidPlays(tiles, board, true, '').length === 0
+    })
+  })
+  if (closes) return TORNEO_TURN_MS.closing
+  const tileCount = new Set(plays.map(p => p.tileId)).size
+  if (tileCount <= 1) return TORNEO_TURN_MS.oneTile
+  if (tileCount === 2) return TORNEO_TURN_MS.twoTiles
+  return TORNEO_TURN_MS.moreTiles
 }

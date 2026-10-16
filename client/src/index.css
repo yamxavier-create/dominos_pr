@@ -784,3 +784,11 @@ body {
   box-shadow: 0 2px 0 #06140B, inset 0 3px 0 rgba(255,255,255,0.3);
 }
 .mm-btn-green:disabled, .mm-btn-red:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Torneo turn clock, last 3 seconds */
+@keyframes turn-clock-urgent {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.15); }
+}
+.turn-clock-urgent { animation: turn-clock-urgent 0.5s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .turn-clock-urgent { animation: none; } }

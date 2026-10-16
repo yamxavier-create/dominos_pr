@@ -2,7 +2,7 @@ import { Socket, Server } from 'socket.io'
 import { randomUUID } from 'crypto'
 import { persistMatchResult, matchResultFrom } from '../stats/persistMatch'
 import { RoomManager } from '../game/RoomManager'
-import { targetScoreFor, gameTimeLeftMs } from '../game/rules'
+import { targetScoreFor, gameTimeLeftMs, TURN_GRACE_MS } from '../game/rules'
 import { chooseBotPlay, isBotSocketId, BOT_THINK_DELAY, BOT_DRAW_DELAY } from '../game/BotPlayer'
 import {
   ServerGameState,
@@ -30,6 +30,7 @@ import {
   buildClientGameState,
   handPipSum,
   calculateBlockedResult200,
+  torneoTurnLimitMs,
 } from '../game/GameEngine'
 
 /**
@@ -43,13 +44,20 @@ function pipsToModo200Points(pips: number): number {
 }
 
 /**
- * Schedule a bot to play its turn after a delay.
- * This is the main entry point for bot auto-play.
+ * A turn just started (after any play, pass, draw or new hand): schedule the
+ * bot's play, or in Torneo start the human's turn clock.
  */
 function scheduleBotTurn(io: Server, game: ServerGameState, rooms: RoomManager) {
+  // Every turn gets a new id, so a clock left over from an earlier turn does nothing
+  game.turnId++
+  game.turnDeadline = null
   if (game.phase !== 'playing') return
   const currentPlayer = game.players[game.currentPlayerIndex]
-  if (!currentPlayer?.isBot) return
+  if (!currentPlayer) return
+  if (!currentPlayer.isBot) {
+    startTurnClock(io, game, rooms)
+    return
+  }
 
   const delay = game.awaitingBoneyardDraw ? BOT_DRAW_DELAY : BOT_THINK_DELAY
 
@@ -67,9 +75,28 @@ function scheduleBotTurn(io: Server, game: ServerGameState, rooms: RoomManager) 
   }, delay)
 }
 
-function executeBotPlay(io: Server, game: ServerGameState, rooms: RoomManager) {
+/**
+ * Torneo: the player on turn has a few seconds to play (see torneoTurnLimitMs).
+ * When the clock runs out the server plays for them, the way a bot would.
+ */
+function startTurnClock(io: Server, game: ServerGameState, rooms: RoomManager) {
+  if (game.gameMode !== 'torneo' || game.awaitingBoneyardDraw) return
+  const limit = torneoTurnLimitMs(game, game.currentPlayerIndex)
+  const turnId = game.turnId
+  game.turnDeadline = Date.now() + limit
+  // The play was already broadcast without a clock; send it again with one
+  broadcastState(io, game)
+
+  setTimeout(() => {
+    if (rooms.getRoom(game.roomCode)?.game !== game) return
+    if (game.phase !== 'playing' || game.turnId !== turnId) return
+    executeBotPlay(io, game, rooms, true)
+  }, limit + TURN_GRACE_MS).unref()  // a pending clock never keeps the process alive
+}
+
+function executeBotPlay(io: Server, game: ServerGameState, rooms: RoomManager, timedOut = false) {
   const player = game.players[game.currentPlayerIndex]
-  if (!player?.isBot) return
+  if (!player || (!player.isBot && !timedOut)) return
 
   const play = chooseBotPlay(player.tiles, game.board, game.firstPlayMade, game.forcedFirstTileId)
   if (!play) {
@@ -585,6 +612,8 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
       boneyard,
       awaitingBoneyardDraw: false,
       passPointsThisHand: 0,
+      turnId: 0,
+      turnDeadline: null,
     }
 
     room.game = game

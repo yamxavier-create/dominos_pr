@@ -17,6 +17,16 @@ export const RULE_KEYS: readonly (keyof HouseRules)[] = ['tranque', 'passPoints'
 /** Torneo (reglamento DRD): 200 points or 35 minutes, whichever comes first */
 export const TORNEO_TIME_LIMIT_MS = 35 * 60 * 1000
 
+/**
+ * Torneo: time to make a play, as a tournament champion described it. A play
+ * that closes the game (tranque) gets a minute to think; otherwise the clock
+ * depends on how many tiles can be played. 3 or more: unconfirmed, 20s for now.
+ */
+export const TORNEO_TURN_MS = { closing: 60_000, oneTile: 5_000, twoTiles: 20_000, moreTiles: 20_000 }
+
+/** Extra time the server waits past a turn clock before playing for the player, for network lag */
+export const TURN_GRACE_MS = 1_500
+
 export function targetScoreFor(mode: GameMode): 20 | 200 | 500 {
   return mode === 'modo200' ? 20 : mode === 'torneo' ? 200 : 500
 }

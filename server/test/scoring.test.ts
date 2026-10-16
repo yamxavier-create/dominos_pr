@@ -3,9 +3,10 @@
  */
 import { test, describe } from 'node:test'
 import assert from 'node:assert/strict'
-import { setupTestServer, waitFor, collect, sleep } from './harness'
+import { setupTestServer, waitFor, waitUntil, collect, sleep } from './harness'
 import { Tile, PipValue, ServerGameState } from '../src/game/GameState'
-import { HouseRules, TORNEO_TIME_LIMIT_MS } from '../src/game/rules'
+import { HouseRules, TORNEO_TIME_LIMIT_MS, TORNEO_TURN_MS } from '../src/game/rules'
+import { torneoTurnLimitMs } from '../src/game/GameEngine'
 
 const h = setupTestServer()
 const { startFourPlayerGame, createLobby } = h
@@ -198,6 +199,58 @@ describe('Torneo', () => {
     seats[0].socket.emit('room:set_rules', { rules: { tranque: 'individual' } })
     assert.equal((await waitFor(seats[0].socket, 'room:error')).code, 'INVALID_RULES')
     assert.equal(room.rules.tranque, 'pareja')
+  })
+})
+
+describe('Torneo turn clock', () => {
+  test('a play that closes the game gets a minute; otherwise it goes by how many tiles can be played', async () => {
+    const { room } = await startFourPlayerGame(undefined, 'torneo')
+    const game = room.game!
+    // Nobody holds a 6 or a 3: playing 1-3 on the right closes the game
+    rigHand(game, [tile(0, 0)], [[tile(0, 1), tile(1, 1)], [tile(0, 2), tile(2, 2)], [tile(1, 2), tile(4, 4)]])
+    assert.equal(torneoTurnLimitMs(game, 0), TORNEO_TURN_MS.closing)
+
+    // Seat 1 holds a 6, so 1-3 no longer closes it; 1-3 is seat 0's only play
+    game.players[1].tiles = [tile(0, 6), tile(1, 1)]
+    assert.equal(torneoTurnLimitMs(game, 0), TORNEO_TURN_MS.oneTile)
+
+    // Two different tiles to play
+    game.players[0].tiles = [tile(1, 3), tile(1, 4), tile(0, 0)]
+    assert.equal(torneoTurnLimitMs(game, 0), TORNEO_TURN_MS.twoTiles)
+    game.turnId++  // the opening turn's clock is still running; let it lapse
+  })
+
+  test('when the clock runs out the server plays for the player', async () => {
+    const saved = TORNEO_TURN_MS.oneTile
+    TORNEO_TURN_MS.oneTile = 100
+    try {
+      const { roomCode, room, seats } = await startFourPlayerGame(undefined, 'torneo')
+      const game = room.game!
+      // After seat 0 plays 1-3 the ends are 6 and 3; seat 1 can only play 3-5, and seat 2 can follow on the 5
+      rigHand(game, [tile(0, 0)], [[tile(3, 5), tile(2, 2)], [tile(0, 5), tile(4, 4)], [tile(1, 2), tile(0, 4)]])
+
+      const snapshot = waitUntil(seats[1].socket, 'game:state_snapshot',
+        (e: any) => e.gameState.currentPlayerIndex === 1 && e.gameState.turnTimeLeftMs !== null)
+      seats[0].socket.emit('game:play_tile', { roomCode, tileId: '1-3', targetEnd: 'right' })
+      const clocked = await snapshot
+      assert.ok(clocked.gameState.turnTimeLeftMs <= 100)
+
+      // Seat 1 never plays: after the clock and the grace period, the server plays 3-5 for them
+      await waitUntil(seats[1].socket, 'game:state_snapshot',
+        (e: any) => e.gameState.currentPlayerIndex === 2, 4000)
+      assert.deepEqual(game.players[1].tiles.map(t => t.id), ['2-2'])
+      assert.equal(game.board.rightEnd, 5)
+    } finally {
+      TORNEO_TURN_MS.oneTile = saved
+    }
+  })
+
+  test('other modes have no turn clock', async () => {
+    const { roomCode, room, seats } = await startFourPlayerGame(undefined, 'modo500')
+    rigHand(room.game!, [tile(0, 0)], [[tile(3, 5), tile(2, 2)], [tile(0, 5), tile(4, 4)], [tile(1, 2), tile(0, 4)]])
+    const snapshot = waitFor(seats[1].socket, 'game:state_snapshot')
+    seats[0].socket.emit('game:play_tile', { roomCode, tileId: '1-3', targetEnd: 'right' })
+    assert.equal((await snapshot).gameState.turnTimeLeftMs, null)
   })
 })
 

@@ -55,6 +55,8 @@ export interface ClientGameState {
   targetScore: 20 | 200 | 500
   rules: HouseRules
   timeLeftMs: number | null         // Torneo: time left on the game clock when this snapshot was sent
+  turnTimeLeftMs: number | null     // Torneo: time left to make this play; null when nobody is on the clock
+  turnId: number                    // changes on every turn
   phase: GamePhase
   handNumber: number
   myPlayerIndex: number

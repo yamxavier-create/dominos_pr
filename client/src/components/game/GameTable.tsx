@@ -15,6 +15,7 @@ import { PlayerSeat } from '../player/PlayerSeat'
 import { SocialDock, MediaDock } from './GameDock'
 import { TurnIndicator } from '../player/TurnIndicator'
 import { TurnStatus } from '../player/TurnStatus'
+import { useTurnClock } from '../../hooks/useTurnClock'
 import { CameraSeat } from '../player/CameraSeat'
 import { ScorePanel } from './ScorePanel'
 import { ScoreHistoryPanel } from './ScoreHistoryPanel'
@@ -162,6 +163,9 @@ export function GameTable() {
   const compact = isLandscape && !isDesktop
   const handleScoreBarClick = () => setShowScoreHistory(!showScoreHistory)
 
+  // Before the early return: hooks run on every render
+  const turnSeconds = useTurnClock(gameState?.turnTimeLeftMs, gameState?.turnId)
+
   if (!gameState) {
     return (
       <div className="flex items-center justify-center h-screen bg-bg">
@@ -233,7 +237,7 @@ export function GameTable() {
     <div className={`club-rail min-h-0 ${portrait || compact ? 'flex-1' : 'w-full h-full'}`} style={compact ? { padding: 6, borderRadius: 10 } : undefined}>
       <div className="club-felt relative overflow-hidden w-full h-full" data-board>
         <GameBoard board={board} allowZoom={bigScreen} />
-        {!portrait && <TurnIndicator playerName={currentPlayerName} isMyTurn={isMyTurn} />}
+        {!portrait && <TurnIndicator playerName={currentPlayerName} isMyTurn={isMyTurn} secondsLeft={turnSeconds} />}
         {is2Player && (
           <BoneyardPile
             count={boneyardCount}
@@ -394,6 +398,7 @@ export function GameTable() {
             nextPlayerName={nextPlayerName}
             leftEnd={board.leftEnd}
             rightEnd={board.rightEnd}
+            secondsLeft={turnSeconds}
           />
 
           {/* My hand on the shelf. data-seat="bottom" anchors my animations and overlays */}
