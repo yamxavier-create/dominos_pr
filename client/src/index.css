@@ -684,3 +684,103 @@ body {
   box-shadow: 0 2px 0 #06140B, inset 0 3px 0 rgba(255,255,255,0.45), inset 0 -4px 0 rgba(120,70,0,0.35);
 }
 .mm-btn-gold:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* More plain-HTML «Escenario» pieces: modals, panels, titles, wells, tabs, chips */
+.mm-modal-backdrop {
+  background: rgba(3, 12, 7, 0.78);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* Same plate as .menu-card, without the padding */
+.mm-panel {
+  background: linear-gradient(180deg, rgba(18,70,40,0.97) 0%, rgba(8,32,17,0.97) 100%);
+  border: 3px solid #06140B;
+  border-radius: 22px;
+  box-shadow: 0 0 0 2px rgba(234,179,8,0.45), 0 6px 0 #06140B, 0 20px 40px rgba(0,0,0,0.45), inset 0 2px 0 rgba(255,255,255,0.08);
+}
+
+/* Gold heading with an ink outline */
+.mm-title {
+  font-family: 'Lilita One', Nunito, sans-serif;
+  color: #FDD04B;
+  letter-spacing: 0.02em;
+  text-shadow:
+    0 2px 0 #06140B, 0 -1px 0 #06140B, 1px 0 0 #06140B, -1px 0 0 #06140B,
+    1.5px 1.5px 0 #06140B, -1.5px 1.5px 0 #06140B, 0 4px 0 rgba(0,0,0,0.35);
+}
+
+/* Sunken dark area for rows, lists and stats inside a panel */
+.mm-well {
+  background: rgba(6, 20, 11, 0.55);
+  border: 2px solid #06140B;
+  border-radius: 12px;
+  box-shadow: inset 0 3px 0 rgba(0,0,0,0.3);
+}
+
+/* Segmented tabs: the selected one is a raised gold key */
+.mm-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(6, 20, 11, 0.6);
+  border: 2px solid #06140B;
+  border-radius: 14px;
+}
+.mm-tab {
+  flex: 1;
+  padding: 0.45rem 0.5rem;
+  border-radius: 10px;
+  font-family: 'Lilita One', Nunito, sans-serif;
+  font-size: 0.95rem;
+  letter-spacing: 0.03em;
+  color: rgba(255,255,255,0.7);
+  transition: transform 80ms ease-out;
+}
+.mm-tab[aria-selected='true'], .mm-tab[aria-pressed='true'] {
+  color: #2B1B12;
+  background: linear-gradient(180deg, #FFE27A 0%, #F2B51C 100%);
+  border: 2px solid #06140B;
+  box-shadow: 0 3px 0 #06140B, inset 0 2px 0 rgba(255,255,255,0.5);
+}
+
+/* Small pill for counts and states */
+.mm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 2px solid #06140B;
+  font-family: 'Lilita One', Nunito, sans-serif;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  background: linear-gradient(180deg, #FFE27A, #F2B51C);
+  color: #2B1B12;
+}
+
+/* Green and red versions of .mm-btn-gold */
+.mm-btn-green, .mm-btn-red {
+  width: 100%;
+  padding: 0.6rem 1rem 0.7rem;
+  border-radius: 16px;
+  border: 3px solid #06140B;
+  font-family: 'Lilita One', Nunito, sans-serif;
+  font-size: 1.25rem;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  transition: transform 80ms ease-out, box-shadow 80ms ease-out;
+}
+.mm-btn-green {
+  background: linear-gradient(180deg, #2E9A57 0%, #1C7442 50%, #124E2B 100%);
+  box-shadow: 0 5px 0 #06140B, inset 0 3px 0 rgba(255,255,255,0.3), inset 0 -4px 0 rgba(0,0,0,0.25);
+}
+.mm-btn-red {
+  background: linear-gradient(180deg, #E5534A 0%, #C2392F 50%, #8E2A22 100%);
+  box-shadow: 0 5px 0 #06140B, inset 0 3px 0 rgba(255,255,255,0.3), inset 0 -4px 0 rgba(0,0,0,0.25);
+}
+.mm-btn-green:active:not(:disabled), .mm-btn-red:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 #06140B, inset 0 3px 0 rgba(255,255,255,0.3);
+}
+.mm-btn-green:disabled, .mm-btn-red:disabled { opacity: 0.5; cursor: not-allowed; }

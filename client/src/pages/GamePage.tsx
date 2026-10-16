@@ -28,8 +28,8 @@ class GameErrorBoundary extends Component<
       return (
         <div className="flex flex-col items-center justify-center h-screen felt-table gap-4 p-6 text-center">
           <p className="text-4xl">😵</p>
-          <h2 className="font-header text-2xl text-gold">Algo salio mal</h2>
-          <p className="font-body text-white/60 text-sm">
+          <h2 className="mm-title text-[1.9rem] leading-tight">Algo salio mal</h2>
+          <p className="font-body font-semibold text-white/80 text-sm">
             El juego tuvo un error inesperado.
           </p>
           <button
@@ -37,8 +37,7 @@ class GameErrorBoundary extends Component<
               this.setState({ hasError: false })
               this.props.onReset()
             }}
-            className="px-6 py-3 rounded-xl font-body font-bold text-white"
-            style={{ background: 'linear-gradient(135deg, #22C55E, #16a34a)' }}
+            className="mm-btn-gold mm-stroke max-w-xs"
           >
             Volver al lobby
           </button>

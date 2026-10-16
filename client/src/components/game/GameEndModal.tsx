@@ -95,11 +95,8 @@ export function GameEndModal() {
     return (
       <button
         onClick={() => setPeek(false)}
-        className="fixed z-50 bottom-6 left-1/2 -translate-x-1/2 px-5 py-3 rounded-full font-body font-bold text-white shadow-xl active:scale-95 transition-transform"
-        style={{
-          background: 'linear-gradient(135deg, #22C55E, #16a34a)',
-          paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))',
-        }}
+        className="mm-btn-gold mm-stroke mm-rise fixed z-50 left-1/2 -translate-x-1/2 !w-auto px-6"
+        style={{ bottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}
       >
         Ver resumen
       </button>
@@ -107,27 +104,19 @@ export function GameEndModal() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex overflow-y-auto bg-black/80 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex overflow-y-auto mm-modal-backdrop p-4">
       {/* Peek button — hides modal to reveal the final board */}
       <button
         onClick={() => setPeek(true)}
-        className="absolute right-4 flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/50 border border-white/25 text-white/90 text-xs font-body font-bold active:scale-95 transition-transform"
-        style={{ backdropFilter: 'blur(8px)', top: 'calc(16px + var(--safe-top))' }}
+        className="club-btn absolute right-4 gap-1.5 px-3 h-10 font-chunky text-sm tracking-wide"
+        style={{ top: 'calc(16px + var(--safe-top))' }}
         aria-label="Ver mesa"
       >
         <span>👁</span>
         <span>Ver mesa</span>
       </button>
-      {/* Animated gradient border wrapper */}
-      <div
-        className="modal-enter m-auto p-0.5 rounded-2xl w-full max-w-sm"
-        style={{
-          background: `linear-gradient(135deg, ${winTeamColor}, #EAB308, ${winTeamColor})`,
-          backgroundSize: '200% 200%',
-          animation: 'gradient-border 3s ease infinite',
-        }}
-      >
-        <div className="rounded-2xl overflow-hidden text-center" style={{ background: '#0F2318' }}>
+      <div className="mm-pop m-auto w-full max-w-sm">
+        <div className="mm-panel overflow-hidden text-center">
           {/* Header */}
           <div
             className="px-6 pt-8 pb-6 flex flex-col items-center gap-2"
@@ -136,47 +125,40 @@ export function GameEndModal() {
             <GoldCaption>Fin de Partida</GoldCaption>
             <div className="text-6xl mb-1">{weWon ? '🏆' : '🤝'}</div>
             <h1
-              className="font-header leading-[0.9] text-[3.4rem]"
-              style={{
-                color: weWon ? '#EAB308' : '#FFFFFF',
-                letterSpacing: '0.04em',
-                textShadow: weWon
-                  ? '0 0 50px rgba(234,179,8,0.45), 0 2px 8px rgba(0,0,0,0.5)'
-                  : '0 2px 8px rgba(0,0,0,0.5)',
-              }}
+              className={`font-chunky leading-[0.9] text-[3rem] tracking-wide ${weWon ? 'mm-title' : 'mm-stroke'}`}
             >
               {weWon ? (is2Player ? '¡GANASTE!' : '¡GANAMOS!') : (is2Player ? 'PERDISTE' : 'PERDIMOS')}
             </h1>
-            <p className="font-body text-white/60 mt-1 text-sm">
+            <p className="font-body font-bold text-white/80 mt-1 text-sm">
               {winnerText}
             </p>
           </div>
 
           {/* Final Scores */}
-          <div className="px-6 py-5 border-t border-white/10">
-            <p className="font-body text-white/40 text-xs mb-4 uppercase tracking-wider">Marcador Final</p>
+          <div className="mm-well mx-4 px-4 py-4">
+            <p className="font-chunky text-[#FDE68A] text-sm mb-3 uppercase tracking-wider">Marcador Final</p>
             <div className="flex justify-around items-center">
               <div className="text-center">
-                <p className="font-body text-sm mb-1" style={{ color: '#22C55E' }}>{team0Label}</p>
-                <p className={`font-header text-5xl leading-none ${gameEndData.winningTeam === 0 ? 'text-gold' : 'text-white/40'}`}>
+                <p className="font-body font-extrabold text-sm mb-1" style={{ color: '#5BEA9B' }}>{team0Label}</p>
+                <p className={`font-chunky text-5xl leading-none ${gameEndData.winningTeam === 0 ? 'mm-title' : 'mm-stroke opacity-70'}`}>
                   {gameEndData.finalScores.team0}
                 </p>
               </div>
-              <div className="font-body text-white/20 text-2xl">vs</div>
+              <div className="font-chunky text-white/60 text-2xl">vs</div>
               <div className="text-center">
-                <p className="font-body text-sm mb-1" style={{ color: '#F97316' }}>{team1Label}</p>
-                <p className={`font-header text-5xl leading-none ${gameEndData.winningTeam === 1 ? 'text-gold' : 'text-white/40'}`}>
+                <p className="font-body font-extrabold text-sm mb-1" style={{ color: '#FFA270' }}>{team1Label}</p>
+                <p className={`font-chunky text-5xl leading-none ${gameEndData.winningTeam === 1 ? 'mm-title' : 'mm-stroke opacity-70'}`}>
                   {gameEndData.finalScores.team1}
                 </p>
               </div>
             </div>
-            <p className="font-body text-white/30 text-xs mt-4">
+            <p className="font-body font-bold text-white/70 text-xs mt-3">
               {gameEndData.totalRounds} {gameEndData.totalRounds === 1 ? 'mano' : 'manos'} jugadas
             </p>
           </div>
 
           {/* Rematch voting section */}
-          <div className="px-6 pb-8 pt-2">
+          <div className="px-6 pb-8 pt-4">
             {/* Revancha button */}
             <div
               className="transition-opacity duration-500"
@@ -195,39 +177,39 @@ export function GameEndModal() {
                   type="button"
                   onClick={() => socket.emit('room:back_to_lobby', { roomCode })}
                   disabled={allVoted && !rematchCancelled}
-                  className="w-full mt-3 font-body text-sm py-2.5 rounded-xl text-white/80 hover:text-white transition-all btn-outline-shine disabled:opacity-40"
+                  className="w-full mt-3 font-chunky text-lg tracking-wide py-2 rounded-xl mm-stroke btn-outline-shine disabled:opacity-40"
                 >
                   Volver a la sala
                 </button>
               ) : (
-                <p className="font-body text-white/35 text-xs mt-3">El host puede llevarlos de vuelta a la sala</p>
+                <p className="font-body font-bold text-white/70 text-xs mt-3">El host puede llevarlos de vuelta a la sala</p>
               )}
             </div>
 
             {/* Vote counter and player list */}
             {rematchVotes.length > 0 && !allVoted && (
               <div className="mt-4">
-                <p className="font-body text-white/60 text-sm mb-2">
+                <p className="font-chunky text-white text-base mb-2 mm-stroke">
                   {rematchVotes.length}/{playerCount} listos
                 </p>
-                <div className="space-y-1">
+                <div className="mm-well space-y-1 py-1">
                   {rematchPlayerNames.map((name, idx) => {
                     const voted = rematchVotes.includes(idx)
                     const disconnected = rematchCancelled?.playerIndex === idx
                     return (
                       <div key={idx} className="flex items-center justify-between px-4 py-1">
-                        <span className="font-body text-white/70 text-sm">{name}</span>
+                        <span className="font-body font-extrabold text-white/85 text-sm">{name}</span>
                         {disconnected ? (
-                          <span className="text-red-400 font-bold">✕</span>
+                          <span className="font-chunky text-[#FF8A80]">✕</span>
                         ) : voted ? (
                           <span
-                            className="transition-transform duration-200 inline-block text-green-400 font-bold"
+                            className="transition-transform duration-200 inline-block font-chunky text-[#5BEA9B]"
                             style={{ transform: 'scale(1)' }}
                           >
                             ✓
                           </span>
                         ) : (
-                          <span className="text-white/30 text-sm">...</span>
+                          <span className="text-white/60 font-bold text-sm">...</span>
                         )}
                       </div>
                     )
@@ -240,7 +222,7 @@ export function GameEndModal() {
             {allVoted && !rematchCancelled && (
               <div className="mt-4">
                 <p
-                  className="font-header text-3xl text-gold transition-transform duration-300"
+                  className="mm-title text-3xl transition-transform duration-300"
                   style={{ animation: 'scale-in 300ms ease-out forwards' }}
                 >
                   ¡Revancha! 🔥
@@ -256,8 +238,8 @@ export function GameEndModal() {
 
             {/* Disconnect cancellation */}
             {rematchCancelled && (
-              <div className="mt-4 bg-red-900/40 border border-red-500/30 rounded-lg px-4 py-3">
-                <p className="font-body text-red-300 text-sm">
+              <div className="mt-4 rounded-xl px-4 py-3" style={{ background: 'linear-gradient(180deg, #C2392F, #8E2A22)', border: '2px solid #06140B', boxShadow: '0 4px 0 #06140B' }}>
+                <p className="font-body font-extrabold text-white text-sm">
                   {rematchCancelled.playerName} se desconecto. Revancha cancelada.
                 </p>
               </div>
@@ -266,8 +248,8 @@ export function GameEndModal() {
 
           {/* Add Friend section -- only for authenticated users */}
           {isAuthenticated && opponentStatuses && Object.keys(opponentStatuses).length > 0 && (
-            <div className="px-6 pb-4 border-t border-white/10 pt-3">
-              <p className="font-body text-white/40 text-xs mb-2 uppercase tracking-wider">
+            <div className="mm-well mx-4 mb-4 px-4 pb-2 pt-3">
+              <p className="font-chunky text-[#FDE68A] text-sm mb-2 uppercase tracking-wider">
                 Agregar Amigo
               </p>
               {gameState?.players
@@ -279,15 +261,15 @@ export function GameEndModal() {
                   const isPending = friendStatus.status === 'PENDING' || sentRequests.has(p.userId!)
                   return (
                     <div key={p.index} className="flex items-center justify-between py-1.5">
-                      <span className="font-body text-white/70 text-sm">{p.name}</span>
+                      <span className="font-body font-extrabold text-white/85 text-sm">{p.name}</span>
                       {isFriend ? (
-                        <span className="font-body text-green-400 text-xs">Amigos</span>
+                        <span className="mm-chip" style={{ background: 'linear-gradient(180deg, #5BEA9B, #1FB862)' }}>Amigos</span>
                       ) : isPending ? (
-                        <span className="font-body text-white/40 text-xs">Pendiente</span>
+                        <span className="font-body font-bold text-white/70 text-xs">Pendiente</span>
                       ) : (
                         <button
                           onClick={() => handleAddFriend(p.userId!)}
-                          className="font-body text-xs font-bold px-3 py-1 rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors"
+                          className="mm-btn-green mm-stroke !w-auto !text-sm !px-3 !py-1 !rounded-xl"
                         >
                           Agregar
                         </button>

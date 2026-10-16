@@ -5,10 +5,10 @@ import { socket } from '../../socket'
 import { ReactionPicker } from './ReactionPicker'
 
 const PLAYER_COLORS = [
-  'text-blue-400',
-  'text-red-400',
-  'text-green-400',
-  'text-yellow-400',
+  'text-[#5BEA9B]',
+  'text-[#FFA270]',
+  'text-[#86EFAC]',
+  'text-[#FF8A80]',
 ]
 
 function formatTime(timestamp: number): string {
@@ -23,18 +23,23 @@ function MessageBubble({ msg, myIndex }: { msg: ChatMessage; myIndex: number }) 
   return (
     <div className={`flex flex-col ${isMine ? 'items-end' : 'items-start'} mb-2`}>
       {!isMine && (
-        <span className={`text-xs font-semibold ${PLAYER_COLORS[msg.playerIndex] ?? 'text-gray-400'} mb-0.5`}>
+        <span className={`font-chunky text-xs tracking-wide ${PLAYER_COLORS[msg.playerIndex] ?? 'text-white/70'} mb-0.5`}>
           {msg.playerName}
         </span>
       )}
       <div
-        className={`rounded-lg px-3 py-1.5 max-w-[85%] break-words ${
-          isMine ? 'bg-blue-600 text-white' : 'bg-white/15 text-white'
+        className={`rounded-xl px-3 py-1.5 max-w-[85%] break-words font-body font-bold ${
+          isMine ? 'text-[#2B1B12]' : 'text-white'
         } ${isReaction ? 'text-xl' : 'text-sm'}`}
+        style={{
+          background: isMine ? 'linear-gradient(180deg, #FFE27A, #F2B51C)' : 'linear-gradient(180deg, #23824A, #15592F)',
+          border: '2px solid #06140B',
+          boxShadow: '0 3px 0 #06140B',
+        }}
       >
         {msg.content}
       </div>
-      <span className="text-[10px] text-gray-500 mt-0.5">{formatTime(msg.timestamp)}</span>
+      <span className="font-body font-semibold text-[10px] text-white/60 mt-1">{formatTime(msg.timestamp)}</span>
     </div>
   )
 }
@@ -80,18 +85,26 @@ export function ChatPanel() {
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/40 z-50"
+        className="fixed inset-0 mm-modal-backdrop z-50"
         onClick={() => useUIStore.getState().setChatOpen(false)}
       />
 
       {/* Panel */}
-      <div className="fixed right-0 top-0 bottom-0 w-80 bg-gray-900 z-50 flex flex-col shadow-2xl animate-slide-in-right">
+      <div
+        className="fixed right-0 top-0 bottom-0 w-80 z-50 flex flex-col animate-slide-in-right"
+        style={{
+          background: 'linear-gradient(180deg, #124628 0%, #08200F 100%)',
+          borderLeft: '3px solid #06140B',
+          boxShadow: '-2px 0 0 rgba(234,179,8,0.45), -12px 0 30px rgba(0,0,0,0.5)',
+          paddingTop: 'var(--safe-top)',
+        }}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-          <h2 className="text-white font-semibold text-lg">Chat</h2>
+        <div className="flex items-center justify-between px-4 py-3 border-b-2 border-[#06140B]">
+          <h2 className="mm-title text-2xl leading-none">Chat</h2>
           <button
             onClick={() => useUIStore.getState().setChatOpen(false)}
-            className="text-gray-400 hover:text-white transition-colors text-xl leading-none"
+            className="club-btn w-9 h-9 text-xl leading-none"
             aria-label="Close chat"
           >
             &times;
@@ -103,7 +116,7 @@ export function ChatPanel() {
           {chatMessages.length === 0 && (
             <div className="text-center mt-8">
               <p className="text-2xl mb-1">💬</p>
-              <p className="font-body text-white/30 text-xs">Envía un mensaje a tus oponentes</p>
+              <p className="font-body font-bold text-white/70 text-xs">Envía un mensaje a tus oponentes</p>
             </div>
           )}
           {chatMessages.map(msg => (
@@ -116,7 +129,7 @@ export function ChatPanel() {
         <ReactionPicker />
 
         {/* Input */}
-        <div className="flex items-center gap-2 px-3 py-2 border-t border-white/10">
+        <div className="flex items-center gap-2 px-3 py-2.5 border-t-2 border-[#06140B]" style={{ paddingBottom: 'calc(0.625rem + env(safe-area-inset-bottom))' }}>
           <input
             ref={inputRef}
             type="text"
@@ -125,12 +138,12 @@ export function ChatPanel() {
             onKeyDown={handleKeyDown}
             maxLength={200}
             placeholder="Escribe un mensaje..."
-            className="flex-1 bg-white/10 text-white rounded-lg px-3 py-2 text-sm outline-none placeholder-gray-500 focus:ring-1 focus:ring-blue-500"
+            className="mm-input flex-1 !w-auto min-w-0 !py-2 !text-sm"
           />
           <button
             onClick={handleSend}
             disabled={!input.trim()}
-            className="px-3 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg text-white text-sm transition-colors"
+            className="mm-btn-gold mm-stroke !w-auto !text-base !px-3 !py-2 !rounded-xl"
           >
             Enviar
           </button>

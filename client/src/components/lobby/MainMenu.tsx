@@ -35,19 +35,18 @@ function SettingsDropdown({ onClose }: { onClose: () => void }) {
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
       <div
-        className="absolute top-16 right-0 z-50 w-60 rounded-2xl py-2 shadow-2xl"
-        style={{ background: 'rgba(15,35,24,0.96)', border: '1px solid rgba(255,255,255,0.10)', backdropFilter: 'blur(16px)' }}
+        className="mm-pop mm-panel absolute top-16 right-0 z-50 w-60 !rounded-2xl py-2"
       >
         {user && (
-          <div className="px-4 pt-1 pb-2 border-b border-white/10 mb-1">
-            <p className="font-body text-white text-sm font-semibold truncate">{user.displayName}</p>
+          <div className="px-4 pt-1 pb-2 border-b-2 border-[#06140B] mb-1">
+            <p className="font-chunky text-[#FDD04B] text-base tracking-wide truncate">{user.displayName}</p>
             {user.email && (
-              <p className="font-body text-white/40 text-[11px] truncate">
+              <p className="font-body font-bold text-white/70 text-[11px] truncate">
                 {user.email}{user.emailVerified === false && ' · sin confirmar'}
               </p>
             )}
             {user.pendingEmail && user.pendingEmail !== user.email && (
-              <p className="font-body text-gold/80 text-[11px] leading-snug mt-0.5">Confirma {user.pendingEmail} desde tu correo</p>
+              <p className="font-body font-bold text-[#FDE68A] text-[11px] leading-snug mt-0.5">Confirma {user.pendingEmail} desde tu correo</p>
             )}
           </div>
         )}
@@ -59,22 +58,22 @@ function SettingsDropdown({ onClose }: { onClose: () => void }) {
 
         {user && (
           <>
-            <div className="h-px bg-white/10 my-1 mx-2" />
+            <div className="h-0.5 bg-[#06140B] my-1 mx-2 rounded" />
             <button
               onClick={() => setEditing('displayName')}
-              className="w-full text-left px-4 py-2 font-body text-white/75 hover:bg-white/5 text-sm rounded-lg"
+              className="w-full text-left px-4 py-2 font-body font-extrabold text-white/85 hover:bg-black/20 text-sm rounded-lg"
             >
               Editar nombre
             </button>
             <button
               onClick={() => setEditing('email')}
-              className="w-full text-left px-4 py-2 font-body text-white/75 hover:bg-white/5 text-sm rounded-lg"
+              className="w-full text-left px-4 py-2 font-body font-extrabold text-white/85 hover:bg-black/20 text-sm rounded-lg"
             >
               {user.email ? 'Cambiar email' : 'Agregar email'}
             </button>
             <button
               onClick={() => { logout(); onClose() }}
-              className="w-full text-left px-4 py-2 font-body text-red-400/80 hover:bg-white/5 text-sm rounded-lg"
+              className="w-full text-left px-4 py-2 font-body font-extrabold text-[#FF8A80] hover:bg-black/20 text-sm rounded-lg"
             >
               Cerrar sesión
             </button>
@@ -87,15 +86,23 @@ function SettingsDropdown({ onClose }: { onClose: () => void }) {
 
 function ToggleRow({ label, enabled, onToggle }: { label: string; enabled: boolean; onToggle: () => void }) {
   return (
-    <button onClick={onToggle} className="w-full flex items-center justify-between px-2 py-2 rounded-lg hover:bg-white/5">
-      <span className="font-body text-white/80 text-sm">{label}</span>
+    <button onClick={onToggle} className="w-full flex items-center justify-between px-2 py-2 rounded-lg hover:bg-black/20">
+      <span className="font-body font-extrabold text-white/85 text-sm">{label}</span>
       <span
-        className="relative inline-flex w-10 h-6 rounded-full transition-colors"
-        style={{ background: enabled ? '#22C55E' : 'rgba(255,255,255,0.15)' }}
+        className="relative inline-flex w-11 h-6 rounded-full transition-colors"
+        style={{
+          background: enabled ? 'linear-gradient(180deg, #2E9A57, #124E2B)' : 'rgba(6,20,11,0.7)',
+          border: '2px solid #06140B',
+          boxShadow: 'inset 0 2px 0 rgba(0,0,0,0.3)',
+        }}
       >
         <span
-          className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all"
-          style={{ left: enabled ? '18px' : '2px' }}
+          className="absolute top-[1px] w-[18px] h-[18px] rounded-full transition-all"
+          style={{
+            left: enabled ? '20px' : '2px',
+            background: enabled ? 'linear-gradient(180deg, #FFE27A, #F2B51C)' : 'linear-gradient(180deg, #fff, #cbd5c0)',
+            border: '2px solid #06140B',
+          }}
         />
       </span>
     </button>
@@ -136,28 +143,23 @@ function EditProfileModal({ field, onClose }: { field: ProfileField; onClose: ()
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center mm-modal-backdrop p-4" onClick={onClose}>
       <div
-        className="w-full max-w-xs rounded-2xl p-5"
-        style={{ background: '#0F2318', border: '1px solid rgba(255,255,255,0.10)' }}
+        className="mm-pop mm-panel w-full max-w-xs p-5"
         onClick={e => e.stopPropagation()}
       >
         {sentTo ? (
           <>
-            <p className="font-body text-white/80 text-sm">
-              Te enviamos un enlace a <span className="text-white">{sentTo}</span>. El email se guarda cuando lo confirmes.
+            <p className="font-body font-bold text-white/85 text-sm">
+              Te enviamos un enlace a <span className="text-[#FDD04B]">{sentTo}</span>. El email se guarda cuando lo confirmes.
             </p>
-            <button
-              onClick={onClose}
-              className="w-full mt-4 font-body text-white font-bold py-2.5 rounded-xl text-sm"
-              style={{ background: 'linear-gradient(135deg, #22C55E, #16a34a)' }}
-            >
+            <button onClick={onClose} className="mm-btn-gold mm-stroke mt-4">
               Listo
             </button>
           </>
         ) : (
         <>
-        <p className="font-body text-white/60 text-xs mb-2 uppercase tracking-wider">{isEmail ? 'Tu email' : 'Tu nombre'}</p>
+        <p className="mm-title text-lg mb-2 uppercase tracking-wider">{isEmail ? 'Tu email' : 'Tu nombre'}</p>
         <input
           type={isEmail ? 'email' : 'text'}
           value={value}
@@ -167,17 +169,16 @@ function EditProfileModal({ field, onClose }: { field: ProfileField; onClose: ()
           placeholder={isEmail ? 'tu@email.com' : undefined}
           autoComplete={isEmail ? 'email' : undefined}
           autoFocus
-          className="w-full font-body text-white bg-white/5 border border-white/15 rounded-xl px-3 py-2 outline-none focus:border-primary/60"
+          className="mm-input"
         />
-        {isEmail && <p className="font-body text-white/40 text-xs mt-2">Lo usamos solo para recuperar tu contraseña. Te enviaremos un enlace para confirmarlo.</p>}
-        {error && <p className="font-body text-accent text-xs mt-2">{error}</p>}
+        {isEmail && <p className="font-body font-bold text-white/70 text-xs mt-2">Lo usamos solo para recuperar tu contraseña. Te enviaremos un enlace para confirmarlo.</p>}
+        {error && <p className="font-body font-bold text-[#FF8A80] text-xs mt-2">{error}</p>}
         <div className="flex gap-2 mt-4">
-          <button onClick={onClose} className="flex-1 font-body text-white/60 py-2.5 rounded-xl hover:bg-white/5 text-sm">Cancelar</button>
+          <button onClick={onClose} className="flex-1 btn-outline-shine rounded-2xl font-chunky text-lg tracking-wide mm-stroke py-1.5">Cancelar</button>
           <button
             onClick={save}
             disabled={saving || (!isEmail && !value.trim())}
-            className="flex-1 font-body text-white font-bold py-2.5 rounded-xl disabled:opacity-50 text-sm"
-            style={{ background: 'linear-gradient(135deg, #22C55E, #16a34a)' }}
+            className="flex-1 mm-btn-gold mm-stroke !text-lg !py-1.5"
           >
             {saving ? '...' : 'Guardar'}
           </button>
@@ -464,27 +465,27 @@ export function MainMenu() {
   }
 
   if (view === 'create') {
+    // The backdrop sits outside the revealed column: its children animate a transform, which would trap a fixed layer
     return (
-      <div className="menu-reveal flex flex-col gap-4 sm:gap-5 w-full max-w-xs sm:max-w-sm md:max-w-md min-h-full">
+      <>
+      <StageBackdrop still />
+      <div className="menu-reveal relative z-10 flex flex-col gap-4 sm:gap-5 w-full max-w-xs sm:max-w-sm md:max-w-md min-h-full">
         <button
           onClick={() => { setView('home'); clearError() }}
-          className="font-body text-white/40 hover:text-white/70 text-sm self-start transition-colors"
+          className="relative self-start btn-outline-shine rounded-xl px-3 py-1.5 font-chunky text-base tracking-wide mm-stroke"
         >
-          ← Volver
+          ‹ Volver
         </button>
 
         {/* Spacers center the form vertically (a bit above middle), Volver stays on top */}
         <div className="flex-1" />
 
-        <div className="text-center flex flex-col items-center gap-1.5">
+        <div className="relative text-center flex flex-col items-center gap-1.5">
           <GoldCaption>Crear Sala</GoldCaption>
-          <h2
-            className="font-header text-white leading-[0.9] text-4xl sm:text-5xl"
-            style={{ letterSpacing: '0.02em', textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}
-          >
+          <h2 className="font-chunky leading-none text-[2.6rem] sm:text-5xl mm-stroke tracking-wide">
             Nueva Mesa
           </h2>
-          <p className="font-body text-white/50 text-xs sm:text-sm">Elige el modo de juego</p>
+          <p className="font-body font-bold text-white/75 text-xs sm:text-sm">Elige el modo de juego</p>
         </div>
 
         <Input
@@ -496,7 +497,7 @@ export function MainMenu() {
           onKeyDown={e => e.key === 'Enter' && handleCreate()}
         />
 
-        <div className="flex gap-2">
+        <div className="relative flex gap-2">
           {(['modo200', 'modo500', 'torneo'] as GameMode[]).map(mode => {
             const active = selectedMode === mode
             const [target, extra] = MODE_SUMMARY[mode]
@@ -505,56 +506,61 @@ export function MainMenu() {
                 key={mode}
                 onClick={() => setSelectedMode(mode)}
                 aria-pressed={active}
-                className="flex-1 min-w-0 rounded-2xl px-1.5 py-3 text-center transition-all active:scale-[0.98]"
+                className="mm-press flex-1 min-w-0 rounded-2xl px-1.5 py-3 text-center"
                 style={{
-                  background: active ? 'rgba(234,179,8,0.10)' : 'rgba(255,255,255,0.03)',
-                  border: `1.5px solid ${active ? '#EAB308' : 'rgba(255,255,255,0.10)'}`,
-                  boxShadow: active ? '0 0 20px rgba(234,179,8,0.20), inset 0 1px 0 rgba(255,255,255,0.08)' : 'inset 0 1px 0 rgba(255,255,255,0.03)',
+                  background: active
+                    ? 'linear-gradient(180deg, #FFE27A 0%, #F2B51C 100%)'
+                    : 'linear-gradient(180deg, rgba(18,70,40,0.96), rgba(8,32,17,0.96))',
+                  border: '3px solid #06140B',
+                  boxShadow: active
+                    ? '0 0 0 2px #FDE68A, 0 5px 0 #06140B, inset 0 3px 0 rgba(255,255,255,0.5)'
+                    : '0 0 0 2px rgba(234,179,8,0.35), 0 5px 0 #06140B, inset 0 2px 0 rgba(255,255,255,0.08)',
                 }}
               >
-                <p className="font-header text-xl sm:text-2xl text-gold">{MODE_SHORT[mode]}</p>
-                <p className="font-body text-white/60 text-[11px] sm:text-xs mt-1 leading-tight">{target}</p>
-                <p className="font-body text-white/35 text-[11px] sm:text-xs leading-tight mt-0.5">{extra}</p>
+                <p className={`font-chunky text-xl sm:text-2xl leading-none mm-stroke ${active ? '' : '!text-[#FDD04B]'}`}>{MODE_SHORT[mode]}</p>
+                <p className={`font-body font-extrabold text-[11px] sm:text-xs mt-1.5 leading-tight ${active ? 'text-[#4A2A00]' : 'text-white/85'}`}>{target}</p>
+                <p className={`font-body font-bold text-[11px] sm:text-xs leading-tight mt-0.5 ${active ? 'text-[#4A2A00]/80' : 'text-white/70'}`}>{extra}</p>
               </button>
             )
           })}
         </div>
-        <p className="font-body text-white/35 text-xs text-center -mt-2">
+        <p className="relative font-body font-bold text-white/70 text-xs text-center -mt-1">
           {selectedMode === 'torneo' ? 'Reglas fijas del torneo.' : 'Puedes ajustar las reglas en la sala.'}
         </p>
 
-        {error && <p className="font-body text-accent text-sm text-center">{error}</p>}
+        {error && <p className="relative font-body font-bold text-[#FF8A80] text-sm text-center">{error}</p>}
 
         <GoldCTA onClick={handleCreate} disabled={!playerName.trim()} size="md">
           CREAR SALA
         </GoldCTA>
         <div className="flex-[1.4]" />
       </div>
+      </>
     )
   }
 
   if (view === 'join') {
+    // The backdrop sits outside the revealed column: its children animate a transform, which would trap a fixed layer
     return (
-      <div className="menu-reveal flex flex-col gap-4 sm:gap-5 w-full max-w-xs sm:max-w-sm md:max-w-md min-h-full">
+      <>
+      <StageBackdrop still />
+      <div className="menu-reveal relative z-10 flex flex-col gap-4 sm:gap-5 w-full max-w-xs sm:max-w-sm md:max-w-md min-h-full">
         <button
           onClick={() => { setView('home'); clearError() }}
-          className="font-body text-white/40 hover:text-white/70 text-sm self-start transition-colors"
+          className="relative self-start btn-outline-shine rounded-xl px-3 py-1.5 font-chunky text-base tracking-wide mm-stroke"
         >
-          ← Volver
+          ‹ Volver
         </button>
 
         {/* Spacers center the form vertically (a bit above middle), Volver stays on top */}
         <div className="flex-1" />
 
-        <div className="text-center flex flex-col items-center gap-1.5">
+        <div className="relative text-center flex flex-col items-center gap-1.5">
           <GoldCaption>Unirse a Sala</GoldCaption>
-          <h2
-            className="font-header text-white leading-[0.9] text-4xl sm:text-5xl"
-            style={{ letterSpacing: '0.02em', textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}
-          >
+          <h2 className="font-chunky leading-none text-[2.6rem] sm:text-5xl mm-stroke tracking-wide">
             Ingresa Código
           </h2>
-          <p className="font-body text-white/50 text-xs sm:text-sm">Te invitaron a una mesa</p>
+          <p className="font-body font-bold text-white/75 text-xs sm:text-sm">Te invitaron a una mesa</p>
         </div>
 
         <Input
@@ -577,21 +583,25 @@ export function MainMenu() {
           onKeyDown={e => e.key === 'Enter' && handleJoin()}
         />
 
-        {error && <p className="font-body text-accent text-sm text-center">{error}</p>}
+        {error && <p className="relative font-body font-bold text-[#FF8A80] text-sm text-center">{error}</p>}
 
         <GoldCTA onClick={handleJoin} disabled={!playerName.trim() || !roomCode.trim()} size="md">
           UNIRSE
         </GoldCTA>
         <div className="flex-[1.4]" />
       </div>
+      </>
     )
   }
 
   if (showSocial && isAuthenticated) {
     return (
-      <div className="flex flex-col items-center w-full max-w-xs sm:max-w-sm md:max-w-md">
+      <>
+      <StageBackdrop still />
+      <div className="mm-rise relative z-10 flex flex-col items-center w-full max-w-xs sm:max-w-sm md:max-w-md">
         <SocialPanel onClose={() => setShowSocial(false)} />
       </div>
+      </>
     )
   }
 

@@ -32,10 +32,15 @@ export function ConnectionStatus() {
   if (!disconnected) return null
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center py-2 px-4"
-      style={{ background: 'rgba(239, 68, 68, 0.9)', backdropFilter: 'blur(8px)' }}
+    <div className="mm-drop fixed top-0 left-0 right-0 z-50 flex items-center justify-center py-2 px-4"
+      style={{
+        background: 'linear-gradient(180deg, #E5534A 0%, #C2392F 55%, #8E2A22 100%)',
+        borderBottom: '3px solid #06140B',
+        boxShadow: '0 4px 0 #06140B',
+        paddingTop: 'calc(0.5rem + var(--safe-top))',
+      }}
     >
-      <p className="font-body text-white text-sm font-semibold">
+      <p className="font-chunky text-white text-base tracking-wide mm-stroke">
         {reconnecting ? (
           <>
             <span className="inline-block animate-spin mr-2">⟳</span>
@@ -43,7 +48,7 @@ export function ConnectionStatus() {
           </>
         ) : (
           <>
-            Conexión perdida — <button onClick={() => socket.connect()} className="underline">Reintentar</button>
+            Conexión perdida — <button onClick={() => socket.connect()} className="mm-chip ml-1 !text-sm">Reintentar</button>
           </>
         )}
       </p>

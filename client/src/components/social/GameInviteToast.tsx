@@ -43,28 +43,27 @@ export function GameInviteToast() {
   return (
     <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-sm animate-slide-down">
       <div
-        className="rounded-2xl p-4 shadow-2xl flex items-center gap-3"
-        style={{ background: 'rgba(15,35,24,0.95)', border: '1px solid rgba(34,197,94,0.3)', backdropFilter: 'blur(12px)' }}
+        className="mm-panel p-4 flex items-center gap-3"
       >
         <div className="flex-1 min-w-0">
-          <p className="font-body text-white text-sm font-semibold truncate">
+          <p className="font-chunky text-white text-base tracking-wide truncate">
             {invite.from.displayName} te invita a jugar
           </p>
-          <p className="font-body text-white/50 text-xs mt-0.5">
+          <p className="font-body font-bold text-white/75 text-xs mt-0.5">
             {invite.playerCount}/4 jugadores · {MODE_NAMES[invite.gameMode as GameMode] ?? invite.gameMode}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={handleJoin}
-            className="font-body text-xs font-bold px-4 py-2 rounded-xl text-white transition-all hover:opacity-90 active:scale-95"
-            style={{ background: 'linear-gradient(135deg, #22C55E, #16a34a)' }}
+            className="mm-btn-gold !w-auto !text-sm !px-3 !py-1.5 !rounded-xl mm-stroke mm-ring"
           >
             Unirse
           </button>
           <button
             onClick={handleDismiss}
-            className="text-white/30 hover:text-white/60 transition-colors text-lg leading-none"
+            aria-label="Cerrar"
+            className="font-chunky text-white/75 hover:text-white transition-colors text-2xl leading-none px-1"
           >
             ×
           </button>

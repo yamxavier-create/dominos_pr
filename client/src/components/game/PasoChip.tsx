@@ -20,10 +20,10 @@ export function PasoChip({ show, playerName, bonusPoints, seat, anchored }: Paso
   return (
     <div className={`${anchored ? 'flex justify-center' : wrapperStyles[seat]} z-30 pointer-events-none`} role="status">
       <div className="paso-toast club-sign flex items-baseline gap-1.5 px-3 py-1 whitespace-nowrap font-club">
-        <span className="font-bold text-sm">{playerName}</span>
-        <span className="font-club-display text-sm text-club-them">pasa</span>
+        <span className="font-body font-extrabold text-sm">{playerName}</span>
+        <span className="font-club-display text-base text-club-them">pasa</span>
         {bonusPoints !== null && (
-          <span className="rounded px-1.5 py-0.5 bg-club-brass text-club-ink text-xs font-bold">
+          <span className="mm-chip">
             +{bonusPoints}
           </span>
         )}

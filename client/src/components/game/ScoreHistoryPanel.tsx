@@ -16,19 +16,20 @@ export function ScoreHistoryPanel({ isOpen, entries, myPlayerIndex, playerCount 
 
   return (
     <div
-      className={`overflow-hidden transition-all duration-300 ease-in-out bg-club-strip border-b-2 border-club-brass/50 ${
+      style={{ background: 'linear-gradient(180deg, rgba(18,70,40,0.98), rgba(8,32,17,0.98))', boxShadow: '0 4px 0 #06140B, inset 0 -2px 0 rgba(234,179,8,0.45)' }}
+      className={`overflow-hidden transition-all duration-300 ease-in-out border-b-[3px] border-[#06140B] ${
         isOpen ? 'max-h-48 opacity-100' : 'max-h-0 opacity-0'
       }`}
     >
       <div className="overflow-y-auto scrollbar-none max-h-48">
         {/* Who's on each team — the score bar only says Nosotros / Ellos on phones */}
         {!is2Player && playerNames && (
-          <div className="flex items-center gap-3 px-3 py-2 border-b border-club-text/10 text-xs font-club">
+          <div className="flex items-center gap-3 px-3 py-2 border-b-2 border-[#06140B]/70 text-xs font-club">
             <span className="min-w-0 truncate" style={{ color: '#9BD3AE' }}>
-              <span className="font-semibold">Nosotros:</span> <span className="text-club-muted">{teamNames(playerNames.map(name => ({ name })), myTeam as 0 | 1)}</span>
+              <span className="font-chunky tracking-wide">Nosotros:</span> <span className="text-club-muted">{teamNames(playerNames.map(name => ({ name })), myTeam as 0 | 1)}</span>
             </span>
             <span className="min-w-0 truncate" style={{ color: '#F0A49B' }}>
-              <span className="font-semibold">Ellos:</span> <span className="text-club-muted">{teamNames(playerNames.map(name => ({ name })), (1 - myTeam) as 0 | 1)}</span>
+              <span className="font-chunky tracking-wide">Ellos:</span> <span className="text-club-muted">{teamNames(playerNames.map(name => ({ name })), (1 - myTeam) as 0 | 1)}</span>
             </span>
           </div>
         )}
@@ -46,7 +47,7 @@ export function ScoreHistoryPanel({ isOpen, entries, myPlayerIndex, playerCount 
                 : 'Ellos'
             const winColor =
               entry.data.winningTeam === null
-                ? '#C9A24A'
+                ? '#FDD04B'
                 : entry.data.winningTeam === myTeam
                 ? '#9BD3AE'
                 : '#F0A49B'
@@ -54,28 +55,28 @@ export function ScoreHistoryPanel({ isOpen, entries, myPlayerIndex, playerCount 
             return (
               <div
                 key={entry.handNumber}
-                className="flex items-center gap-2 px-3 py-2 border-b border-club-text/10 text-xs font-club"
+                className="flex items-center gap-2 px-3 py-2 border-b-2 border-[#06140B]/70 text-xs font-club"
               >
-                <span className="text-club-muted w-10 shrink-0">Mano {entry.handNumber}</span>
-                <span className="font-semibold w-16 shrink-0" style={{ color: winColor }}>
+                <span className="text-club-muted font-semibold w-10 shrink-0">Mano {entry.handNumber}</span>
+                <span className="font-chunky tracking-wide w-16 shrink-0" style={{ color: winColor }}>
                   {winLabel}
                 </span>
-                <span className="text-club-text font-bold w-10 shrink-0">+{entry.data.totalPointsScored}</span>
-                <span className="text-club-muted flex-1 font-club-display text-sm tabular-nums">
+                <span className="font-chunky text-white w-10 shrink-0">+{entry.data.totalPointsScored}</span>
+                <span className="flex-1 font-club-display text-sm tabular-nums mm-stroke">
                   {entry.data.scores.team0} | {entry.data.scores.team1}
                 </span>
                 {entry.data.reason === 'blocked' && (
-                  <span className="bg-club-brass text-club-ink font-bold text-[10px] px-1.5 py-0.5 rounded shrink-0">
+                  <span className="mm-chip !text-[10px] shrink-0" style={{ background: 'linear-gradient(180deg, #F3EAD3, #C9B98F)' }}>
                     Trancado
                   </span>
                 )}
                 {gameMode === 'modo500' && entry.data.isCapicu && (
-                  <span className="bg-gold text-bg font-bold text-[10px] px-1.5 py-0.5 rounded-full shrink-0">
+                  <span className="mm-chip !text-[10px] shrink-0">
                     Capicú
                   </span>
                 )}
                 {gameMode === 'modo500' && entry.data.isChuchazo && (
-                  <span className="bg-accent text-club-text font-bold text-[10px] px-1.5 py-0.5 rounded-full shrink-0">
+                  <span className="mm-chip !text-[10px] shrink-0 text-white" style={{ background: 'linear-gradient(180deg, #E5534A, #8E2A22)' }}>
                     Chuchazo
                   </span>
                 )}

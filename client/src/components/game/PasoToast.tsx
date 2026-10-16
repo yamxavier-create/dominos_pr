@@ -10,12 +10,12 @@ export function PasoToast() {
       {notifications.map((n, i) => (
         <div
           key={`${n.playerIndex}-${i}`}
-          className="paso-toast flex items-center gap-2 bg-surface/95 border border-border rounded-full px-4 py-2 shadow-xl"
+          className="paso-toast club-sign flex items-center gap-2 !rounded-full px-4 py-2"
         >
-          <span className="font-body font-bold text-white text-sm">{n.playerName}</span>
-          <span className="font-body text-white/70 text-sm">pasa</span>
+          <span className="font-body font-extrabold text-sm">{n.playerName}</span>
+          <span className="font-chunky text-base text-club-them">pasa</span>
           {n.passBonusAwarded !== null && (
-            <span className="bg-primary text-white text-xs font-bold rounded-full px-2 py-0.5">
+            <span className="mm-chip">
               +{n.passBonusAwarded} pts
             </span>
           )}

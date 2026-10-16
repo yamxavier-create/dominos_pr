@@ -45,9 +45,9 @@ export function FriendsList() {
   if (friends.length === 0) {
     return (
       <div className="text-center py-6">
-        <p className="text-2xl mb-2">👥</p>
-        <p className="font-body text-white/40 text-sm">Aún no tienes amigos</p>
-        <p className="font-body text-white/25 text-xs mt-1">Busca jugadores y envíales solicitud</p>
+        <p className="text-4xl mb-2">👥</p>
+        <p className="font-chunky text-lg tracking-wide mm-stroke">Aún no tienes amigos</p>
+        <p className="font-body font-bold text-white/70 text-xs mt-1">Busca jugadores y envíales solicitud</p>
       </div>
     )
   }
@@ -57,32 +57,32 @@ export function FriendsList() {
       {sortedFriends.map((friend: Friend) => (
         <div
           key={friend.id}
-          className="flex items-center gap-3 bg-white/5 rounded-xl p-3"
+          className="mm-well flex items-center gap-3 p-3"
         >
           <div className="relative">
             {friend.avatarUrl ? (
               <img
                 src={friend.avatarUrl}
                 referrerPolicy="no-referrer"
-                className="w-8 h-8 rounded-full object-cover"
+                className="w-9 h-9 rounded-full object-cover" style={{ border: '2px solid #EAB308', boxShadow: '0 2px 0 #06140B' }}
                 alt={friend.displayName}
               />
             ) : (
-              <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white font-bold text-sm">
+              <div className="w-9 h-9 rounded-full flex items-center justify-center font-chunky text-base mm-stroke" style={{ background: 'linear-gradient(135deg, #22C55E, #15803D)', border: '2px solid #EAB308', boxShadow: '0 2px 0 #06140B' }}>
                 {friend.displayName[0]?.toUpperCase()}
               </div>
             )}
             <span
-              className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-green-950 ${statusConfig[friend.status ?? 'offline'].color}`}
+              className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-[#06140B] ${statusConfig[friend.status ?? 'offline'].color}`}
             />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-body text-white text-sm truncate">{friend.displayName}</p>
-            <p className={`font-body text-xs truncate ${
-              friend.status === 'offline' ? 'text-white/30' :
-              friend.status === 'in_lobby' ? 'text-blue-400' :
-              friend.status === 'in_game' ? 'text-yellow-400' :
-              'text-green-400'
+            <p className="font-chunky text-white text-base tracking-wide truncate">{friend.displayName}</p>
+            <p className={`font-body font-extrabold text-xs truncate ${
+              friend.status === 'offline' ? 'text-white/60' :
+              friend.status === 'in_lobby' ? 'text-sky-300' :
+              friend.status === 'in_game' ? 'text-[#FDD04B]' :
+              'text-[#5BEA9B]'
             }`}>
               {statusConfig[friend.status ?? 'offline'].label}
             </p>
@@ -91,15 +91,14 @@ export function FriendsList() {
             {friend.canJoin && (
               <button
                 onClick={() => handleJoinFriend(friend.id)}
-                className="font-body text-xs font-bold px-3 py-1.5 rounded-lg transition-all hover:opacity-90 active:scale-95 text-white"
-                style={{ background: 'linear-gradient(135deg, #22C55E, #16a34a)' }}
+                className="mm-btn-gold !w-auto !text-sm !px-3 !py-1.5 !rounded-xl mm-stroke"
               >
                 Unirse
               </button>
             )}
             <button
               onClick={() => removeFriend(friend.id)}
-              className="font-body text-red-400/60 hover:text-red-400 text-xs transition-colors"
+              className="font-body font-extrabold text-[#FF8A80] text-xs transition-colors"
             >
               Eliminar
             </button>

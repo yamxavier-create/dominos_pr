@@ -35,7 +35,7 @@ export function FriendRequests() {
 
   if (requests.length === 0) {
     return (
-      <p className="font-body text-white/40 text-sm text-center py-4">
+      <p className="font-body font-bold text-white/75 text-sm text-center py-4">
         No hay solicitudes pendientes
       </p>
     )
@@ -45,40 +45,40 @@ export function FriendRequests() {
     <div className="flex flex-col gap-4">
       {incoming.length > 0 && (
         <div className="flex flex-col gap-2">
-          <h3 className="font-header text-white/60 text-xs uppercase tracking-wider">
+          <h3 className="mm-title text-sm uppercase tracking-wider">
             Solicitudes recibidas
           </h3>
           {incoming.map((req: FriendRequest) => (
             <div
               key={req.requestId}
-              className="flex items-center gap-3 bg-white/5 rounded-xl p-3"
+              className="mm-well flex items-center gap-3 p-3"
             >
               {req.user.avatarUrl ? (
                 <img
                   src={req.user.avatarUrl}
                   referrerPolicy="no-referrer"
-                  className="w-8 h-8 rounded-full object-cover"
+                  className="w-9 h-9 rounded-full object-cover" style={{ border: '2px solid #EAB308', boxShadow: '0 2px 0 #06140B' }}
                   alt={req.user.displayName}
                 />
               ) : (
-                <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white font-bold text-sm">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center font-chunky text-base mm-stroke" style={{ background: 'linear-gradient(135deg, #22C55E, #15803D)', border: '2px solid #EAB308', boxShadow: '0 2px 0 #06140B' }}>
                   {req.user.displayName[0]?.toUpperCase()}
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <p className="font-body text-white text-sm truncate">{req.user.displayName}</p>
-                <p className="font-body text-white/50 text-xs truncate">@{req.user.username}</p>
+                <p className="font-chunky text-white text-base tracking-wide truncate">{req.user.displayName}</p>
+                <p className="font-body font-bold text-white/70 text-xs truncate">@{req.user.username}</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <button
                   onClick={() => acceptRequest(req.requestId)}
-                  className="font-body text-green-400 hover:text-green-300 text-xs font-bold transition-colors"
+                  className="mm-btn-green !w-auto !text-sm !px-3 !py-1.5 !rounded-xl mm-stroke"
                 >
                   Aceptar
                 </button>
                 <button
                   onClick={() => rejectRequest(req.requestId)}
-                  className="font-body text-red-400/60 hover:text-red-400 text-xs transition-colors"
+                  className="font-body font-extrabold text-[#FF8A80] text-xs transition-colors"
                 >
                   Rechazar
                 </button>
@@ -90,31 +90,31 @@ export function FriendRequests() {
 
       {outgoing.length > 0 && (
         <div className="flex flex-col gap-2">
-          <h3 className="font-header text-white/60 text-xs uppercase tracking-wider">
+          <h3 className="mm-title text-sm uppercase tracking-wider">
             Solicitudes enviadas
           </h3>
           {outgoing.map((req: FriendRequest) => (
             <div
               key={req.requestId}
-              className="flex items-center gap-3 bg-white/5 rounded-xl p-3"
+              className="mm-well flex items-center gap-3 p-3"
             >
               {req.user.avatarUrl ? (
                 <img
                   src={req.user.avatarUrl}
                   referrerPolicy="no-referrer"
-                  className="w-8 h-8 rounded-full object-cover"
+                  className="w-9 h-9 rounded-full object-cover" style={{ border: '2px solid #EAB308', boxShadow: '0 2px 0 #06140B' }}
                   alt={req.user.displayName}
                 />
               ) : (
-                <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white font-bold text-sm">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center font-chunky text-base mm-stroke" style={{ background: 'linear-gradient(135deg, #22C55E, #15803D)', border: '2px solid #EAB308', boxShadow: '0 2px 0 #06140B' }}>
                   {req.user.displayName[0]?.toUpperCase()}
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <p className="font-body text-white text-sm truncate">{req.user.displayName}</p>
-                <p className="font-body text-white/50 text-xs truncate">@{req.user.username}</p>
+                <p className="font-chunky text-white text-base tracking-wide truncate">{req.user.displayName}</p>
+                <p className="font-body font-bold text-white/70 text-xs truncate">@{req.user.username}</p>
               </div>
-              <span className="font-body text-white/40 text-xs shrink-0">Pendiente</span>
+              <span className="mm-chip shrink-0">Pendiente</span>
             </div>
           ))}
         </div>

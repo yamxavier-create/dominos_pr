@@ -22,7 +22,7 @@ export function FloatingChatBubble({ message }: FloatingChatBubbleProps) {
       {isReaction ? (
         <span className="text-2xl drop-shadow-lg">{message.content}</span>
       ) : (
-        <span className="block font-club font-semibold text-sm text-club-ink bg-club-cream line-clamp-2 whitespace-normal rounded-md px-2 py-1" style={{ border: '2px solid #5A351E', boxShadow: '0 2px 0 #07160E' }}>
+        <span className="club-sign block font-body font-extrabold text-sm line-clamp-2 whitespace-normal !rounded-xl px-2.5 py-1" style={{ borderWidth: 2 }}>
           {message.content}
         </span>
       )}

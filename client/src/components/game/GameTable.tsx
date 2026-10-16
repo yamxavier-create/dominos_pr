@@ -69,29 +69,25 @@ function LeaveGameButton({ compact }: { compact?: boolean }) {
       </button>
 
       {confirming && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-          <div
-            className="modal-enter w-full max-w-xs rounded-2xl overflow-hidden text-center"
-            style={{ background: '#0F2318', border: '1px solid rgba(255,255,255,0.10)' }}
-          >
+        <div className="fixed inset-0 z-50 flex items-center justify-center mm-modal-backdrop p-4">
+          <div className="mm-pop mm-panel w-full max-w-xs overflow-hidden text-center">
             <div className="px-6 pt-6 pb-3">
               <div className="text-4xl mb-2">🚪</div>
-              <h2 className="font-header text-2xl text-white leading-tight">¿Salir del juego?</h2>
-              <p className="font-body text-white/60 text-sm mt-2">
+              <h2 className="mm-title text-[1.7rem] leading-tight">¿Salir del juego?</h2>
+              <p className="font-body font-bold text-white/80 text-sm mt-2">
                 Vas a abandonar la partida y volver al menu principal.
               </p>
             </div>
             <div className="flex gap-2 px-4 pb-5 pt-2">
               <button
                 onClick={() => setConfirming(false)}
-                className="flex-1 px-4 py-3 rounded-xl font-body font-bold text-white bg-white/10 border border-white/15 active:scale-95 transition-transform"
+                className="mm-btn-green mm-stroke flex-1"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleLeave}
-                className="flex-1 px-4 py-3 rounded-xl font-body font-bold text-white active:scale-95 transition-transform"
-                style={{ background: 'linear-gradient(135deg, #DC2626, #B91C1C)' }}
+                className="mm-btn-red mm-stroke flex-1"
               >
                 Salir
               </button>

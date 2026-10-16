@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { API_BASE } from '../apiBase'
+import { StageBackdrop } from '../components/ui/Escenario'
 
 export function ResetPasswordPage() {
   const [searchParams] = useSearchParams()
@@ -16,14 +17,15 @@ export function ResetPasswordPage() {
   if (!token) {
     return (
       <div className="min-h-screen felt-table flex items-center justify-center p-4">
-        <div className="menu-card text-center max-w-xs">
-          <h2 className="font-header text-2xl text-accent mb-3">Enlace inválido</h2>
-          <p className="font-body text-white/50 text-sm mb-4">
+        <StageBackdrop still />
+        <div className="mm-pop relative menu-card text-center w-full max-w-xs">
+          <h2 className="mm-title !text-[#FF8A80] text-[1.7rem] leading-tight mb-3">Enlace inválido</h2>
+          <p className="font-body font-semibold text-white/80 text-sm mb-5">
             Este enlace de restablecimiento no es válido o ha expirado.
           </p>
           <button
             onClick={() => navigate('/')}
-            className="font-body text-primary hover:text-primary/80 text-sm transition-colors"
+            className="mm-btn-gold mm-stroke"
           >
             Ir al inicio
           </button>
@@ -65,15 +67,16 @@ export function ResetPasswordPage() {
   if (success) {
     return (
       <div className="min-h-screen felt-table flex items-center justify-center p-4">
-        <div className="menu-card flex flex-col items-center gap-4 max-w-xs text-center">
+        <StageBackdrop still />
+        <div className="mm-pop relative menu-card flex flex-col items-center gap-4 w-full max-w-xs text-center">
           <div className="text-4xl">✅</div>
-          <h2 className="font-header text-2xl text-gold">Contraseña actualizada</h2>
-          <p className="font-body text-white/60 text-sm">
+          <h2 className="mm-title text-[1.7rem] leading-tight">Contraseña actualizada</h2>
+          <p className="font-body font-semibold text-white/80 text-sm">
             Tu contraseña ha sido restablecida. Ya puedes iniciar sesión.
           </p>
           <button
             onClick={() => navigate('/auth')}
-            className="w-full font-body font-bold py-3 rounded-2xl text-white text-base active:scale-95 btn-glow"
+            className="mm-btn-gold mm-stroke"
           >
             Iniciar Sesión
           </button>
@@ -84,44 +87,45 @@ export function ResetPasswordPage() {
 
   return (
     <div className="min-h-screen felt-table flex items-center justify-center p-4">
-      <form onSubmit={handleSubmit} className="menu-card flex flex-col gap-4 w-full max-w-xs">
+      <StageBackdrop still />
+      <form onSubmit={handleSubmit} className="mm-rise relative menu-card flex flex-col gap-4 w-full max-w-xs">
         <div className="text-center">
-          <h2 className="font-header text-2xl text-gold mb-1">Nueva Contraseña</h2>
-          <p className="font-body text-white/50 text-xs">Ingresa tu nueva contraseña</p>
+          <h2 className="mm-title text-[1.9rem] leading-tight mb-1">Nueva Contraseña</h2>
+          <p className="font-body font-semibold text-white/70 text-xs">Ingresa tu nueva contraseña</p>
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="font-body text-white/70 text-sm">Nueva contraseña</label>
+          <label className="font-body font-extrabold text-white/85 text-sm">Nueva contraseña</label>
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Mínimo 6 caracteres"
-            className="bg-bg border rounded-xl px-4 py-3 font-body text-white text-base placeholder:text-white/30 outline-none border-border focus:border-primary transition-colors"
+            className="mm-input"
             minLength={6}
             required
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="font-body text-white/70 text-sm">Confirmar contraseña</label>
+          <label className="font-body font-extrabold text-white/85 text-sm">Confirmar contraseña</label>
           <input
             type="password"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
-            placeholder="Repite tu contrase��a"
-            className="bg-bg border rounded-xl px-4 py-3 font-body text-white text-base placeholder:text-white/30 outline-none border-border focus:border-primary transition-colors"
+            placeholder="Repite tu contraseña"
+            className="mm-input"
             minLength={6}
             required
           />
         </div>
 
-        {error && <p className="font-body text-accent text-sm text-center">{error}</p>}
+        {error && <p className="font-body font-bold text-[#FF8A80] text-sm text-center">{error}</p>}
 
         <button
           type="submit"
           disabled={loading || !password || !confirm}
-          className="w-full font-body font-bold py-3 rounded-2xl text-white text-base active:scale-95 disabled:opacity-40 btn-glow"
+          className="mm-btn-gold mm-stroke"
         >
           {loading ? 'Guardando...' : 'Restablecer Contraseña'}
         </button>

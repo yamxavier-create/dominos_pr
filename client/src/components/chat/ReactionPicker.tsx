@@ -11,12 +11,13 @@ export function ReactionPicker() {
   }
 
   return (
-    <div className="flex flex-wrap gap-2 px-3 py-2 border-t border-white/10">
+    <div className="flex flex-wrap gap-2 px-3 py-2.5 border-t-2 border-[#06140B]">
       {QUICK_REACTIONS.map(reaction => (
         <button
           key={reaction}
           onClick={() => sendReaction(reaction)}
-          className="px-2 py-1 text-sm rounded bg-white/10 hover:bg-white/20 transition-colors text-white"
+          className="mm-press w-10 h-10 flex items-center justify-center text-xl rounded-xl"
+          style={{ background: 'linear-gradient(180deg, #23824A, #15592F)', border: '2px solid #06140B', boxShadow: '0 3px 0 #06140B, inset 0 2px 0 rgba(255,255,255,0.2)' }}
         >
           {reaction}
         </button>

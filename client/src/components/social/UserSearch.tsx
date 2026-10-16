@@ -48,11 +48,11 @@ export function UserSearch() {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Buscar por nombre de usuario..."
-        className="font-body text-sm text-white bg-white/10 border border-white/20 rounded-xl px-3 py-2.5 w-full outline-none focus:border-green-500/50 placeholder:text-white/30"
+        className="mm-input"
       />
 
       {searching && query.length >= 2 && (
-        <p className="font-body text-white/40 text-xs text-center">Buscando...</p>
+        <p className="font-body font-bold text-white/70 text-xs text-center">Buscando...</p>
       )}
 
       {searchResults.length > 0 && (
@@ -60,33 +60,33 @@ export function UserSearch() {
           {searchResults.map((user: SearchResult) => (
             <div
               key={user.id}
-              className="flex items-center gap-3 bg-white/5 rounded-xl p-3"
+              className="mm-well flex items-center gap-3 p-3"
             >
               {user.avatarUrl ? (
                 <img
                   src={user.avatarUrl}
                   referrerPolicy="no-referrer"
-                  className="w-8 h-8 rounded-full object-cover"
+                  className="w-9 h-9 rounded-full object-cover" style={{ border: '2px solid #EAB308', boxShadow: '0 2px 0 #06140B' }}
                   alt={user.displayName}
                 />
               ) : (
-                <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white font-bold text-sm">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center font-chunky text-base mm-stroke" style={{ background: 'linear-gradient(135deg, #22C55E, #15803D)', border: '2px solid #EAB308', boxShadow: '0 2px 0 #06140B' }}>
                   {user.displayName[0]?.toUpperCase()}
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <p className="font-body text-white text-sm truncate">{user.displayName}</p>
-                <p className="font-body text-white/50 text-xs truncate">@{user.username}</p>
+                <p className="font-chunky text-white text-base tracking-wide truncate">{user.displayName}</p>
+                <p className="font-body font-bold text-white/70 text-xs truncate">@{user.username}</p>
               </div>
               <div className="shrink-0">
                 {user.friendshipStatus === 'ACCEPTED' ? (
-                  <span className="font-body text-white/40 text-xs">Amigos</span>
+                  <span className="mm-chip">Amigos</span>
                 ) : user.friendshipStatus === 'PENDING' ? (
-                  <span className="font-body text-white/40 text-xs">Pendiente</span>
+                  <span className="mm-chip">Pendiente</span>
                 ) : (
                   <button
                     onClick={() => sendRequest(user.id)}
-                    className="font-body text-green-400 hover:text-green-300 text-xs font-bold transition-colors"
+                    className="mm-btn-green !w-auto !text-sm !px-3 !py-1.5 !rounded-xl mm-stroke"
                   >
                     Agregar
                   </button>
@@ -98,7 +98,7 @@ export function UserSearch() {
       )}
 
       {!searching && query.length >= 2 && searchResults.length === 0 && (
-        <p className="font-body text-white/40 text-xs text-center">No se encontraron usuarios</p>
+        <p className="font-body font-bold text-white/70 text-xs text-center">No se encontraron usuarios</p>
       )}
     </div>
   )

@@ -52,10 +52,10 @@ export function RoundEndModal() {
   const blocked = roundEndData.reason === 'blocked'
 
   const headerGradient = blocked
-    ? 'from-amber-900/40 to-transparent'
+    ? 'from-amber-500/25 to-transparent'
     : weWon
-    ? 'from-primary/25 to-transparent'
-    : 'from-accent/15 to-transparent'
+    ? 'from-[#5BEA9B]/30 to-transparent'
+    : 'from-[#E5534A]/30 to-transparent'
 
   const outcome = blocked ? 'Trancado' : weWon ? (is2Player ? 'Ganaste' : 'Ganamos') : (is2Player ? 'Perdiste' : 'Perdimos')
   const handPoints = roundEndData.totalPointsScored + (roundEndData.passPointsThisHand ?? 0)
@@ -68,22 +68,22 @@ export function RoundEndModal() {
         className="hand-end-bar fixed inset-x-0 z-40 flex justify-center px-3 pointer-events-none"
       >
         <div
-          className="pointer-events-auto flex items-center justify-between gap-3 w-full max-w-lg pl-4 pr-2 py-2 rounded-lg bg-club-strip font-club"
-          style={{ border: '2px solid #C9A24A', boxShadow: '0 6px 18px rgba(0,0,0,0.45)' }}
+          className="mm-rise mm-panel pointer-events-auto flex items-center justify-between gap-3 w-full max-w-lg pl-4 pr-2 py-2 font-club"
+          style={{ borderRadius: 16 }}
           role="status"
         >
           <div className="min-w-0 leading-tight">
-            <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-club-muted">
+            <p className="font-body text-[11px] font-extrabold uppercase tracking-[0.08em] text-white/75">
               {isFinalHand ? 'Última mano' : 'Fin de mano'}
             </p>
-            <p className="text-base font-bold text-club-text truncate">
-              {outcome}{handPoints > 0 && <span className="text-club-brass"> · +{handPoints}</span>}
+            <p className="font-chunky text-lg tracking-wide mm-stroke truncate">
+              {outcome}{handPoints > 0 && <span style={{ color: '#FDD04B' }}> · +{handPoints}</span>}
             </p>
           </div>
           <button
             onClick={() => setPeek(false)}
-            className="club-btn shrink-0 h-10 whitespace-nowrap font-club font-bold text-sm"
-            style={{ paddingInline: 18 }}
+            className="club-btn shrink-0 h-10 whitespace-nowrap font-chunky text-base tracking-wide"
+            style={{ paddingInline: 18, background: 'linear-gradient(180deg, #FFE27A 0%, #F2B51C 100%)', color: '#2B1B12' }}
           >
             Ver resumen
           </button>
@@ -94,10 +94,8 @@ export function RoundEndModal() {
 
   return (
     // Scrolls when the card is taller than the screen (phone landscape)
-    <div className="fixed inset-0 z-40 flex overflow-y-auto bg-black/75 backdrop-blur-sm p-4">
-      <div className="modal-enter m-auto w-full max-w-sm shadow-2xl overflow-hidden rounded-2xl"
-        style={{ background: '#0F2318', border: '1px solid rgba(255,255,255,0.10)' }}
-      >
+    <div className="fixed inset-0 z-40 flex overflow-y-auto mm-modal-backdrop p-4">
+      <div className="mm-pop mm-panel m-auto w-full max-w-sm overflow-hidden">
         {/* Header */}
         <div className={`px-6 pt-6 pb-4 text-center bg-gradient-to-b ${headerGradient} flex flex-col items-center gap-1.5`}>
           <GoldCaption>{isFinalHand ? 'Última mano' : 'Fin de Mano'}</GoldCaption>
@@ -105,19 +103,17 @@ export function RoundEndModal() {
             <>
               <div className="text-4xl mb-0.5">🔒</div>
               <h2
-                className="font-header text-[2rem] sm:text-[2.3rem] leading-[0.95] text-white"
-                style={{ letterSpacing: '0.02em', textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}
+                className="font-chunky text-[2.2rem] sm:text-[2.5rem] leading-[0.95] tracking-wide mm-stroke"
               >
                 ¡Trancado!
               </h2>
-              <p className="font-body text-white/60 text-sm">Nadie puede jugar</p>
+              <p className="font-body font-bold text-white/75 text-sm">Nadie puede jugar</p>
             </>
           ) : weWon ? (
             <>
               <div className="text-4xl mb-0.5">🎉</div>
               <h2
-                className="font-header text-[2rem] sm:text-[2.3rem] leading-[0.95] text-white"
-                style={{ letterSpacing: '0.02em', textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}
+                className="font-chunky text-[2.2rem] sm:text-[2.5rem] leading-[0.95] tracking-wide mm-stroke"
               >
                 {is2Player ? '¡Ganaste!' : '¡Ganamos!'}
               </h2>
@@ -126,8 +122,8 @@ export function RoundEndModal() {
             <>
               <div className="text-4xl mb-0.5">😤</div>
               <h2
-                className="font-header text-[2rem] sm:text-[2.3rem] leading-[0.95]"
-                style={{ color: '#F97316', letterSpacing: '0.02em', textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}
+                className="font-chunky text-[2.2rem] sm:text-[2.5rem] leading-[0.95] tracking-wide mm-stroke"
+                style={{ color: '#FF8A80' }}
               >
                 {is2Player ? 'Perdiste' : 'Perdimos'}
               </h2>
@@ -138,7 +134,7 @@ export function RoundEndModal() {
         {/* Special badges */}
         {roundEndData.reason === 'blocked' && (
           <div className="flex justify-center px-6 py-2">
-            <span className="bg-white/10 text-white/70 font-bold text-sm px-3 py-1 rounded-full border border-white/20">
+            <span className="mm-chip text-sm" style={{ background: 'linear-gradient(180deg, #F3EAD3, #C9B98F)' }}>
               ¡Trancado!
             </span>
           </div>
@@ -146,12 +142,12 @@ export function RoundEndModal() {
         {gameState?.gameMode === 'modo500' && (roundEndData.isCapicu || roundEndData.isChuchazo) && (
           <div className="flex justify-center gap-2 px-6 py-2">
             {roundEndData.isCapicu && (
-              <span className="bg-gold text-bg font-bold text-sm px-3 py-1 rounded-full">
+              <span className="mm-chip text-sm">
                 ¡Capicú! +100
               </span>
             )}
             {roundEndData.isChuchazo && (
-              <span className="bg-accent text-white font-bold text-sm px-3 py-1 rounded-full">
+              <span className="mm-chip text-sm text-white" style={{ background: 'linear-gradient(180deg, #E5534A, #8E2A22)' }}>
                 ¡Chuchazo! +100
               </span>
             )}
@@ -159,42 +155,42 @@ export function RoundEndModal() {
         )}
 
         {/* Points breakdown */}
-        <div className="px-6 py-3 border-t border-white/10">
-          <div className="flex justify-between items-center text-sm font-body mb-1">
-            <span className="text-white/60">
+        <div className="mm-well mx-4 my-2 px-4 py-3">
+          <div className="flex justify-between items-center text-sm font-body font-bold mb-1">
+            <span className="text-white/75">
               {roundEndData.reason === 'blocked' ? 'Trancado' : 'Fichas'}
               {isModo200 && roundEndData.rawPipCount !== undefined && ` (${roundEndData.rawPipCount} pips)`}
             </span>
-            <span className="text-white font-bold">+{roundEndData.pointsFromPips}</span>
+            <span className="font-chunky text-base text-white">+{roundEndData.pointsFromPips}</span>
           </div>
           {(roundEndData.passPointsThisHand ?? 0) > 0 && (
-            <div className="flex justify-between items-center text-sm font-body mb-1">
-              <span className="text-white/60">Pases</span>
-              <span className="text-white font-bold">+{roundEndData.passPointsThisHand}</span>
+            <div className="flex justify-between items-center text-sm font-body font-bold mb-1">
+              <span className="text-white/75">Pases</span>
+              <span className="font-chunky text-base text-white">+{roundEndData.passPointsThisHand}</span>
             </div>
           )}
           {roundEndData.bonusPoints > 0 && (
-            <div className="flex justify-between items-center text-sm font-body mb-1">
-              <span className="text-gold">{roundEndData.reason === 'blocked' ? 'Bono por trancar' : 'Bonificación'}</span>
-              <span className="text-gold font-bold">+{roundEndData.bonusPoints}</span>
+            <div className="flex justify-between items-center text-sm font-body font-bold mb-1">
+              <span style={{ color: '#FDD04B' }}>{roundEndData.reason === 'blocked' ? 'Bono por trancar' : 'Bonificación'}</span>
+              <span className="font-chunky text-base" style={{ color: '#FDD04B' }}>+{roundEndData.bonusPoints}</span>
             </div>
           )}
-          <div className="flex justify-between items-center font-body border-t border-white/10 pt-1.5 mt-1.5">
-            <span className="text-white font-semibold">Total ganado</span>
-            <span className="font-header text-2xl text-white leading-none">+{roundEndData.totalPointsScored + (roundEndData.passPointsThisHand ?? 0)}</span>
+          <div className="flex justify-between items-center font-body border-t-2 border-[#06140B] pt-1.5 mt-1.5">
+            <span className="text-white font-extrabold">Total ganado</span>
+            <span className="font-chunky text-3xl leading-none mm-stroke !text-[#FDD04B]">+{roundEndData.totalPointsScored + (roundEndData.passPointsThisHand ?? 0)}</span>
           </div>
         </div>
 
         {/* Remaining tiles */}
-        <div className="px-6 py-3 border-t border-white/10">
-          <p className="font-body text-white/40 text-xs mb-2 uppercase tracking-wider">Fichas restantes</p>
+        <div className="px-6 py-3">
+          <p className="font-chunky text-[#FDE68A] text-sm mb-2 uppercase tracking-wider">Fichas restantes</p>
           <div className="space-y-1.5">
             {roundEndData.remainingTiles.map(rt => (
               <div key={rt.playerIndex} className="flex items-center gap-2">
-                <span className="font-body text-white/70 text-xs w-20 truncate">{rt.playerName}</span>
+                <span className="font-body font-extrabold text-white/85 text-xs w-20 truncate">{rt.playerName}</span>
                 <div className="flex gap-0.5 flex-wrap flex-1">
                   {rt.tiles.length === 0 ? (
-                    <span className="text-primary text-xs font-body">Sin fichas ✓</span>
+                    <span className="text-[#5BEA9B] text-xs font-body font-extrabold">Sin fichas ✓</span>
                   ) : (
                     rt.tiles.slice(0, 7).map(t => (
                       <DominoTile
@@ -208,7 +204,7 @@ export function RoundEndModal() {
                   )}
                 </div>
                 {rt.tiles.length > 0 && (
-                  <span className="font-body text-white/50 text-xs shrink-0">{rt.pipSum}</span>
+                  <span className="font-chunky text-white text-sm shrink-0">{rt.pipSum}</span>
                 )}
               </div>
             ))}
@@ -216,20 +212,20 @@ export function RoundEndModal() {
         </div>
 
         {/* Scores summary */}
-        <div className="px-6 py-3 border-t border-white/10 bg-black/20">
+        <div className="mm-well mx-4 my-1 px-4 py-2.5">
           <div className="flex justify-around text-center">
             <div>
-              <p className="font-body text-xs mb-0.5" style={{ color: '#22C55E' }}>
+              <p className="font-body font-extrabold text-xs mb-0.5" style={{ color: '#5BEA9B' }}>
                 {is2Player ? (gameState?.players[0]?.name ?? 'J1') : 'Equipo A'}
               </p>
-              <p className="font-header text-2xl text-white">{roundEndData.scores.team0}</p>
+              <p className="font-chunky text-3xl leading-none mm-stroke">{roundEndData.scores.team0}</p>
             </div>
-            <div className="text-white/20 font-body self-center">vs</div>
+            <div className="text-white/60 font-chunky self-center">vs</div>
             <div>
-              <p className="font-body text-xs mb-0.5" style={{ color: '#F97316' }}>
+              <p className="font-body font-extrabold text-xs mb-0.5" style={{ color: '#FFA270' }}>
                 {is2Player ? (gameState?.players[1]?.name ?? 'J2') : 'Equipo B'}
               </p>
-              <p className="font-header text-2xl text-white">{roundEndData.scores.team1}</p>
+              <p className="font-chunky text-3xl leading-none mm-stroke">{roundEndData.scores.team1}</p>
             </div>
           </div>
         </div>
@@ -245,11 +241,11 @@ export function RoundEndModal() {
               SIGUIENTE MANO
             </GoldCTA>
           ) : (
-            <p className="text-center font-body text-white/40 text-sm">Esperando al host...</p>
+            <p className="text-center font-body font-bold text-white/75 text-sm">Esperando al host...</p>
           )}
           <button
             onClick={() => setPeek(true)}
-            className="club-btn h-10 w-full font-club font-bold text-sm"
+            className="club-btn h-11 w-full font-chunky text-base tracking-wide"
           >
             Ver mesa
           </button>

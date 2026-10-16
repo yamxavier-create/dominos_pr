@@ -22,10 +22,10 @@ export function PresenceToast() {
       {notifications.slice(-3).map((n) => (
         <div
           key={n.id}
-          className="bg-green-950/90 border border-white/10 rounded-xl px-4 py-3 shadow-lg backdrop-blur-sm pointer-events-auto"
+          className="mm-drop mm-panel !rounded-2xl px-4 py-3 pointer-events-auto"
         >
-          <p className="font-body text-white text-sm">
-            <span className="font-bold">{n.displayName}</span>
+          <p className="font-body font-bold text-white/85 text-sm">
+            <span className="font-chunky text-[#FDD04B] tracking-wide">{n.displayName}</span>
             {' '}
             {n.type === 'online' ? 'esta en linea' : 'entro a una sala'}
           </p>

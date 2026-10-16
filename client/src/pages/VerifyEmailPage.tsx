@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { API_BASE } from '../apiBase'
 import { useAuth } from '../hooks/useAuth'
+import { StageBackdrop } from '../components/ui/Escenario'
 
 type Status = 'checking' | 'done' | 'taken' | 'invalid'
 
@@ -39,15 +40,16 @@ export function VerifyEmailPage() {
 
   return (
     <div className="min-h-screen felt-table flex items-center justify-center p-4">
-      <div className="menu-card text-center max-w-xs">
-        <h2 className={`font-header text-2xl mb-3 ${status === 'done' ? 'text-gold' : status === 'checking' ? 'text-white' : 'text-accent'}`}>
+      <StageBackdrop still />
+      <div className="mm-pop relative menu-card text-center w-full max-w-xs">
+        <h2 className={`mm-title text-[1.7rem] leading-tight mb-3 ${status === 'done' ? '' : status === 'checking' ? '!text-white' : '!text-[#FF8A80]'}`}>
           {message.title}
         </h2>
-        {message.body && <p className="font-body text-white/50 text-sm mb-4">{message.body}</p>}
+        {message.body && <p className="font-body font-semibold text-white/80 text-sm mb-5">{message.body}</p>}
         {status !== 'checking' && (
           <button
             onClick={() => navigate('/')}
-            className="font-body text-primary hover:text-primary/80 text-sm transition-colors"
+            className="mm-btn-gold mm-stroke"
           >
             Ir al inicio
           </button>

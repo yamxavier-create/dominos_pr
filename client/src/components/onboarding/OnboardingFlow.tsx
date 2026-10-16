@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { GoldCTA, GoldCaption, Starburst } from '../ui/GoldCTA'
+import { GoldCTA, GoldCaption } from '../ui/GoldCTA'
+import { StageBackdrop } from '../ui/Escenario'
+import { DominoTile } from '../domino/DominoTile'
 
 interface OnboardingProps {
   onComplete: () => void
@@ -8,23 +10,9 @@ interface OnboardingProps {
 const screens = [
   {
     icon: (
-      <svg width="80" height="80" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <g transform="rotate(-12 36 36)">
-          <rect x="14" y="4" width="44" height="64" rx="6" fill="#FFFBF0" stroke="#8899aa" strokeWidth="1.5" />
-          <line x1="18" y1="36" x2="54" y2="36" stroke="#bbb" strokeWidth="1" />
-          <circle cx="24" cy="14" r="3.5" fill="#1a1a2e" />
-          <circle cx="24" cy="22" r="3.5" fill="#1a1a2e" />
-          <circle cx="24" cy="30" r="3.5" fill="#1a1a2e" />
-          <circle cx="48" cy="14" r="3.5" fill="#1a1a2e" />
-          <circle cx="48" cy="22" r="3.5" fill="#1a1a2e" />
-          <circle cx="48" cy="30" r="3.5" fill="#1a1a2e" />
-          <circle cx="24" cy="44" r="3.5" fill="#1a1a2e" />
-          <circle cx="24" cy="58" r="3.5" fill="#1a1a2e" />
-          <circle cx="48" cy="44" r="3.5" fill="#1a1a2e" />
-          <circle cx="48" cy="58" r="3.5" fill="#1a1a2e" />
-          <circle cx="36" cy="51" r="3.5" fill="#1a1a2e" />
-        </g>
-      </svg>
+      <div className="w-20 -rotate-12" style={{ filter: 'drop-shadow(0 14px 18px rgba(0,0,0,0.5))' }}>
+        <DominoTile pip1={6} pip2={5} orientation="vertical" style={{ width: '100%', height: 'auto' }} />
+      </div>
     ),
     title: 'Bienvenido a Dominó PR',
     subtitle: 'El clásico juego de dominó puertorriqueño, ahora en tu bolsillo.',
@@ -32,7 +20,7 @@ const screens = [
   },
   {
     icon: (
-      <div className="text-6xl">🎯</div>
+      <div className="text-6xl" style={{ filter: 'drop-shadow(0 8px 10px rgba(0,0,0,0.45))' }}>🎯</div>
     ),
     title: 'Cómo Jugar',
     subtitle: 'Dominó Doble Seis — 28 fichas, 4 jugadores.',
@@ -42,13 +30,13 @@ const screens = [
     icon: (
       <div className="flex gap-4">
         <div className="text-center">
-          <p className="font-header text-3xl text-gold">M·200</p>
-          <p className="font-body text-white/40 text-xs">20 pts</p>
+          <p className="mm-title text-3xl leading-none">200</p>
+          <p className="font-body font-extrabold text-white/75 text-xs mt-1">20 pts</p>
         </div>
-        <div className="text-white/20 text-3xl font-thin">vs</div>
+        <div className="font-chunky text-white/60 text-2xl self-center mm-stroke">vs</div>
         <div className="text-center">
-          <p className="font-header text-3xl text-gold">M·500</p>
-          <p className="font-body text-white/40 text-xs">500 pts</p>
+          <p className="mm-title text-3xl leading-none">500</p>
+          <p className="font-body font-extrabold text-white/75 text-xs mt-1">500 pts</p>
         </div>
       </div>
     ),
@@ -82,11 +70,12 @@ export function OnboardingFlow({ onComplete }: OnboardingProps) {
 
   return (
     <div className="fixed inset-0 felt-table flex items-center justify-center px-4 py-4 overflow-y-auto">
+      <StageBackdrop />
       <div className="relative flex flex-col items-center gap-5 w-full max-w-xs sm:max-w-sm text-center py-6">
         {/* Skip button */}
         <button
           onClick={handleSkip}
-          className="absolute top-0 right-0 font-body text-white/40 hover:text-white/70 text-xs transition-colors"
+          className="absolute -top-2 right-0 btn-outline-shine rounded-xl px-3 py-1 font-chunky text-sm tracking-wide mm-stroke"
         >
           Saltar
         </button>
@@ -96,22 +85,26 @@ export function OnboardingFlow({ onComplete }: OnboardingProps) {
           <GoldCaption>{stepCaptions[current] ?? 'Dominó PR'}</GoldCaption>
         </div>
 
-        {/* Icon with starburst backdrop */}
-        <div className="relative flex items-center justify-center w-full max-w-[240px] aspect-square">
-          <Starburst opacity={0.28} />
-          <div className="relative flex items-center justify-center">{screen.icon}</div>
+        {/* Icon floating on a felt disc with a gold rim */}
+        <div key={current} className="mm-pop relative flex items-center justify-center w-full max-w-[220px] aspect-square">
+          <div
+            className="absolute inset-[8%] rounded-full"
+            style={{
+              background: 'radial-gradient(circle at 50% 40%, #1E8A4C 0%, #126B39 55%, #0B4A27 100%)',
+              border: '6px solid #7A4A2B',
+              boxShadow: '0 0 0 2px #EAB308, 0 6px 0 #06140B, inset 0 6px 18px rgba(0,0,0,0.45), 0 0 50px rgba(253,208,75,0.25)',
+            }}
+          />
+          <div className="mm-float relative flex items-center justify-center">{screen.icon}</div>
         </div>
 
         {/* Text */}
-        <div>
-          <h2
-            className="font-header text-[2.2rem] sm:text-[2.6rem] leading-[0.95] text-white"
-            style={{ letterSpacing: '0.015em', textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}
-          >
+        <div key={`t${current}`} className="mm-rise mm-panel px-5 py-5 w-full">
+          <h2 className="font-chunky text-[1.9rem] sm:text-[2.2rem] leading-[1.05] mm-stroke tracking-wide">
             {screen.title}
           </h2>
-          <p className="font-body text-white/70 text-sm mt-2">{screen.subtitle}</p>
-          <p className="font-body text-white/40 text-xs mt-3 leading-relaxed">{screen.details}</p>
+          <p className="font-body font-extrabold text-[#FDE68A] text-sm mt-2">{screen.subtitle}</p>
+          <p className="font-body font-semibold text-white/80 text-[13px] mt-3 leading-relaxed">{screen.details}</p>
         </div>
 
         {/* Dots */}
@@ -119,11 +112,12 @@ export function OnboardingFlow({ onComplete }: OnboardingProps) {
           {screens.map((_, i) => (
             <div
               key={i}
-              className="h-2 rounded-full transition-all"
+              className="h-3 rounded-full transition-all"
               style={{
-                background: i === current ? '#EAB308' : 'rgba(255,255,255,0.15)',
-                width: i === current ? 24 : 8,
-                boxShadow: i === current ? '0 0 8px rgba(234,179,8,0.5)' : 'none',
+                background: i === current ? 'linear-gradient(180deg, #FFE27A, #F2B51C)' : 'rgba(6,20,11,0.6)',
+                width: i === current ? 28 : 12,
+                border: '2px solid #06140B',
+                boxShadow: i === current ? '0 2px 0 #06140B' : 'inset 0 2px 0 rgba(0,0,0,0.3)',
               }}
             />
           ))}
