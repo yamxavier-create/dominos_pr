@@ -12,6 +12,7 @@ import { SocialPanel } from '../social/SocialPanel'
 import { useSocialStore } from '../../store/socialStore'
 import { DominoTile } from '../domino/DominoTile'
 import { GoldCTA, GoldCaption } from '../ui/GoldCTA'
+import { INK, StageBackdrop } from '../ui/Escenario'
 
 type View = 'home' | 'create' | 'join'
 
@@ -203,62 +204,6 @@ function loadMode(): GameMode {
 
 function saveMode(mode: GameMode) {
   try { localStorage.setItem(MODE_STORAGE_KEY, mode) } catch { /* storage blocked */ }
-}
-
-const INK = '#06140B'
-
-/* Full-screen backdrop: emerald glow, turning gold rays, an arena ring and two big tiles in the corners */
-function StageBackdrop() {
-  return (
-    <div className="fixed inset-0 overflow-hidden pointer-events-none" aria-hidden>
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(circle at 50% 42%, #5BEA9B 0%, #1FB862 12%, #0F7A40 28%, #0B4726 48%, #0A2516 66%, #0A1A0F 82%)',
-        }}
-      />
-      <div
-        className="mm-rays absolute left-1/2 top-[42%] w-[170vmax] h-[170vmax] -ml-[85vmax] -mt-[85vmax]"
-        style={{
-          background: 'repeating-conic-gradient(from 0deg, rgba(253,224,120,0.13) 0deg 7deg, transparent 7deg 22.5deg)',
-          maskImage: 'radial-gradient(circle, #000 0%, #000 18%, transparent 48%)',
-          WebkitMaskImage: 'radial-gradient(circle, #000 0%, #000 18%, transparent 48%)',
-        }}
-      />
-      <div
-        className="mm-breathe absolute left-1/2 top-[42%] w-[118vmin] h-[118vmin] -ml-[59vmin] -mt-[59vmin] rounded-full"
-        style={{
-          border: '2px solid rgba(253,208,75,0.22)',
-          boxShadow: 'inset 0 0 60px rgba(91,234,155,0.25), 0 0 40px rgba(91,234,155,0.12)',
-        }}
-      />
-      <CornerTile className="-left-16 top-[16%] rotate-[28deg]" />
-      <CornerTile className="-right-14 bottom-[20%] -rotate-[22deg]" />
-      <div className="absolute inset-x-0 bottom-0 h-48" style={{ background: 'linear-gradient(180deg, transparent, #0A1A0F 85%)' }} />
-    </div>
-  )
-}
-
-/* A big dark tile half off screen, the way Clash Royale frames its arena with pipes */
-function CornerTile({ className }: { className: string }) {
-  return (
-    <div
-      className={`absolute w-36 h-72 rounded-[28px] flex flex-col items-center justify-around py-6 ${className}`}
-      style={{
-        background: 'linear-gradient(160deg, #0F5A31, #0A3A20)',
-        border: '3px solid rgba(91,234,155,0.18)',
-        boxShadow: 'inset 0 4px 0 rgba(255,255,255,0.06), 0 20px 40px rgba(0,0,0,0.35)',
-        opacity: 0.8,
-      }}
-    >
-      {[0, 1].map(half => (
-        <div key={half} className="grid grid-cols-2 gap-5">
-          {[0, 1, 2, 3].map(i => <span key={i} className="w-5 h-5 rounded-full" style={{ background: 'rgba(5,30,15,0.7)' }} />)}
-        </div>
-      ))}
-    </div>
-  )
 }
 
 const FAN = [

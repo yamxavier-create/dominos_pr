@@ -328,17 +328,17 @@ function TileGlow({ el, active, label }: { el: Element; active: boolean; label: 
         top: r.top - pad,
         width: r.width + pad * 2,
         height: r.height + pad * 2,
-        border: active ? '3px solid #C9A24A' : '2px dashed rgba(43, 27, 18, 0.45)',
-        backgroundColor: active ? 'rgba(201, 162, 74, 0.18)' : 'transparent',
+        border: active ? '3px solid #FDD04B' : '2px dashed rgba(255, 247, 214, 0.6)',
+        backgroundColor: active ? 'rgba(253, 208, 75, 0.2)' : 'transparent',
         boxShadow: 'none',
         zIndex: 45,
       }}
     >
       <span
-        className="absolute -top-5 left-1/2 -translate-x-1/2 font-club font-bold text-xs whitespace-nowrap transition-opacity duration-150"
+        className="absolute -top-5 left-1/2 -translate-x-1/2 font-club font-bold text-xs whitespace-nowrap transition-opacity duration-150 mm-stroke"
         style={{
-          color: active ? '#7A5A1E' : '#2B1B12',
-          opacity: active ? 1 : 0.6,
+          color: active ? '#FDD04B' : '#FFF7D6',
+          opacity: active ? 1 : 0.8,
         }}
       >
         {label}

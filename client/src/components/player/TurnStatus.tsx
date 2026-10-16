@@ -16,7 +16,7 @@ export function TurnStatus({ isMyTurn, currentPlayerName, nextPlayerName, leftEn
 
   return (
     <div className="flex items-baseline justify-center gap-2 px-3 min-w-0 font-club" role="status" aria-live="polite">
-      <span className="font-club-display text-xl leading-tight text-club-cream shrink-0">
+      <span className="font-club-display text-[22px] leading-tight shrink-0 mm-stroke" style={{ color: isMyTurn ? '#FDD04B' : '#fff' }}>
         {isMyTurn ? 'Te toca' : `Juega ${currentPlayerName}`}
       </span>
       <span className="text-sm text-club-muted truncate">

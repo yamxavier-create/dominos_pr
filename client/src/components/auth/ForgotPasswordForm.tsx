@@ -39,13 +39,13 @@ export function ForgotPasswordForm({ onBack }: Props) {
     return (
       <div className="flex flex-col gap-4 items-center text-center">
         <div className="text-4xl">📧</div>
-        <h3 className="font-header text-2xl text-gold">Revisa tu correo</h3>
+        <h3 className="font-chunky text-2xl leading-none mm-stroke !text-[#FDD04B]">Revisa tu correo</h3>
         <p className="font-body text-white/60 text-sm">
           Si existe una cuenta con <span className="text-white/80">{email}</span>, recibirás un enlace para restablecer tu contraseña.
         </p>
         <button
           onClick={onBack}
-          className="font-body text-primary hover:text-primary/80 text-sm transition-colors mt-2"
+          className="font-body font-extrabold text-[#FDD04B] text-sm transition-colors mt-2"
         >
           Volver al inicio de sesión
         </button>
@@ -56,20 +56,20 @@ export function ForgotPasswordForm({ onBack }: Props) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="text-center">
-        <h3 className="font-header text-2xl text-gold">Restablecer Contraseña</h3>
+        <h3 className="font-chunky text-2xl leading-none mm-stroke !text-[#FDD04B]">Restablecer Contraseña</h3>
         <p className="font-body text-white/50 text-xs mt-1">
           Ingresa el correo asociado a tu cuenta
         </p>
       </div>
 
       <div className="flex flex-col gap-1">
-        <label className="font-body text-white/70 text-sm">Correo electrónico</label>
+        <label className="font-body font-extrabold text-white/85 text-sm">Correo electrónico</label>
         <input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="tu@correo.com"
-          className="bg-bg border rounded-xl px-4 py-3 font-body text-white text-base placeholder:text-white/30 outline-none border-border focus:border-primary transition-colors"
+          className="mm-input"
           required
         />
       </div>
@@ -79,7 +79,7 @@ export function ForgotPasswordForm({ onBack }: Props) {
       <button
         type="submit"
         disabled={loading || !email.trim()}
-        className="w-full font-body font-bold py-3 rounded-2xl text-white text-base active:scale-95 disabled:opacity-40 btn-glow"
+        className="mm-btn-gold mm-stroke"
       >
         {loading ? 'Enviando...' : 'Enviar enlace'}
       </button>

@@ -31,7 +31,7 @@ function useGameClock(timeLeftMs: number | null | undefined): string | null {
 }
 
 /**
- * The score sign: a cream strip with a wood border. Our side always reads on
+ * The score sign: a cream plate with an ink outline. Our side always reads on
  * the left and theirs on the right; the target and hand number sit between.
  * Tapping it opens the hand-by-hand history.
  */

@@ -45,7 +45,7 @@ export function RegisterForm({ onRegister, onSwitchToLogin, error }: RegisterFor
   return (
     <div className="flex flex-col gap-4 w-full">
       <div className="text-center">
-        <h2 className="font-header text-4xl text-gold">Crear Cuenta</h2>
+        <h2 className="font-chunky text-4xl leading-none mm-stroke !text-[#FDD04B]">Crear Cuenta</h2>
         <p className="font-body text-white/50 text-sm mt-1">Únete al dominó</p>
       </div>
 
@@ -79,19 +79,19 @@ export function RegisterForm({ onRegister, onSwitchToLogin, error }: RegisterFor
       </div>
 
       <div>
-        <label className="font-body text-white/60 text-xs mb-1 block">Contraseña</label>
+        <label className="font-body font-extrabold text-white/85 text-sm mb-1 block">Contraseña</label>
         <input
           type="password"
           placeholder="Mínimo 6 caracteres"
           value={password}
           onChange={e => setPassword(e.target.value)}
           maxLength={64}
-          className="w-full font-body text-white bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-500/50 transition-colors placeholder:text-white/20"
+          className="mm-input"
         />
       </div>
 
       <div>
-        <label className="font-body text-white/60 text-xs mb-1 block">Confirmar contraseña</label>
+        <label className="font-body font-extrabold text-white/85 text-sm mb-1 block">Confirmar contraseña</label>
         <input
           type="password"
           placeholder="Repite la contraseña"
@@ -99,7 +99,7 @@ export function RegisterForm({ onRegister, onSwitchToLogin, error }: RegisterFor
           onChange={e => setConfirmPassword(e.target.value)}
           maxLength={64}
           onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-          className="w-full font-body text-white bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-500/50 transition-colors placeholder:text-white/20"
+          className="mm-input"
         />
       </div>
 
@@ -108,15 +108,14 @@ export function RegisterForm({ onRegister, onSwitchToLogin, error }: RegisterFor
       <button
         onClick={handleSubmit}
         disabled={!username.trim() || !password || !confirmPassword || loading}
-        className="w-full font-body font-bold py-3.5 rounded-2xl text-white text-base transition-all hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
-        style={{ background: 'linear-gradient(135deg, #22C55E, #16a34a)' }}
+        className="mm-btn-gold mm-stroke"
       >
         {loading ? 'Creando...' : 'Crear Cuenta'}
       </button>
 
       <p className="font-body text-white/40 text-sm text-center">
         ¿Ya tienes cuenta?{' '}
-        <button onClick={onSwitchToLogin} className="text-green-400 hover:text-green-300 transition-colors">
+        <button onClick={onSwitchToLogin} className="font-extrabold text-[#FDD04B] hover:text-[#FDE68A] transition-colors">
           Inicia sesión
         </button>
       </p>

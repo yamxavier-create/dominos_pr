@@ -1,4 +1,5 @@
 import type { ReactNode, CSSProperties } from 'react'
+import { ChunkyButton } from './Escenario'
 
 interface GoldCTAProps {
   onClick?: () => void
@@ -11,33 +12,15 @@ interface GoldCTAProps {
 }
 
 /*
- * Primary gold-gradient CTA used across the menu/onboarding/lobby.
- * Renders with a 3D relief effect (top highlight + bottom shadow inset)
- * and a warm gold glow. Centralized so every surface stays consistent.
+ * Primary CTA across the menu, onboarding and room: the «Escenario» gold slab
+ * with an ink outline, a gloss sweep and a pulsing ring. Centralized so every
+ * surface stays consistent.
  */
 export function GoldCTA({ onClick, disabled, children, subtitle, size = 'lg', className, style }: GoldCTAProps) {
-  const pad = size === 'lg' ? 'py-4 sm:py-[18px]' : 'py-3'
-  const titleSize = size === 'lg' ? 'text-[2rem] sm:text-4xl' : 'text-2xl sm:text-3xl'
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`relative w-full ${pad} rounded-2xl active:scale-[0.98] transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 ${className ?? ''}`}
-      style={{
-        background: 'linear-gradient(180deg, #FDD04B 0%, #E4A918 42%, #B8830F 78%, #8A5E0C 100%)',
-        boxShadow: '0 8px 28px rgba(234,179,8,0.35), inset 0 2px 0 rgba(255,255,255,0.55), inset 0 -3px 0 rgba(0,0,0,0.28)',
-        ...style,
-      }}
-    >
-      <p className={`font-header ${titleSize} leading-none`} style={{ color: '#2a1600', letterSpacing: '0.06em' }}>
-        {children}
-      </p>
-      {subtitle && (
-        <p className="font-body text-[11px] sm:text-xs mt-1" style={{ color: 'rgba(42,22,0,0.75)' }}>
-          {subtitle}
-        </p>
-      )}
-    </button>
+    <ChunkyButton onClick={onClick} disabled={disabled} size={size} subtitle={subtitle} shine className={className} style={style}>
+      {children}
+    </ChunkyButton>
   )
 }
 
@@ -48,8 +31,8 @@ export function GoldCTA({ onClick, disabled, children, subtitle, size = 'lg', cl
 export function GoldCaption({ children }: { children: ReactNode }) {
   return (
     <p
-      className="font-body text-[10px] sm:text-xs tracking-[0.35em] uppercase"
-      style={{ color: 'rgba(234,179,8,0.75)' }}
+      className="font-chunky text-[13px] sm:text-sm tracking-[0.2em] uppercase mm-stroke"
+      style={{ color: '#FDE68A' }}
     >
       · {children} ·
     </p>

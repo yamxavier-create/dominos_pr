@@ -26,8 +26,9 @@ interface CameraSeatProps {
 /**
  * One player in the camera row above the table (phone portrait): a camera
  * box 104px tall with name and tiles left in a dark strip inside it. Your
- * side is green, rivals red; your partner gets a brass edge. The player on
- * turn gets a cream "Juega" tab, so the turn visibly travels along the row.
+ * side is green, rivals red, all with a thick ink outline; your side gets a
+ * gold rim. The player on turn gets a gold "Juega" tab and a breathing gold
+ * ring, so the turn visibly travels along the row.
  */
 export function CameraSeat({ player, seat, isPartner, isSelf, isCurrentTurn, stream, isCameraOff, isSpeaking, fill, overlay = 'below', children }: CameraSeatProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -35,15 +36,22 @@ export function CameraSeat({ player, seat, isPartner, isSelf, isCurrentTurn, str
   useVideoStream(videoRef, stream, showVideo)
 
   const initials = player.name.slice(0, 2).toUpperCase()
-  const edge = isSelf ? '2px solid #C9A24A' : isPartner ? '3px solid #C9A24A' : '2px solid #F1E3C2'
+  const rim = isPartner ? '0 0 0 2px #EAB308' : '0 0 0 2px rgba(255,247,214,0.55)'
 
   return (
     <div className={`relative min-w-0 flex flex-col items-stretch gap-1.5 ${fill ? 'flex-1 min-h-0' : ''}`} data-seat={seat}>
       <div
         // Sized from the screen, not in fixed pixels: portrait keeps a 5:6 box
         // whose width comes from the row; landscape fills its half of the column
-        className={`relative box-border overflow-hidden flex items-center justify-center [container-type:inline-size] ${fill ? 'flex-1 min-h-0' : 'aspect-[5/6]'}`}
-        style={{ borderRadius: 8, background: isPartner ? '#1B5E3A' : '#8E2A22', border: edge }}
+        className={`relative box-border overflow-hidden flex items-center justify-center [container-type:inline-size] ${fill ? 'flex-1 min-h-0' : 'aspect-[5/6]'} ${isCurrentTurn ? 'turn-breathe' : ''}`}
+        style={{
+          borderRadius: 12,
+          background: isPartner
+            ? 'radial-gradient(circle at 50% 35%, #2BA25C, #15592F 80%)'
+            : 'radial-gradient(circle at 50% 35%, #C2392F, #7E211B 80%)',
+          border: '3px solid #06140B',
+          boxShadow: isCurrentTurn ? undefined : `${rim}, 0 4px 0 #06140B`,
+        }}
       >
         {showVideo ? (
           <video
@@ -56,11 +64,14 @@ export function CameraSeat({ player, seat, isPartner, isSelf, isCurrentTurn, str
             style={isSelf ? { transform: 'scaleX(-1)' } : undefined}
           />
         ) : (
-          <span className="font-club font-bold text-[30cqw] leading-none text-club-text mb-[18px]" aria-hidden>{initials}</span>
+          <span className="font-club-display text-[30cqw] leading-none mb-[18px] mm-stroke" aria-hidden>{initials}</span>
         )}
 
         {isCurrentTurn && (
-          <span className="absolute top-0 left-1/2 -translate-x-1/2 px-1.5 pt-0.5 pb-[3px] rounded-b-md bg-club-cream text-club-ink font-club font-bold text-[10px] uppercase tracking-[0.08em] leading-none">
+          <span
+            className="absolute top-0 left-1/2 -translate-x-1/2 px-2 pt-0.5 pb-[3px] rounded-b-lg font-club-display text-[11px] uppercase tracking-[0.06em] leading-none text-club-ink"
+            style={{ background: 'linear-gradient(180deg, #FFE27A, #F2B51C)', border: '2px solid #06140B', borderTop: 0 }}
+          >
             Juega
           </span>
         )}

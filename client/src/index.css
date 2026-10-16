@@ -324,21 +324,12 @@ body {
 .menu-reveal > *:nth-child(5) { animation-delay: 0.33s; }
 .menu-reveal > *:nth-child(6) { animation-delay: 0.40s; }
 
-/* Glass card for menu panels */
+/* Panel: dark green plate with an ink outline, a gold hairline and a 3D drop */
 .menu-card {
-  background: linear-gradient(
-    145deg,
-    rgba(15, 35, 24, 0.85) 0%,
-    rgba(10, 26, 15, 0.92) 100%
-  );
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(234, 179, 8, 0.12);
-  border-radius: 24px;
-  box-shadow:
-    0 1px 0 rgba(255,255,255,0.04) inset,
-    0 24px 48px rgba(0, 0, 0, 0.5),
-    0 4px 12px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(180deg, rgba(18,70,40,0.96) 0%, rgba(8,32,17,0.96) 100%);
+  border: 3px solid #06140B;
+  border-radius: 22px;
+  box-shadow: 0 0 0 2px rgba(234,179,8,0.45), 0 6px 0 #06140B, 0 20px 40px rgba(0,0,0,0.45), inset 0 2px 0 rgba(255,255,255,0.08);
   padding: 1.25rem 1.25rem;
 }
 
@@ -354,9 +345,12 @@ body {
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(234, 179, 8, 0.15) 20%,
-    rgba(234, 179, 8, 0.4) 50%,
-    rgba(234, 179, 8, 0.15) 80%,
+    rgba(234, 179, 8, 0.25) 20%,
+    rgba(234, 179, 8, 0.6) 46%,
+    transparent 46%,
+    transparent 54%,
+    rgba(234, 179, 8, 0.6) 54%,
+    rgba(234, 179, 8, 0.25) 80%,
     transparent 100%
   );
   position: relative;
@@ -369,9 +363,7 @@ body {
   top: 50%;
   transform: translate(-50%, -50%);
   font-size: 8px;
-  color: rgba(234, 179, 8, 0.5);
-  background: #0F2318;
-  padding: 0 8px;
+  color: #EAB308;
 }
 
 /* Enhanced primary button with glow */
@@ -395,38 +387,32 @@ body {
   transform: scale(0.97);
 }
 
-/* Outline button with subtle shine */
+/* Secondary button: green 3D plate with an ink outline */
 .btn-outline-shine {
-  border: 1.5px solid rgba(255,255,255,0.15);
-  background: linear-gradient(
-    145deg,
-    rgba(255,255,255,0.04) 0%,
-    rgba(255,255,255,0.01) 100%
-  );
-  transition: all 0.2s ease;
+  background: linear-gradient(180deg, #1C7442 0%, #124E2B 100%);
+  border: 2px solid #06140B;
+  box-shadow: 0 4px 0 #06140B, inset 0 2px 0 rgba(255,255,255,0.16), inset 0 -3px 0 rgba(0,0,0,0.2);
+  transition: transform 80ms ease-out, box-shadow 80ms ease-out;
 }
 
-.btn-outline-shine:hover {
-  border-color: rgba(255,255,255,0.25);
-  background: rgba(255,255,255,0.06);
+.btn-outline-shine:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #06140B, inset 0 2px 0 rgba(255,255,255,0.16);
 }
 
-/* Lobby seat card */
+/* Lobby seat card: a taken seat is a plate, a free one is a dashed slot */
 .seat-card {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 14px;
-  transition: all 0.2s ease;
-}
-
-.seat-card:hover {
-  background: rgba(255,255,255,0.06);
+  background: linear-gradient(180deg, rgba(18,70,40,0.96), rgba(8,32,17,0.96));
+  border: 3px solid #06140B;
+  border-radius: 16px;
+  box-shadow: 0 0 0 2px rgba(234,179,8,0.35), 0 5px 0 #06140B, inset 0 2px 0 rgba(255,255,255,0.08);
+  transition: box-shadow 0.2s ease;
 }
 
 .seat-card-empty {
-  background: rgba(255,255,255,0.015);
-  border: 1px dashed rgba(255,255,255,0.08);
-  border-radius: 14px;
+  background: rgba(6,20,11,0.45);
+  border: 2px dashed rgba(255,247,214,0.28);
+  border-radius: 16px;
 }
 
 /* Waiting dots animation */
@@ -454,85 +440,100 @@ body {
   background:
     linear-gradient(180deg, #0A1A0F 0%, transparent 140px),
     linear-gradient(180deg, transparent calc(100% - 140px), #0A1A0F 100%),
-    radial-gradient(ellipse at center, #173022 0%, #0A1A0F 80%, #060E08 100%);
+    radial-gradient(ellipse 110% 65% at 50% 42%, #1A9A52 0%, #0F6A37 28%, #0B4024 55%, #0A1F12 80%, #0A1A0F 100%);
 }
 
-/* ─── «Mesa de club»: the game screen ───
- * Flat green room, a black rail with a brass lip around linen-cream felt, and
- * a black shelf for the hand. No glass, glows or decorative gradients. The only
- * gradient fades the top into the html color that iOS paints under the
- * status bar, so there is no seam.
+/* ─── Game screen, «Escenario» skin (2026-10-16) ───
+ * Same layout as «Mesa de club», dressed like the main menu: an emerald glow
+ * behind everything, a green felt table with a wood rim and a gold lip, and
+ * thick 3D buttons with an ink outline. The top still fades into the html
+ * color that iOS paints under the status bar, so there is no seam.
  */
 .game-room-bg {
-  background: linear-gradient(180deg, #0A1A0F 0, #0F2A1B calc(var(--safe-top) + 24px));
-  background-color: #0F2A1B;
+  background:
+    linear-gradient(180deg, #0A1A0F 0, rgba(10,26,15,0) calc(var(--safe-top) + 40px)),
+    radial-gradient(ellipse 120% 70% at 50% 45%, #148A48 0%, #0E5E32 30%, #0B3A20 60%, #0A1F12 85%);
+  background-color: #0A2516;
   color: #F3EAD3;
 }
 
-/* Black rail: vertical planks, 40px apart */
+/* Wood rim with a gold lip, standing on an ink shadow */
 .club-rail {
-  padding: 10px;
-  border-radius: 14px;
-  background: repeating-linear-gradient(90deg, #1E1E1C 0px, #1E1E1C 38px, #141413 38px, #141413 40px);
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.6);
+  padding: 9px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #8A5532 0%, #7A4A2B 45%, #5A351E 100%);
+  border: 3px solid #06140B;
+  box-shadow: 0 0 0 2px rgba(234,179,8,0.55), 0 6px 0 #06140B, 0 18px 36px rgba(0,0,0,0.5), inset 0 2px 0 rgba(255,255,255,0.18);
 }
 
-/* Linen felt inside the rail, behind a 2px brass lip */
+/* Green felt inside the rail, lit from the middle */
 .club-felt {
-  background: #E9DCBC;
-  border: 2px solid #C9A24A;
-  border-radius: 6px;
-  box-shadow: inset 0 3px 10px rgba(60, 40, 20, 0.35);
+  background: radial-gradient(ellipse at 50% 42%, #22924F 0%, #157040 50%, #0D5530 100%);
+  border: 2px solid #EAB308;
+  border-radius: 10px;
+  box-shadow: inset 0 4px 16px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255,255,255,0.06);
 }
 
-/* Thin black shelf the hand stands on */
+/* Wood shelf the hand stands on */
 .club-shelf {
-  height: 10px;
-  background: #1E1E1C;
-  border-top: 2px solid #C9A24A;
-  border-radius: 0 0 4px 4px;
-  box-shadow: 0 6px 10px rgba(0, 0, 0, 0.6);
+  height: 12px;
+  background: linear-gradient(180deg, #8A5532, #5A351E);
+  border: 2px solid #06140B;
+  border-top: 2px solid #EAB308;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 4px 0 #06140B, 0 8px 14px rgba(0, 0, 0, 0.5);
 }
 
-/* Cream sign (score) and cream buttons with a wood border */
+/* Cream plate (score, toasts) with an ink outline and a 3D drop */
 .club-sign {
-  background: #F1E3C2;
+  background: linear-gradient(180deg, #FFF8E4 0%, #F1E3C2 100%);
   color: #2B1B12;
-  border: 3px solid #5A351E;
-  border-radius: 6px;
-  box-shadow: 0 4px 0 #07160E;
+  border: 3px solid #06140B;
+  border-radius: 12px;
+  box-shadow: 0 4px 0 #06140B, inset 0 -3px 0 rgba(122,90,30,0.25), inset 0 2px 0 #fff;
 }
 
+/* Thick green 3D buttons with gold icons, like the menu's top bar */
 .club-btn {
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-  background: #F1E3C2;
-  color: #2B1B12;
-  border: 2px solid #5A351E;
-  border-radius: 6px;
-  box-shadow: 0 3px 0 #07160E;
-  transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+  background: linear-gradient(180deg, #23824A 0%, #15592F 100%);
+  color: #FDD04B;
+  border: 2px solid #06140B;
+  border-radius: 12px;
+  box-shadow: 0 4px 0 #06140B, inset 0 2px 0 rgba(255,255,255,0.22), inset 0 -3px 0 rgba(0,0,0,0.2);
+  transition: transform 80ms ease-out, box-shadow 80ms ease-out;
   touch-action: manipulation;
 }
 .club-btn:active:not(:disabled) {
-  transform: translateY(2px);
-  box-shadow: 0 1px 0 #07160E;
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #06140B, inset 0 2px 0 rgba(255,255,255,0.22), inset 0 -3px 0 rgba(0,0,0,0.2);
 }
 .club-btn:disabled { opacity: 0.55; }
 .club-btn:focus-visible,
 .club-focus:focus-visible {
-  outline: 3px solid #F1E3C2;
+  outline: 3px solid #FDD04B;
   outline-offset: 3px;
 }
 .club-btn[aria-pressed='true'] {
-  background: #C9A24A;
-  border-color: #7A5A1E;
+  background: linear-gradient(180deg, #FFE27A 0%, #F2B51C 100%);
+  color: #2B1B12;
+}
+
+/* The player on turn: a gold ring that breathes around their camera */
+@keyframes turn-breathe {
+  0%, 100% { box-shadow: 0 0 0 2px #FDD04B, 0 0 10px 2px rgba(253,208,75,0.45); }
+  50%      { box-shadow: 0 0 0 3px #FDD04B, 0 0 22px 6px rgba(253,208,75,0.65); }
+}
+.turn-breathe { animation: turn-breathe 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .turn-breathe { animation: none; box-shadow: 0 0 0 3px #FDD04B; }
 }
 
 .game-room-bg ::selection {
-  background: #C9A24A;
+  background: #EAB308;
   color: #0F2A1B;
 }
 
@@ -605,9 +606,9 @@ body {
 
 /* JUGAR ring pulse */
 @keyframes mm-ring {
-  0%   { box-shadow: 0 0 0 0 rgba(253,208,75,0.55); }
-  70%  { box-shadow: 0 0 0 14px rgba(253,208,75,0); }
-  100% { box-shadow: 0 0 0 0 rgba(253,208,75,0); }
+  0%   { box-shadow: 0 0 0 0 rgba(255,236,150,0.8); }
+  70%  { box-shadow: 0 0 0 10px rgba(255,236,150,0); }
+  100% { box-shadow: 0 0 0 0 rgba(255,236,150,0); }
 }
 .mm-ring { animation: mm-ring 2.4s ease-out infinite; }
 
@@ -646,3 +647,40 @@ body {
   .mm-ring, .mm-bob, .mm-drop, .mm-rise, .mm-pop, .mm-flip { animation: none; }
   .mm-spark, .mm-shine { display: none; }
 }
+
+/* Plain-HTML versions of the «Escenario» pieces, for forms that use bare elements */
+.mm-input {
+  width: 100%;
+  background: rgba(6,24,13,0.8);
+  border: 2px solid #06140B;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  font-family: Nunito, sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  color: #fff;
+  outline: none;
+  box-shadow: inset 0 3px 0 rgba(0,0,0,0.35), 0 0 0 2px rgba(234,179,8,0.25);
+  transition: box-shadow 0.15s;
+}
+.mm-input::placeholder { color: rgba(255,255,255,0.3); font-weight: 600; }
+.mm-input:focus { box-shadow: inset 0 3px 0 rgba(0,0,0,0.35), 0 0 0 2px #FDD04B; }
+
+.mm-btn-gold {
+  width: 100%;
+  padding: 0.7rem 1rem 0.8rem;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #FFE27A 0%, #FDD04B 28%, #F2B51C 60%, #D18F0E 100%);
+  border: 3px solid #06140B;
+  box-shadow: 0 5px 0 #06140B, inset 0 3px 0 rgba(255,255,255,0.45), inset 0 -4px 0 rgba(120,70,0,0.35);
+  font-family: 'Lilita One', Nunito, sans-serif;
+  font-size: 1.5rem;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  transition: transform 80ms ease-out, box-shadow 80ms ease-out;
+}
+.mm-btn-gold:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 #06140B, inset 0 3px 0 rgba(255,255,255,0.45), inset 0 -4px 0 rgba(120,70,0,0.35);
+}
+.mm-btn-gold:disabled { opacity: 0.5; cursor: not-allowed; }

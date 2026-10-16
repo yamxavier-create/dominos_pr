@@ -26,7 +26,7 @@ export default {
           ink:       '#2B1B12', // text on cream, tile body
           text:      '#F3EAD3', // main text on green
           muted:     '#C9D8C4', // secondary text on green
-          us:        '#1B5E3A', // our score, partner camera
+          us:        '#1B5E3A', // our score on cream, partner camera
           them:      '#B3261E', // their score
           'cam-them': '#8E2A22',
           face:      '#F4EBD3', // tile face
@@ -38,7 +38,7 @@ export default {
       fontFamily: {
         header: ['"Bebas Neue"', 'cursive'],
         body: ['Nunito', 'sans-serif'],
-        'club-display': ['"Alfa Slab One"', 'serif'],
+        'club-display': ['"Lilita One"', 'Nunito', 'sans-serif'], // was Alfa Slab One; the Escenario skin uses the menu's heading font
         club: ['Barlow', 'sans-serif'],
         chunky: ['"Lilita One"', 'Nunito', 'sans-serif'], // main menu headings and 3D buttons
       },

@@ -60,8 +60,8 @@ function DockButton({ label, size, onClick, disabled, pressed, badge, children }
       {children}
       {badge !== undefined && badge > 0 && (
         <span
-          className="absolute -top-2 -right-2 min-w-[20px] h-5 px-1 rounded-full flex items-center justify-center font-club font-bold text-[11px] text-club-text"
-          style={{ background: '#B3261E', border: '2px solid #F1E3C2' }}
+          className="absolute -top-2 -right-2 min-w-[20px] h-5 px-1 rounded-full flex items-center justify-center font-club-display text-[11px] text-white"
+          style={{ background: '#E5322D', border: '2px solid #fff', boxShadow: '0 2px 0 #06140B' }}
         >
           {badge > 9 ? '9+' : badge}
         </span>

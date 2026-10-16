@@ -5,6 +5,8 @@ import { RegisterForm } from '../components/auth/RegisterForm'
 import { GoogleLoginButton } from '../components/auth/GoogleLoginButton'
 import { ForgotPasswordForm } from '../components/auth/ForgotPasswordForm'
 import { useAuth } from '../hooks/useAuth'
+import { DominoTile } from '../components/domino/DominoTile'
+import { GoldPlate, StageBackdrop } from '../components/ui/Escenario'
 
 type AuthView = 'login' | 'register' | 'forgot'
 
@@ -49,16 +51,13 @@ export function AuthPage() {
   if (sentTo) {
     return (
       <div className="fixed inset-0 felt-table flex items-center justify-center p-4">
-        <div className="menu-card text-center max-w-xs">
-          <h2 className="font-header text-2xl text-gold mb-3">Revisa tu email</h2>
+        <StageBackdrop still />
+        <div className="mm-pop relative menu-card text-center max-w-xs">
+          <h2 className="font-chunky text-2xl mm-stroke !text-[#FDD04B] mb-3">Revisa tu email</h2>
           <p className="font-body text-white/60 text-sm mb-4">
             Te enviamos un enlace a <span className="text-white">{sentTo}</span>. Tu email se guarda cuando lo confirmes.
           </p>
-          <button
-            onClick={() => navigate('/')}
-            className="font-body text-white font-bold py-2.5 px-6 rounded-xl text-sm"
-            style={{ background: 'linear-gradient(135deg, #22C55E, #16a34a)' }}
-          >
+          <button onClick={() => navigate('/')} className="mm-btn-gold mm-stroke">
             Continuar
           </button>
         </div>
@@ -67,22 +66,21 @@ export function AuthPage() {
   }
 
   return (
-    <div className="fixed inset-0 felt-table flex flex-col items-center justify-center px-6 py-4 overflow-y-auto">
-      <div className="w-full max-w-sm flex flex-col gap-6">
-        {/* Logo */}
-        <div className="text-center mb-2">
-          <div className="text-5xl mb-2" style={{ filter: 'drop-shadow(0 0 20px rgba(34,197,94,0.4))' }}>🁣</div>
-          <h1
-            className="font-header leading-none text-5xl"
-            style={{
-              color: '#EAB308',
-              textShadow: '0 0 30px rgba(234,179,8,0.4), 0 2px 8px rgba(0,0,0,0.6)',
-            }}
-          >
-            Dominó PR
-          </h1>
+    <div className="fixed inset-0 felt-table flex flex-col items-center px-5 py-6 overflow-y-auto">
+      <StageBackdrop />
+      {/* my-auto: centered when it fits, scrolls from the top when the register form is taller than the screen */}
+      <div className="relative my-auto w-full max-w-sm flex flex-col gap-5">
+        {/* Logo: the double six floating over the name plate */}
+        <div className="mm-drop flex flex-col items-center">
+          <div className="mm-float w-14 -mb-3 relative z-10" style={{ filter: 'drop-shadow(0 10px 14px rgba(0,0,0,0.5))' }}>
+            <DominoTile pip1={6} pip2={6} orientation="vertical" style={{ width: '100%', height: 'auto' }} />
+          </div>
+          <GoldPlate className="w-[78%]">
+            <h1 className="font-chunky text-[2.1rem] leading-none mm-stroke tracking-wide">Dominó PR</h1>
+          </GoldPlate>
         </div>
 
+        <div className="mm-rise menu-card flex flex-col gap-5">
         {/* Auth Form */}
         {view === 'forgot' ? (
           <ForgotPasswordForm onBack={() => { setView('login'); setError(null) }} />
@@ -105,21 +103,23 @@ export function AuthPage() {
         {view !== 'forgot' && (
           <>
             <div className="flex items-center gap-3">
-              <div className="flex-1 h-px bg-white/10" />
-              <span className="font-body text-white/30 text-xs">o</span>
-              <div className="flex-1 h-px bg-white/10" />
+              <div className="flex-1 h-0.5 rounded bg-[#EAB308]/30" />
+              <span className="font-chunky text-[#FDE68A] text-sm">o</span>
+              <div className="flex-1 h-0.5 rounded bg-[#EAB308]/30" />
             </div>
 
             <GoogleLoginButton onGoogleLogin={handleGoogleLogin} />
           </>
         )}
 
+        </div>
+
         {/* Guest option */}
         <button
           onClick={() => navigate('/')}
-          className="font-body text-white/40 hover:text-white/60 text-sm text-center transition-colors"
+          className="font-chunky text-base text-center mm-stroke tracking-wide"
         >
-          Continuar como invitado →
+          Continuar como invitado ›
         </button>
       </div>
     </div>

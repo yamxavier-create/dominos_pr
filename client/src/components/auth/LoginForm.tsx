@@ -26,7 +26,7 @@ export function LoginForm({ onLogin, onSwitchToRegister, onForgotPassword, error
   return (
     <div className="flex flex-col gap-5 w-full">
       <div className="text-center">
-        <h2 className="font-header text-4xl text-gold">Iniciar Sesión</h2>
+        <h2 className="font-chunky text-4xl leading-none mm-stroke !text-[#FDD04B]">Iniciar Sesión</h2>
         <p className="font-body text-white/50 text-sm mt-1">Entra con tu cuenta</p>
       </div>
 
@@ -41,7 +41,7 @@ export function LoginForm({ onLogin, onSwitchToRegister, onForgotPassword, error
       />
 
       <div>
-        <label className="font-body text-white/60 text-xs mb-1 block">Contraseña</label>
+        <label className="font-body font-extrabold text-white/85 text-sm mb-1 block">Contraseña</label>
         <input
           type="password"
           placeholder="••••••"
@@ -49,7 +49,7 @@ export function LoginForm({ onLogin, onSwitchToRegister, onForgotPassword, error
           onChange={e => setPassword(e.target.value)}
           maxLength={64}
           onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-          className="w-full font-body text-white bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-500/50 transition-colors placeholder:text-white/20"
+          className="mm-input"
         />
       </div>
 
@@ -58,8 +58,7 @@ export function LoginForm({ onLogin, onSwitchToRegister, onForgotPassword, error
       <button
         onClick={handleSubmit}
         disabled={!username.trim() || !password || loading}
-        className="w-full font-body font-bold py-3.5 rounded-2xl text-white text-base transition-all hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
-        style={{ background: 'linear-gradient(135deg, #22C55E, #16a34a)' }}
+        className="mm-btn-gold mm-stroke"
       >
         {loading ? 'Entrando...' : 'Entrar'}
       </button>
@@ -67,7 +66,7 @@ export function LoginForm({ onLogin, onSwitchToRegister, onForgotPassword, error
       <div className="flex flex-col items-center gap-2">
         <p className="font-body text-white/40 text-sm">
           ¿No tienes cuenta?{' '}
-          <button onClick={onSwitchToRegister} className="text-green-400 hover:text-green-300 transition-colors">
+          <button onClick={onSwitchToRegister} className="font-extrabold text-[#FDD04B] hover:text-[#FDE68A] transition-colors">
             Regístrate
           </button>
         </p>

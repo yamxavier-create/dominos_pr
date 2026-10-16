@@ -6,7 +6,8 @@ import { useCallStore } from '../../store/callStore'
 import { useAuthStore } from '../../store/authStore'
 import { useSocialStore, Friend } from '../../store/socialStore'
 import { API_BASE } from '../../apiBase'
-import { GoldCTA, GoldCaption, Starburst } from '../ui/GoldCTA'
+import { GoldCTA, GoldCaption } from '../ui/GoldCTA'
+import { ChunkyButton, GoldPlate } from '../ui/Escenario'
 import { joinCallRef } from '../../hooks/useWebRTC'
 import { useVideoStream } from '../player/AvatarVideo'
 import { useCallToggles, MicIcon, CameraIcon } from '../player/CallControls'
@@ -48,8 +49,9 @@ function SeatVideo({ seatIndex, name, isMe, color }: { seatIndex: number; name: 
     <div
       className="relative w-full aspect-[4/3] rounded-[10px] overflow-hidden"
       style={{
-        background: `${color}22`,
-        boxShadow: speaking ? `0 0 0 2px #F5C518, 0 0 14px rgba(245,197,24,0.35)` : 'inset 0 0 0 1px rgba(255,255,255,0.06)',
+        background: `radial-gradient(circle at 50% 35%, ${color}66, ${color}22 80%)`,
+        border: '2px solid #06140B',
+        boxShadow: speaking ? `0 0 0 2px #FDD04B, 0 0 14px rgba(253,208,75,0.45)` : 'inset 0 3px 0 rgba(0,0,0,0.3)',
         transition: 'box-shadow 0.2s',
       }}
     >
@@ -64,7 +66,7 @@ function SeatVideo({ seatIndex, name, isMe, color }: { seatIndex: number; name: 
           style={isMe ? { transform: 'scaleX(-1)' } : undefined}
         />
       ) : (
-        <div className="w-full h-full flex items-center justify-center font-header text-3xl" style={{ color: `${color}cc` }}>
+        <div className="w-full h-full flex items-center justify-center font-chunky text-4xl mm-stroke">
           {name.slice(0, 2).toUpperCase()}
         </div>
       )}
@@ -91,16 +93,10 @@ function LobbyCallBar({ peopleInCall }: { peopleInCall: number }) {
   if (!inCall) {
     return (
       <div className="flex flex-col gap-1.5">
-        <button
-          type="button"
-          onClick={joinCall}
-          disabled={joining}
-          className="w-full flex items-center justify-center gap-2 font-body font-semibold text-sm py-3 rounded-xl transition-all disabled:opacity-60"
-          style={{ background: 'rgba(34,197,94,0.14)', border: '1px solid rgba(34,197,94,0.45)', color: '#86EFAC' }}
-        >
-          <StrokeIcon><path d="M3 7h11v10H3z" /><path d="M14 10.5l7-3.5v10l-7-3.5" /></StrokeIcon>
-          {joining ? 'Conectando…' : 'Unirse a la llamada'}
-        </button>
+        <ChunkyButton tone="green" size="sm" onClick={joinCall} disabled={joining} className="py-0.5">
+          <StrokeIcon className="w-5 h-5"><path d="M3 7h11v10H3z" /><path d="M14 10.5l7-3.5v10l-7-3.5" /></StrokeIcon>
+          <span className="text-lg">{joining ? 'Conectando…' : 'Unirse a la llamada'}</span>
+        </ChunkyButton>
         {callError && (
           <p role="alert" className="font-body text-xs text-center" style={{ color: '#FCA5A5' }}>{callError}</p>
         )}
@@ -120,10 +116,13 @@ function LobbyCallBar({ peopleInCall }: { peopleInCall: number }) {
       aria-label={label}
       aria-pressed={off}
       title={label}
-      className="w-11 h-11 rounded-full flex items-center justify-center transition-colors"
-      style={off
-        ? { background: 'rgba(220,38,38,0.85)', color: '#fff' }
-        : { background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', color: '#F5C518' }}
+      className="mm-press w-12 h-12 rounded-full flex items-center justify-center"
+      style={{
+        background: off ? 'linear-gradient(180deg, #E5534A, #8E2A22)' : 'linear-gradient(180deg, #2E9A57, #124E2B)',
+        border: '2px solid #06140B',
+        boxShadow: '0 4px 0 #06140B, inset 0 2px 0 rgba(255,255,255,0.2)',
+        color: off ? '#fff' : '#FDD04B',
+      }}
     >
       <StrokeIcon className="w-5 h-5">{icon}</StrokeIcon>
     </button>
@@ -133,7 +132,7 @@ function LobbyCallBar({ peopleInCall }: { peopleInCall: number }) {
     <div className="flex items-center justify-center gap-3">
       {toggle(micMuted ? 'Activar mic' : 'Silenciar mic', micMuted, toggleMic, <MicIcon muted={micMuted} />)}
       {toggle(cameraOff ? 'Activar camara' : 'Apagar camara', cameraOff, toggleCamera, <CameraIcon off={cameraOff} />)}
-      <span className="font-body text-xs text-white/50">
+      <span className="font-body font-extrabold text-xs text-white/80">
         En la llamada · {peopleInCall}
       </span>
     </div>
@@ -207,29 +206,15 @@ export function RoomLobby() {
 
   return (
     <div className="menu-reveal flex flex-col gap-3 w-full max-w-sm">
-      {/* Room code hero */}
-      <div className="relative flex flex-col items-center py-2">
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="w-56 h-56">
-            <Starburst opacity={0.22} />
-          </div>
-        </div>
-        <div className="relative flex flex-col items-center">
-          <GoldCaption>Código de Sala</GoldCaption>
-          <p
-            className="font-header text-[2.6rem] leading-none mt-1.5 room-code-glow"
-            style={{
-              color: '#EAB308',
-              letterSpacing: '0.12em',
-              textShadow: '0 0 40px rgba(234,179,8,0.45), 0 2px 8px rgba(0,0,0,0.5)',
-            }}
-          >
-            {room.roomCode}
-          </p>
-          <p className="font-body text-white/40 text-xs mt-2">
-            Modo: <span style={{ color: '#22C55E' }}>{room.gameMode === 'modo200' ? 'Modo 200 (20 pts)' : MODE_NAMES[room.gameMode]}</span>
-          </p>
-        </div>
+      {/* Room code: the name plate of this table */}
+      <div className="mm-pop flex flex-col items-center gap-1.5 py-1">
+        <GoldCaption>Código de sala</GoldCaption>
+        <GoldPlate className="min-w-[78%]">
+          <p className="font-chunky text-[2.4rem] leading-none mm-stroke tracking-[0.08em] select-all">{room.roomCode}</p>
+        </GoldPlate>
+        <p className="font-body font-extrabold text-white/80 text-xs mt-1">
+          {room.gameMode === 'modo200' ? 'Modo 200 · Hasta 20 pts' : MODE_NAMES[room.gameMode]}
+        </p>
       </div>
 
       {/* Players grid */}
@@ -249,19 +234,11 @@ export function RoomLobby() {
               className={`p-2 transition-all ${player ? 'seat-card' : 'seat-card-empty'} ${isHost && player ? 'cursor-pointer' : ''}`}
               style={{
                 ...(isSelected ? {
-                  background: 'rgba(234,179,8,0.08)',
-                  borderColor: '#facc15',
-                  borderStyle: 'solid',
-                  borderWidth: '1.5px',
+                  boxShadow: '0 0 0 3px #FDD04B, 0 0 18px rgba(253,208,75,0.5), 0 5px 0 #06140B',
                 } : isSwapTarget ? {
-                  borderColor: 'rgba(250,204,21,0.4)',
-                  borderStyle: 'dashed',
-                  borderWidth: '1.5px',
+                  boxShadow: '0 0 0 2px rgba(253,208,75,0.7), 0 5px 0 #06140B',
                 } : isMe ? {
-                  borderColor: `${color}44`,
-                  borderStyle: 'solid',
-                  borderWidth: '1.5px',
-                  boxShadow: `0 0 12px ${color}15`,
+                  boxShadow: '0 0 0 2px #EAB308, 0 5px 0 #06140B, inset 0 2px 0 rgba(255,255,255,0.08)',
                 } : {}),
               }}
             >
@@ -269,20 +246,17 @@ export function RoomLobby() {
                 <SeatVideo seatIndex={seatIndex} name={player.name} isMe={isMe} color={color} />
               ) : (
                 <div
-                  className="w-full aspect-[4/3] rounded-[10px] flex items-center justify-center"
-                  style={{ background: 'rgba(255,255,255,0.025)' }}
+                  className="w-full aspect-[4/3] rounded-[10px] flex items-center justify-center px-2"
+                  style={{ background: player?.isBot ? 'rgba(6,20,11,0.5)' : undefined }}
                 >
                   {player?.isBot ? (
                     <span className="text-3xl opacity-60" aria-hidden>🤖</span>
                   ) : isHost ? (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); socket.emit('room:add_bot') }}
-                      className="font-body text-primary/60 hover:text-primary text-sm transition-colors"
-                    >
-                      + Añadir Bot
-                    </button>
+                    <span onClick={(e) => e.stopPropagation()} className="w-full">
+                      <ChunkyButton tone="green" size="sm" onClick={() => socket.emit('room:add_bot')}>+ Bot</ChunkyButton>
+                    </span>
                   ) : (
-                    <p className="font-body text-white/25 text-xs italic">
+                    <p className="font-body font-bold text-white/50 text-xs">
                       Esperando <WaitingDots />
                     </p>
                   )}
@@ -291,11 +265,12 @@ export function RoomLobby() {
               <div className="flex items-center gap-2 mt-2 min-h-[28px]">
                 {/* Team badge */}
                 <div
-                  className="w-6 h-6 rounded-full flex items-center justify-center font-header text-xs shrink-0"
+                  className="w-7 h-7 rounded-full flex items-center justify-center font-chunky text-sm shrink-0"
                   style={{
-                    background: player ? `${color}18` : 'rgba(255,255,255,0.03)',
-                    border: `1.5px solid ${player ? `${color}66` : 'rgba(255,255,255,0.10)'}`,
-                    color: player ? color : 'rgba(255,255,255,0.20)',
+                    background: player ? color : 'rgba(255,255,255,0.06)',
+                    border: '2px solid #06140B',
+                    boxShadow: player ? '0 2px 0 #06140B, inset 0 2px 0 rgba(255,255,255,0.3)' : undefined,
+                    color: player ? '#06140B' : 'rgba(255,255,255,0.35)',
                   }}
                 >
                   {label}
@@ -303,16 +278,16 @@ export function RoomLobby() {
                 <div className="flex-1 min-w-0">
                   {player ? (
                     <>
-                      <p className="font-body text-white text-xs font-semibold leading-tight truncate">
+                      <p className="font-chunky text-white text-[15px] leading-tight truncate tracking-wide">
                         {player.name}
                         {isMe && <span className="text-[10px] ml-1" style={{ color }}>(tú)</span>}
                       </p>
-                      <p className="font-body text-white/30 text-[10px] leading-tight">
+                      <p className="font-body font-bold text-white/55 text-[11px] leading-tight">
                         {player.isBot ? 'Bot' : !player.connected ? 'Reconectando…' : seatLabels[seatIndex]}
                         {isHost && player.isBot && (
                           <button
                             onClick={(e) => { e.stopPropagation(); socket.emit('room:remove_bot', { seatIndex }) }}
-                            className="ml-2 text-accent/60 hover:text-accent text-[10px] transition-colors"
+                            className="ml-2 font-extrabold text-[#FF8A80] text-[11px] transition-colors"
                           >
                             quitar
                           </button>
@@ -320,7 +295,7 @@ export function RoomLobby() {
                       </p>
                     </>
                   ) : (
-                    <p className="font-body text-white/20 text-xs">Libre</p>
+                    <p className="font-body font-bold text-white/40 text-xs">Libre</p>
                   )}
                 </div>
                 {player && !player.isBot && (
@@ -348,9 +323,9 @@ export function RoomLobby() {
       <LobbyCallBar peopleInCall={peopleInCall} />
 
       {/* Teams legend / mode indicator */}
-      <div className="flex flex-col items-center gap-1.5 text-xs font-body">
+      <div className="flex flex-col items-center gap-1.5 text-xs font-body font-bold">
         {is2PlayerLobby ? (
-          <span className="text-white/50">Modo 2 jugadores (individual)</span>
+          <span className="text-white/70">Modo 2 jugadores (individual)</span>
         ) : (
           <div className="flex justify-center gap-6">
             <span style={{ color: '#22C55E' }}>● Equipo A: asientos 0 + 2</span>
@@ -358,7 +333,7 @@ export function RoomLobby() {
           </div>
         )}
         {isHost && playerCount >= 2 && !is2PlayerLobby && (
-          <p className="text-white/30 text-[11px]">
+          <p className="text-white/55 text-[11px]">
             {selectedSeat !== null
               ? 'Toca otro jugador para intercambiar'
               : 'Toca un jugador para cambiar equipos'}
@@ -371,7 +346,7 @@ export function RoomLobby() {
         <div className="flex flex-col gap-2">
           <button
             onClick={() => setShowInvite(!showInvite)}
-            className="w-full font-body text-sm py-2.5 rounded-xl text-white/70 hover:text-white transition-all btn-outline-shine"
+            className="w-full font-chunky text-lg tracking-wide py-2 rounded-xl mm-stroke btn-outline-shine"
           >
             {showInvite ? 'Cerrar' : 'Invitar Amigos'}
           </button>
@@ -384,7 +359,7 @@ export function RoomLobby() {
                   const alreadyInRoom = room.players.some(p => p.userId === f.id)
                   const invited = invitedIds.has(f.id)
                   return (
-                    <div key={f.id} className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2">
+                    <div key={f.id} className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: 'rgba(6,20,11,0.55)', border: '2px solid #06140B' }}>
                       <p className="font-body text-white text-xs truncate flex-1">{f.displayName}</p>
                       {alreadyInRoom ? (
                         <span className="font-body text-green-400 text-[10px]">En sala</span>
@@ -414,8 +389,8 @@ export function RoomLobby() {
           className="w-full rounded-xl px-3 py-2.5 text-left transition-all btn-outline-shine flex items-center gap-3"
         >
           <span className="flex-1 min-w-0">
-            <span className="block font-body text-white/80 text-sm font-semibold">Reglas de la mesa</span>
-            <span className="block font-body text-white/45 text-xs truncate">
+            <span className="block font-chunky text-white text-base tracking-wide mm-stroke">Reglas de la mesa</span>
+            <span className="block font-body font-bold text-white/65 text-xs truncate">
               {room.gameMode === 'torneo'
                 ? 'Reglas oficiales del torneo'
                 : RULE_KEYS.filter(key => editableRules(room.gameMode).includes(key))
@@ -423,7 +398,7 @@ export function RoomLobby() {
                     .join(' · ')}
             </span>
           </span>
-          <span className="font-body text-gold text-xs font-bold shrink-0">
+          <span className="font-chunky text-[#FDD04B] text-sm shrink-0 mm-stroke !text-[#FDD04B]">
             {isHost && editableRules(room.gameMode).length > 0 ? 'Cambiar' : 'Ver'}
           </span>
         </button>
@@ -444,7 +419,7 @@ export function RoomLobby() {
       {isHost ? (
         <div className="flex flex-col gap-2">
           {!canStart && (
-            <p className="font-body text-white/40 text-sm text-center">
+            <p className="font-body font-bold text-white/70 text-sm text-center">
               {playerCount === 3
                 ? 'Se necesitan 2 o 4 jugadores para iniciar'
                 : playerCount < 2
@@ -458,7 +433,7 @@ export function RoomLobby() {
         </div>
       ) : (
         <div className="text-center py-3">
-          <p className="font-body text-white/40 text-sm">
+          <p className="font-body font-bold text-white/70 text-sm">
             {canStart ? 'Esperando que el host inicie...' : `${playerCount} jugadores conectados`}
           </p>
         </div>

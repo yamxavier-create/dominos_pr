@@ -24,17 +24,11 @@ export function AudioControls() {
   return (
     <button
       onClick={handleToggle}
-      className="rounded-full w-10 h-10 flex items-center justify-center text-white active:scale-90 transition-transform"
-      style={{
-        background: 'rgba(0,0,0,0.55)',
-        border: '1px solid rgba(255,255,255,0.12)',
-        backdropFilter: 'blur(8px)',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08)',
-      }}
+      className="club-btn w-10 h-10"
       title={allOff ? 'Activar sonido' : 'Silenciar'}
       aria-label={allOff ? 'Activar sonido' : 'Silenciar'}
     >
-      <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
         <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
         {allOff ? (
           <>
