@@ -9,12 +9,12 @@ const GAP = 1
 const SNAKE_WIDTHS = Array.from({ length: 24 }, (_, i) => 240 + i * 80)
 // The snake width is fixed per board size, so the snake bends where it will
 // bend for the rest of the hand instead of starting as a straight line and
-// reflowing once it gets too long. It's picked against a reference hand that
-// grows to both ends with a few doubles, sampled from 8 to 24 tiles.
+// reflowing once it gets too long. It's the width that draws a full hand biggest:
+// 24 tiles played to both ends with a few doubles. That runs the rows across
+// the whole board from the first tiles.
 const REFERENCE_SIDES = 'RLRLRRLLRLRLRRLLRLRLRLRL'
 const REFERENCE_DOUBLES = [0, 5, 11]
-const REFERENCE_HANDS: BoardTileType[][] = (() => {
-  const hands: BoardTileType[][] = []
+const REFERENCE_HAND: BoardTileType[] = (() => {
   let tiles: BoardTileType[] = []
   for (let k = 0; k < REFERENCE_SIDES.length; k++) {
     const bt: BoardTileType = {
@@ -26,9 +26,8 @@ const REFERENCE_HANDS: BoardTileType[][] = (() => {
       sequence: k,
     }
     tiles = REFERENCE_SIDES[k] === 'L' ? [bt, ...tiles] : [...tiles, bt]
-    if (tiles.length >= 8 && tiles.length % 2 === 0) hands.push(tiles)
   }
-  return hands
+  return tiles
 })()
 const EDGE_INSET = 14 // the felt's brass lip plus breathing room
 
@@ -348,20 +347,15 @@ function fitLayout(tiles: BoardTileType[], snakeW: number, boardW: number, board
   }
 }
 
-/** Pick the snake width that draws the reference hand biggest, on average, on this board */
+/** Pick the snake width that draws the reference hand biggest on this board */
 function snakeWidthFor(boardW: number, boardH: number): number {
-  let bestW = SNAKE_WIDTHS[0]
-  let bestScore = -Infinity
+  let best: FittedLayout | null = null
   for (const w of SNAKE_WIDTHS) {
-    let score = 0
-    for (const hand of REFERENCE_HANDS) score += fitLayout(hand, w, boardW, boardH).scale
+    const fit = fitLayout(REFERENCE_HAND, w, boardW, boardH)
     // Among near-equal widths the widest wins (fewer bends)
-    if (score >= bestScore * 0.995) {
-      bestW = w
-      bestScore = Math.max(bestScore, score)
-    }
+    if (!best || fit.scale >= best.scale * 0.995) best = fit
   }
-  return bestW
+  return best!.snakeW
 }
 
 interface GameBoardProps {
