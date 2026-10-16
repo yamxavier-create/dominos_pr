@@ -22,21 +22,19 @@
 }
 
 /*
- * iOS 26 home-screen apps measure the viewport short by the status-bar height
- * (WebKit regression): 100dvh, 100% and position:fixed bottoms all stop ~59pt
- * above the screen bottom, while 100lvh still reports the full screen. So every
- * full-screen layer reaches down by the difference, which is 0 wherever the
- * viewport is right (Android, or once Apple fixes it).
+ * iOS home-screen apps measure the viewport short by the status-bar height:
+ * 100dvh, 100% and position:fixed bottoms all stop ~59pt above the screen
+ * bottom. main.tsx measures the shortfall into --vp-gap (0 wherever the
+ * viewport is right) and every full-screen layer reaches down by it.
  */
 @media (display-mode: standalone) {
   :root {
     --safe-top: env(safe-area-inset-top, 0px);
-    --vp-gap: max(0px, calc(100lvh - 100dvh));
   }
-  .fixed.inset-0,
-  .fixed.bottom-0 {
-    bottom: calc(0px - var(--vp-gap));
-  }
+}
+.fixed.inset-0,
+.fixed.bottom-0 {
+  bottom: calc(0px - var(--vp-gap));
 }
 
 /* ─── Base Reset ─── */
