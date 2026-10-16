@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { useUIStore } from '../../store/uiStore'
 import { useRoomStore } from '../../store/roomStore'
 import { useAuthStore } from '../../store/authStore'
 import { socket } from '../../socket'
 import { GoldCTA, GoldCaption } from '../ui/GoldCTA'
+import { leaveRoomLocally } from '../../store/leaveRoom'
 
 export function GameEndModal() {
   const gameEndData = useGameStore(s => s.gameEndData)
@@ -22,6 +24,14 @@ export function GameEndModal() {
   const authUserId = useAuthStore(s => s.user?.id)
   const [opponentStatuses, setOpponentStatuses] = useState<Record<string, { status: string; direction: string | null }> | null>(null)
   const [sentRequests, setSentRequests] = useState<Set<string>>(new Set())
+
+  const navigate = useNavigate()
+  // The game is over: leaving now costs nobody anything, so no confirmation
+  const goToMenu = () => {
+    socket.emit('room:leave')
+    leaveRoomLocally()
+    navigate('/')
+  }
 
   const [showRevancha, setShowRevancha] = useState(false)
   const [peek, setPeek] = useState(false)
@@ -184,6 +194,13 @@ export function GameEndModal() {
               ) : (
                 <p className="font-body font-bold text-white/70 text-xs mt-3">El host puede llevarlos de vuelta a la sala</p>
               )}
+              <button
+                type="button"
+                onClick={goToMenu}
+                className="w-full mt-2 font-chunky text-base tracking-wide py-2 rounded-xl text-white/80 mm-stroke hover:text-white"
+              >
+                Menú principal
+              </button>
             </div>
 
             {/* Vote counter and player list */}

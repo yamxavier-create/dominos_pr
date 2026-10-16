@@ -62,11 +62,13 @@ function LeaveGameButton({ compact }: { compact?: boolean }) {
         onClick={() => setConfirming(true)}
         className="club-btn shrink-0 self-stretch"
         style={{ width: compact ? 34 : 44 }}
-        aria-label="Salir del juego"
-        title="Salir del juego"
+        aria-label="Menú principal"
+        title="Menú principal"
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="M15 5l-7 7 7 7" />
+        {/* A house, not a back arrow: it leaves the game for the main menu */}
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M3 11l9-7 9 7" />
+          <path d="M5 10v10h5v-6h4v6h5V10" />
         </svg>
       </button>
 
@@ -75,9 +77,9 @@ function LeaveGameButton({ compact }: { compact?: boolean }) {
           <div className="mm-pop mm-panel w-full max-w-xs overflow-hidden text-center">
             <div className="px-6 pt-6 pb-3">
               <div className="text-4xl mb-2">🚪</div>
-              <h2 className="mm-title text-[1.7rem] leading-tight">¿Salir del juego?</h2>
+              <h2 className="mm-title text-[1.7rem] leading-tight">¿Volver al menú?</h2>
               <p className="font-body font-bold text-white/80 text-sm mt-2">
-                Vas a abandonar la partida y volver al menu principal.
+                Vas a dejar la partida y volver al menú principal. Un bot juega por tu puesto.
               </p>
             </div>
             <div className="flex gap-2 px-4 pb-5 pt-2">
