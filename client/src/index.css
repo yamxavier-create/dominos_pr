@@ -17,11 +17,25 @@
 
   /* Safe-area top — 0 in browser (chrome handles it), real value in standalone PWA */
   --safe-top: 0px;
+  /* How much the viewport falls short of the screen bottom (see below) */
+  --vp-gap: 0px;
 }
 
+/*
+ * iOS 26 home-screen apps measure the viewport short by the status-bar height
+ * (WebKit regression): 100dvh, 100% and position:fixed bottoms all stop ~59pt
+ * above the screen bottom, while 100lvh still reports the full screen. So every
+ * full-screen layer reaches down by the difference, which is 0 wherever the
+ * viewport is right (Android, or once Apple fixes it).
+ */
 @media (display-mode: standalone) {
   :root {
     --safe-top: env(safe-area-inset-top, 0px);
+    --vp-gap: max(0px, calc(100lvh - 100dvh));
+  }
+  .fixed.inset-0,
+  .fixed.bottom-0 {
+    bottom: calc(0px - var(--vp-gap));
   }
 }
 
@@ -550,7 +564,7 @@ body {
 }
 
 /* Hand-end bar: over the bottom buttons; a phone held sideways keeps its hand there, so the bar goes on top */
-.hand-end-bar { bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
+.hand-end-bar { bottom: calc(8px + env(safe-area-inset-bottom, 0px) - var(--vp-gap)); }
 @media (orientation: landscape) and (max-height: 600px) {
   .hand-end-bar { bottom: auto; top: calc(4px + var(--safe-top)); }
 }

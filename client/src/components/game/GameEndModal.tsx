@@ -106,7 +106,7 @@ export function GameEndModal() {
       <button
         onClick={() => setPeek(false)}
         className="mm-btn-gold mm-stroke mm-rise fixed z-50 left-1/2 -translate-x-1/2 !w-auto px-6"
-        style={{ bottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}
+        style={{ bottom: 'calc(1.5rem + env(safe-area-inset-bottom) - var(--vp-gap))' }}
       >
         Ver resumen
       </button>
