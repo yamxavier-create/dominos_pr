@@ -617,7 +617,7 @@ export function MainMenu() {
       <StageBackdrop />
 
       {/* Top bar: who you are on the left, ranking, friends and settings on the right */}
-      <div className="mm-drop relative z-10 flex items-start justify-between gap-2 w-full">
+      <div className="mm-drop relative z-30 flex items-start justify-between gap-2 w-full">
         <ProfileBanner
           user={isAuthenticated ? user : null}
           onClick={() => (isAuthenticated ? setShowSettings(true) : navigate('/auth'))}
