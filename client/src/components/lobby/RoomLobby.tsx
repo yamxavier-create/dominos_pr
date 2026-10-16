@@ -417,6 +417,7 @@ export function RoomLobby() {
 
       {/* Start / waiting: pinned to the bottom of the screen so it never scrolls out of sight */}
       <div
+        data-lobby-start
         className="sticky bottom-0 z-10 -mx-4 px-4 pt-4"
         style={{
           paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))',
