@@ -5,8 +5,8 @@ import { getAudioContext } from './audioContext'
 // to -18 LUFS. It goes through Web Audio because iOS ignores HTMLAudioElement.volume.
 const TRACKS = [1, 2, 3, 4, 5].map(n => `/audio/mesa/mesa-${n}.mp3`)
 
-const LEVEL = 0.12 // Background, under the call
-const DUCKED = 0.04 // While someone at the table talks
+const LEVEL = 0.05 // Background, under the call
+const DUCKED = 0.02 // While someone at the table talks
 const CROSSFADE_S = 3
 
 interface Deck {
