@@ -3,7 +3,7 @@ import { getAudioContext } from './audioContext'
 // Menu and lobby music: Pixabay 522534, «Salsa estilo New York 03» (vjgalaxy),
 // normalized to -18 LUFS like the table playlist. It goes through Web Audio
 // because iOS ignores HTMLAudioElement.volume.
-const LEVEL = 0.1
+const LEVEL = 0.05
 
 let audio: HTMLAudioElement | null = null
 let gain: GainNode | null = null
