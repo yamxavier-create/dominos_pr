@@ -19,8 +19,10 @@ export function PasoChip({ show, playerName, bonusPoints, seat, anchored }: Paso
 
   return (
     <div className={`${anchored ? 'flex justify-center' : wrapperStyles[seat]} z-30 pointer-events-none`} role="status">
-      <div className="paso-toast club-sign flex items-baseline gap-1.5 px-3 py-1 whitespace-nowrap font-club">
-        <span className="font-body font-extrabold text-sm">{playerName}</span>
+      <div className={`paso-toast club-sign flex items-baseline py-1 whitespace-nowrap font-club ${anchored ? 'gap-1 px-2' : 'gap-1.5 px-3'}`}>
+        {/* Hanging from the player's own box, which already shows the name: short
+            enough to fit its width, so two passes in a row never overlap */}
+        {!anchored && <span className="font-body font-extrabold text-sm">{playerName}</span>}
         <span className="font-club-display text-base text-club-them">pasa</span>
         {bonusPoints !== null && (
           <span className="mm-chip">
