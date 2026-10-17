@@ -28,6 +28,8 @@ export default defineConfig({
         skipWaiting: true,
         clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,mp3}'],
+        // The table playlist (~9 MB) streams instead of being precached
+        globIgnores: ['**/audio/mesa/**'],
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [/^\/socket\.io/, /^\/health/],
         runtimeCaching: [

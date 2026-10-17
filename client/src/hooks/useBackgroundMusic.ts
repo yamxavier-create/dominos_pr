@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useUIStore } from '../store/uiStore'
+import { useCallStore } from '../store/callStore'
 import { playMusic, stopMusic, pauseMusic } from '../audio/music'
+import { startTableMusic, stopTableMusic, duckTableMusic } from '../audio/tableMusic'
 
 const MUSIC_ROUTES = ['/', '/lobby']
 
@@ -50,4 +52,15 @@ export function useBackgroundMusic(): void {
       }
     }
   }, [pathname, musicEnabled])
+
+  // The game has its own quiet playlist, ducked while anyone talks
+  const atTable = pathname === '/game' && musicEnabled
+  const someoneTalking = useCallStore(s => Object.values(s.speakingPeers).some(Boolean))
+  useEffect(() => {
+    if (atTable) startTableMusic()
+    else stopTableMusic()
+  }, [atTable])
+  useEffect(() => {
+    duckTableMusic(someoneTalking)
+  }, [someoneTalking])
 }
