@@ -1,7 +1,7 @@
 import { GameMode, HouseRules } from '../../types/game'
 import { socket } from '../../socket'
 import { GoldCTA, GoldCaption } from '../ui/GoldCTA'
-import { MODE_NAMES, RULE_KEYS, RULE_OPTIONS, TORNEO_NOTES, editableRules } from '../../rules'
+import { MODE_NAMES, RULE_KEYS, RULE_OPTIONS, editableRules, torneoNotes } from '../../rules'
 
 interface RulesModalProps {
   gameMode: GameMode
@@ -36,16 +36,12 @@ export function RulesModal({ gameMode, rules, canEdit, onClose }: RulesModalProp
           <h2 id="rules-title" className="mm-title text-3xl leading-none">Reglas de la mesa</h2>
           <p className="font-body font-bold text-white/75 text-xs">
             {gameMode === 'torneo'
-              ? 'El torneo se juega con las reglas oficiales.'
+              ? canEdit ? 'Escoge el tiempo; lo demás son las reglas oficiales.' : 'El torneo se juega con las reglas oficiales.'
               : canEdit ? 'Escoge cómo se juega en esta mesa.' : 'El host escoge cómo se juega en esta mesa.'}
           </p>
         </div>
 
-        {gameMode === 'torneo' ? (
-          <ul className="mm-well flex flex-col gap-2 font-body font-bold text-white/85 text-sm list-disc pl-8 pr-3 py-3">
-            {TORNEO_NOTES.map(note => <li key={note}>{note}</li>)}
-          </ul>
-        ) : (
+        {editable.length > 0 && (
           <div className="flex flex-col gap-3.5">
             {RULE_KEYS.filter(key => editable.includes(key)).map(key => {
               const { title, options } = RULE_OPTIONS[key]
@@ -77,6 +73,12 @@ export function RulesModal({ gameMode, rules, canEdit, onClose }: RulesModalProp
               )
             })}
           </div>
+        )}
+
+        {gameMode === 'torneo' && (
+          <ul className="mm-well flex flex-col gap-2 font-body font-bold text-white/85 text-sm list-disc pl-8 pr-3 py-3">
+            {torneoNotes(rules).map(note => <li key={note}>{note}</li>)}
+          </ul>
         )}
 
         <GoldCTA onClick={onClose} size="md">LISTO</GoldCTA>

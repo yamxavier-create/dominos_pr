@@ -3,19 +3,17 @@ import type { GameMode, ServerGameState } from './GameState'
 /**
  * House rules: how a hand is scored where Puerto Rico plays it differently.
  * The host picks them in the lobby; each mode starts from its own defaults and
- * only some of them can be changed (Torneo is fixed).
+ * only some of them can be changed (in Torneo, only the length of the game).
  */
 export interface HouseRules {
   tranque: 'individual' | 'pareja'  // individual: the team of the lightest hand wins; pareja: the lighter team sum wins
   passPoints: boolean               // a pass scores for the other team (first +2, then +1)
   blockBonus: boolean               // the team that closes a tranque gets +2
   tiedTranque: 'nadie' | 'salida'   // a tied tranque scores nothing, or goes to the team that led the hand
+  minutes: 35 | 40                  // Torneo: length of the game (35 for the Federación de PR, 40 for FEMUNDO)
 }
 
-export const RULE_KEYS: readonly (keyof HouseRules)[] = ['tranque', 'passPoints', 'blockBonus', 'tiedTranque']
-
-/** Torneo (reglamento DRD): 200 points or 35 minutes, whichever comes first */
-export const TORNEO_TIME_LIMIT_MS = 35 * 60 * 1000
+export const RULE_KEYS: readonly (keyof HouseRules)[] = ['tranque', 'passPoints', 'blockBonus', 'tiedTranque', 'minutes']
 
 /**
  * Torneo: time to make a play (reglamento de la Federación, Art. 15). A play
@@ -34,21 +32,22 @@ export function targetScoreFor(mode: GameMode): 20 | 200 | 500 {
 
 export function defaultRules(mode: GameMode): HouseRules {
   switch (mode) {
-    case 'modo200': return { tranque: 'individual', passPoints: true, blockBonus: true, tiedTranque: 'nadie' }
-    case 'modo500': return { tranque: 'pareja', passPoints: false, blockBonus: false, tiedTranque: 'nadie' }
-    case 'torneo': return { tranque: 'pareja', passPoints: false, blockBonus: false, tiedTranque: 'nadie' }
+    case 'modo200': return { tranque: 'individual', passPoints: true, blockBonus: true, tiedTranque: 'nadie', minutes: 35 }
+    case 'modo500': return { tranque: 'pareja', passPoints: false, blockBonus: false, tiedTranque: 'nadie', minutes: 35 }
+    case 'torneo': return { tranque: 'pareja', passPoints: false, blockBonus: false, tiedTranque: 'nadie', minutes: 35 }
   }
 }
 
 /**
  * Rules the host can change in each mode. Pass points and the tranque bonus are
- * worth 1–2 points, which only makes sense on Modo 200's 20-point scale.
+ * worth 1–2 points, which only makes sense on Modo 200's 20-point scale. Only
+ * Torneo has a game clock.
  */
 export function editableRules(mode: GameMode): readonly (keyof HouseRules)[] {
   switch (mode) {
-    case 'modo200': return RULE_KEYS
+    case 'modo200': return ['tranque', 'passPoints', 'blockBonus', 'tiedTranque']
     case 'modo500': return ['tranque', 'tiedTranque']
-    case 'torneo': return []
+    case 'torneo': return ['minutes']
   }
 }
 
@@ -68,6 +67,10 @@ export function applyRuleChange(mode: GameMode, current: HouseRules, change: unk
         if (value !== 'nadie' && value !== 'salida') return null
         next.tiedTranque = value
         break
+      case 'minutes':
+        if (value !== 35 && value !== 40) return null
+        next.minutes = value
+        break
       case 'passPoints':
       case 'blockBonus':
         if (typeof value !== 'boolean') return null
@@ -78,8 +81,13 @@ export function applyRuleChange(mode: GameMode, current: HouseRules, change: unk
   return next
 }
 
+/** Torneo: 200 points or the game's minutes (35 or 40), whichever comes first */
+export function gameTimeLimitMs(game: ServerGameState): number {
+  return game.rules.minutes * 60 * 1000
+}
+
 /** Time left on a Torneo game's clock; null in modes without one */
 export function gameTimeLeftMs(game: ServerGameState, now = Date.now()): number | null {
   if (game.gameMode !== 'torneo') return null
-  return Math.max(0, game.startedAt + TORNEO_TIME_LIMIT_MS - now)
+  return Math.max(0, game.startedAt + gameTimeLimitMs(game) - now)
 }

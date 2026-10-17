@@ -19,14 +19,14 @@ export const MODE_SHORT: Record<GameMode, string> = {
 export const MODE_SUMMARY: Record<GameMode, [string, string]> = {
   modo200: ['Hasta 20 pts', 'Bonus por pase'],
   modo500: ['Hasta 500 pts', 'Capicú +100'],
-  torneo: ['200 pts o 35 min', 'Reglas oficiales'],
+  torneo: ['200 pts o 35–40 min', 'Reglas oficiales'],
 }
 
 export function editableRules(mode: GameMode): readonly (keyof HouseRules)[] {
   switch (mode) {
     case 'modo200': return ['tranque', 'passPoints', 'blockBonus', 'tiedTranque']
     case 'modo500': return ['tranque', 'tiedTranque']
-    case 'torneo': return []
+    case 'torneo': return ['minutes']
   }
 }
 
@@ -63,6 +63,13 @@ export const RULE_OPTIONS: {
       { value: 'salida', label: 'Gana la salida', detail: 'Si el tranque queda empatado, gana la pareja que salió esa mano.' },
     ],
   },
+  minutes: {
+    title: 'Tiempo de la partida',
+    options: [
+      { value: 35, label: '35 min', detail: 'Como el reglamento de la Federación de Puerto Rico.' },
+      { value: 40, label: '40 min', detail: 'Como el reglamento de la Federación Mundial (FEMUNDO).' },
+    ],
+  },
 }
 
 export const RULE_KEYS = Object.keys(RULE_OPTIONS) as (keyof HouseRules)[]
@@ -73,9 +80,9 @@ export function ruleValueLabel<K extends keyof HouseRules>(key: K, value: HouseR
   return options.find(o => o.value === value)?.label ?? String(value)
 }
 
-/** Torneo's fixed rules, as the reglamento states them */
-export const TORNEO_NOTES = [
-  'A 200 puntos o 35 minutos, lo que llegue primero. Al acabarse el tiempo se termina la mano y gana la pareja que va arriba; si van empatados, se juega otra mano.',
+/** Torneo's rules, as the reglamento states them */
+export const torneoNotes = (rules: HouseRules) => [
+  `A 200 puntos o ${rules.minutes} minutos, lo que llegue primero. Al acabarse el tiempo se termina la mano y gana la pareja que va arriba; si van empatados, se juega otra mano.`,
   'Tranque en pareja: gana la pareja con menos puntos y se lleva los puntos de las cuatro manos. Si queda empatado, nadie anota.',
   'Reloj por jugada: 1 minuto si tu jugada tranca el juego, 5 segundos si solo tienes una ficha que cabe por un lado y 20 si tienes que escoger. Si se acaba, la app juega por ti.',
   'La primera mano la sale la doble seis; después la salida rota cada mano.',

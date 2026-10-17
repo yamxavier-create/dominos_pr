@@ -5,7 +5,7 @@ import { test, describe } from 'node:test'
 import assert from 'node:assert/strict'
 import { setupTestServer, waitFor, waitUntil, collect, sleep } from './harness'
 import { Tile, PipValue, ServerGameState } from '../src/game/GameState'
-import { HouseRules, TORNEO_TIME_LIMIT_MS, TORNEO_TURN_MS } from '../src/game/rules'
+import { HouseRules, TORNEO_TURN_MS } from '../src/game/rules'
 import { torneoTurnLimitMs } from '../src/game/GameEngine'
 
 const h = setupTestServer()
@@ -182,7 +182,7 @@ describe('Torneo', () => {
   test('counts pips as they are, to 200, and the next hand rotates', async () => {
     const { roomCode, seats, game } = await startWithRules('torneo', {})
     assert.equal(game.targetScore, 200)
-    assert.deepEqual(game.rules, { tranque: 'pareja', passPoints: false, blockBonus: false, tiedTranque: 'nadie' })
+    assert.deepEqual(game.rules, { tranque: 'pareja', passPoints: false, blockBonus: false, tiedTranque: 'nadie', minutes: 35 })
     rigHand(game, [], [[tile(6, 5)], [tile(6, 6)], [tile(4, 5)]])  // seat 0 plays out
     game.handStarterIndex = 2
     const result = await playAndWaitForHandEnd(seats[0], roomCode)
@@ -197,7 +197,7 @@ describe('Torneo', () => {
 
   test('after 35 minutes the hand in play finishes and the team ahead wins', async () => {
     const { roomCode, seats, game } = await startWithRules('torneo', {})
-    game.startedAt = Date.now() - TORNEO_TIME_LIMIT_MS - 1000
+    game.startedAt = Date.now() - 35 * 60_000 - 1000
     rigHand(game, [], [[tile(0, 1)], [tile(0, 2)], [tile(0, 3)]])
     game.scores = { team0: 10, team1: 40 }
     const gameEnded = waitFor(seats[0].socket, 'game:game_ended')
@@ -207,9 +207,21 @@ describe('Torneo', () => {
     assert.equal(game.phase, 'game_end')
   })
 
+  test('a 40-minute game is still on at 35 minutes (FEMUNDO, Art. 6)', async () => {
+    const { roomCode, seats, game } = await startWithRules('torneo', { minutes: 40 })
+    assert.equal(game.rules.minutes, 40)
+    game.startedAt = Date.now() - 35 * 60_000 - 1000
+    rigHand(game, [], [[tile(0, 1)], [tile(0, 2)], [tile(0, 3)]])
+    game.scores = { team0: 10, team1: 40 }
+    const events = collect(seats[0].socket, 300)
+    await playAndWaitForHandEnd(seats[0], roomCode)
+    assert.equal(game.phase, 'round_end')
+    assert.ok(!(await events).includes('game:game_ended'))
+  })
+
   test('a tie when time runs out plays another hand', async () => {
     const { roomCode, seats, game } = await startWithRules('torneo', {})
-    game.startedAt = Date.now() - TORNEO_TIME_LIMIT_MS - 1000
+    game.startedAt = Date.now() - 35 * 60_000 - 1000
     rigHand(game, [], [[tile(0, 1)], [tile(0, 2)], [tile(0, 3)]])
     game.scores = { team0: 34, team1: 40 }
     const events = collect(seats[0].socket, 300)
@@ -307,7 +319,7 @@ describe('room:set_rules', () => {
     await sleep(100)
     assert.deepEqual(room.rules, before)
 
-    for (const rules of [{ passPoints: true }, { tranque: 'nadie' }, { tiedTranque: true }, 'pareja', null]) {
+    for (const rules of [{ passPoints: true }, { tranque: 'nadie' }, { tiedTranque: true }, { minutes: 40 }, 'pareja', null]) {
       seats[0].socket.emit('room:set_rules', { rules })
       assert.equal((await waitFor(seats[0].socket, 'room:error')).code, 'INVALID_RULES')
     }
@@ -316,5 +328,17 @@ describe('room:set_rules', () => {
     const updated = waitFor(seats[2].socket, 'room:updated')
     seats[0].socket.emit('room:set_rules', { rules: { tranque: 'individual' } })
     assert.equal((await updated).room.rules.tranque, 'individual')
+  })
+
+  test('Torneo only lets the host pick 35 or 40 minutes', async () => {
+    const { seats, room } = await createLobby(undefined, 'torneo')
+    for (const rules of [{ tranque: 'individual' }, { minutes: 30 }, { minutes: '40' }]) {
+      seats[0].socket.emit('room:set_rules', { rules })
+      assert.equal((await waitFor(seats[0].socket, 'room:error')).code, 'INVALID_RULES')
+    }
+    assert.equal(room.rules.minutes, 35)
+    const updated = waitFor(seats[1].socket, 'room:updated')
+    seats[0].socket.emit('room:set_rules', { rules: { minutes: 40 } })
+    assert.equal((await updated).room.rules.minutes, 40)
   })
 })

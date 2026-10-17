@@ -9,6 +9,7 @@ export interface HouseRules {
   passPoints: boolean
   blockBonus: boolean
   tiedTranque: 'nadie' | 'salida'
+  minutes: 35 | 40
 }
 export type GamePhase = 'waiting' | 'playing' | 'round_end' | 'game_end'
 

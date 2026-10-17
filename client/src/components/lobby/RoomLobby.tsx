@@ -390,7 +390,7 @@ export function RoomLobby() {
             <span className="block font-chunky text-white text-base tracking-wide mm-stroke">Reglas de la mesa</span>
             <span className="block font-body font-bold text-white/65 text-xs truncate">
               {room.gameMode === 'torneo'
-                ? 'Reglas oficiales del torneo'
+                ? `Reglas oficiales · ${room.rules.minutes} min`
                 : RULE_KEYS.filter(key => editableRules(room.gameMode).includes(key))
                     .map(key => `${RULE_OPTIONS[key].title}: ${ruleValueLabel(key, room.rules[key]).toLowerCase()}`)
                     .join(' · ')}
