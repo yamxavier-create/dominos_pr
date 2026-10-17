@@ -1,66 +1,32 @@
-import { useEffect, useRef } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
 import { useUIStore } from '../store/uiStore'
 import { useCallStore } from '../store/callStore'
-import { playMusic, stopMusic, pauseMusic } from '../audio/music'
-import { startTableMusic, stopTableMusic, duckTableMusic } from '../audio/tableMusic'
+import { playPlaylist, pausePlaylist, duckPlaylist } from '../audio/playlist'
 
-const MUSIC_ROUTES = ['/', '/lobby']
-
+/** One playlist for the whole app: it starts on open and keeps going across screens. */
 export function useBackgroundMusic(): void {
-  const { pathname } = useLocation()
   const musicEnabled = useUIStore(s => s.musicEnabled)
-  const unlockRef = useRef<(() => void) | null>(null)
-
-  useEffect(() => {
-    // Clean up any previous unlock listener
-    if (unlockRef.current) {
-      unlockRef.current()
-      unlockRef.current = null
-    }
-
-    if (MUSIC_ROUTES.includes(pathname) && musicEnabled) {
-      playMusic().then(started => {
-        if (!started) {
-          // Autoplay blocked -- unlock on first user interaction
-          const unlock = () => {
-            playMusic()
-            cleanup()
-          }
-          const cleanup = () => {
-            document.removeEventListener('click', unlock)
-            document.removeEventListener('keydown', unlock)
-            document.removeEventListener('touchstart', unlock)
-            unlockRef.current = null
-          }
-          document.addEventListener('click', unlock)
-          document.addEventListener('keydown', unlock)
-          document.addEventListener('touchstart', unlock)
-          unlockRef.current = cleanup
-        }
-      })
-    } else if (!musicEnabled) {
-      pauseMusic() // Preserve position for resume when toggled back on
-    } else {
-      stopMusic() // Full stop + reset when leaving music routes (e.g. /game)
-    }
-
-    return () => {
-      if (unlockRef.current) {
-        unlockRef.current()
-        unlockRef.current = null
-      }
-    }
-  }, [pathname, musicEnabled])
-
-  // The game has its own quiet playlist, ducked while anyone talks
-  const atTable = pathname === '/game' && musicEnabled
   const someoneTalking = useCallStore(s => Object.values(s.speakingPeers).some(Boolean))
+
   useEffect(() => {
-    if (atTable) startTableMusic()
-    else stopTableMusic()
-  }, [atTable])
+    if (!musicEnabled) {
+      pausePlaylist()
+      return
+    }
+    // Browsers block playback until the first tap: retry then
+    const events = ['click', 'touchend', 'keydown'] as const
+    const unlock = () => {
+      playPlaylist().then(started => {
+        if (started) events.forEach(evt => document.removeEventListener(evt, unlock, true))
+      })
+    }
+    playPlaylist().then(started => {
+      if (!started) events.forEach(evt => document.addEventListener(evt, unlock, true))
+    })
+    return () => events.forEach(evt => document.removeEventListener(evt, unlock, true))
+  }, [musicEnabled])
+
   useEffect(() => {
-    duckTableMusic(someoneTalking)
+    duckPlaylist(someoneTalking)
   }, [someoneTalking])
 }
