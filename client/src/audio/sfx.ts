@@ -7,7 +7,7 @@ import { useUIStore } from '../store/uiStore'
 const SFX = {
   tileClack: { url: '/audio/tile-clack.mp3', volume: 1 },
   turno: { url: '/audio/sfx/turno.mp3', volume: 0.45 },
-  paso: { url: '/audio/sfx/paso.mp3', volume: 0.5 },
+  paso: { url: '/audio/sfx/paso.mp3', volume: 0.25 },
   start: { url: '/audio/sfx/start.mp3', volume: 0.4 },
   tick: { url: '/audio/sfx/tick.mp3', volume: 0.45 },
   tiempo: { url: '/audio/sfx/tiempo.mp3', volume: 0.5 },
