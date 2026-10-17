@@ -19,7 +19,7 @@ export async function loadAudio(url: string): Promise<AudioBuffer> {
   return audioBuffer
 }
 
-export function playBuffer(buffer: AudioBuffer, volume?: number): void {
+export function playBuffer(buffer: AudioBuffer, volume?: number): AudioBufferSourceNode {
   const ctx = getAudioContext()
   // Safety net: resume if suspended (user gesture may not have fired yet)
   if (ctx.state === 'suspended') {
@@ -39,4 +39,5 @@ export function playBuffer(buffer: AudioBuffer, volume?: number): void {
   }
 
   source.start(0)
+  return source
 }

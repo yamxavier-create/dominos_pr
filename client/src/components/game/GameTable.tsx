@@ -16,6 +16,7 @@ import { SocialDock, MediaDock } from './GameDock'
 import { TurnIndicator } from '../player/TurnIndicator'
 import { TurnStatus } from '../player/TurnStatus'
 import { useTurnClock } from '../../hooks/useTurnClock'
+import { playSfx, stopSfx } from '../../audio/sfx'
 import { CameraSeat } from '../player/CameraSeat'
 import { ScorePanel } from './ScorePanel'
 import { ScoreHistoryPanel } from './ScoreHistoryPanel'
@@ -168,6 +169,15 @@ export function GameTable() {
 
   // Before the early return: hooks run on every render
   const turnSeconds = useTurnClock(gameState?.turnTimeLeftMs, gameState?.turnId)
+  // Torneo: the clock ticks over your last 5 seconds and rings when it runs out
+  const myClock = gameState?.isMyTurn ? turnSeconds : null
+  useEffect(() => {
+    if (myClock === 5) playSfx('tick')
+    if (myClock === 0) {
+      stopSfx('tick')
+      playSfx('tiempo')
+    }
+  }, [myClock])
   const { drawFromBoneyard, playTileOnEnd } = useGameActions()
   const selectedTileId = useUIStore(s => s.selectedTileId)
 

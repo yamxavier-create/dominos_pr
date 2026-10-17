@@ -1,4 +1,6 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { playSfx } from './audio/sfx'
 import { useSocket } from './hooks/useSocket'
 import { useBackgroundMusic } from './hooks/useBackgroundMusic'
 import { useAuth } from './hooks/useAuth'
@@ -17,9 +19,22 @@ import { ConnectionStatus } from './components/ui/ConnectionStatus'
 import { CallHost } from './components/call/CallHost'
 import { useRoomStore } from './store/roomStore'
 
+/** A soft click on every button press, app-wide. */
+function useButtonClickSfx() {
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      const button = (e.target as Element | null)?.closest?.('button')
+      if (button && !button.disabled) playSfx('click')
+    }
+    document.addEventListener('click', onClick, true)
+    return () => document.removeEventListener('click', onClick, true)
+  }, [])
+}
+
 function AppRoutes() {
   useSocket()
   useBackgroundMusic()
+  useButtonClickSfx()
   useAuth() // Auto-login from stored token
   const roomCode = useRoomStore(s => s.roomCode)
 

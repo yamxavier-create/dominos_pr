@@ -9,7 +9,7 @@ import { useUIStore, ChatMessage, ActiveReaction } from '../store/uiStore'
 import { useCallStore } from '../store/callStore'
 import { useSocialStore, PresenceStatus } from '../store/socialStore'
 import { signalHandlerRef, peerJoinedCallRef, peerLeftCallRef } from './useWebRTC'
-import { playSfx, preloadSfx } from '../audio/sfx'
+import { playSfx, preloadSfx, stopSfx } from '../audio/sfx'
 import { ClientGameState, RoundEndPayload, GameEndPayload, PassPayload, RematchVoteUpdate, RematchCancelled, BoneyardDrawPayload } from '../types/game'
 
 export function useSocket() {
@@ -94,6 +94,12 @@ export function useSocket() {
     socket.on('room:updated', ({ room, myPlayerIndex }: { room: any; myPlayerIndex?: number }) => {
       // Lobby seats get reindexed when someone leaves; the server sends each player their new seat.
       // Room and seat change together: the call rebuilds from both.
+      const before = useRoomStore.getState().room
+      if (before && before.roomCode === room.roomCode && room.status === 'waiting') {
+        const diff = room.players.length - before.players.length
+        if (diff > 0) playSfx('entra')
+        else if (diff < 0) playSfx('sale')
+      }
       useRoomStore.setState(typeof myPlayerIndex === 'number' ? { room, myPlayerIndex } : { room })
     })
 
@@ -154,14 +160,23 @@ export function useSocket() {
       useUIStore.getState().clearChatState()
       navigate('/game')
       preloadSfx()
+      playSfx('start')
+      playSfx('repartir', 250)
+      if (gameState.isMyTurn) playSfx('turno', 1300)
     })
 
     socket.on('game:state_snapshot', ({
       gameState,
       lastAction,
     }: { gameState: ClientGameState; lastAction: any }) => {
-      const prevIsMyTurn = useGameStore.getState().gameState?.isMyTurn ?? false
+      const prev = useGameStore.getState().gameState
+      const prevIsMyTurn = prev?.isMyTurn ?? false
       setGameState(gameState)
+      // The first hand gets its sounds from game:started
+      const newHand = gameState.phase === 'playing' && !!prev && prev.handNumber !== gameState.handNumber
+      if (newHand) playSfx('repartir')
+      if (gameState.phase === 'playing' && gameState.isMyTurn && !prevIsMyTurn) playSfx('turno', newHand ? 1100 : 350)
+      if (!gameState.isMyTurn) stopSfx('tick')
       // Dismiss round-end modal when new hand starts (non-host players)
       if (gameState.phase === 'playing') {
         setShowRoundEnd(false)
@@ -204,6 +219,7 @@ export function useSocket() {
 
     socket.on('game:player_passed', (payload: PassPayload) => {
       addPasoNotification(payload)
+      playSfx('paso')
       setTimeout(() => {
         useUIStore.getState().removePasoNotification(payload.playerIndex)
       }, 4500)
@@ -217,12 +233,17 @@ export function useSocket() {
       setRoundEnd(data)
       const handNumber = useGameStore.getState().gameState?.handNumber ?? 0
       addToScoreHistory(data, handNumber)
+      stopSfx('tick')
+      // After the last tile lands (its fly animation takes 600 ms)
+      playSfx(data.isCapicu || data.isChuchazo ? 'capicu' : data.reason === 'blocked' ? 'tranque' : 'ganaMano', 700)
       // Brief pause so the final tile placement is visible before the modal opens
       setTimeout(() => setShowRoundEnd(true), 1500)
     })
 
     socket.on('game:game_ended', (data: GameEndPayload) => {
       setGameEnd(data)
+      // Same applause for both teams: everyone sees the same ending
+      playSfx('ganaPartida', 1600)
       // After a last hand, its summary leads to the result (Ver resultado);
       // a game that ends without one shows the result on its own
       if (!useGameStore.getState().roundEndData) setTimeout(() => setShowGameEnd(true), 1500)
@@ -294,15 +315,22 @@ export function useSocket() {
     const isMe = (playerIndex: number) => playerIndex === useGameStore.getState().gameState?.myPlayerIndex
 
     socket.on('connection:player_disconnected', ({ playerIndex, playerName, graceMs }: { playerIndex: number; playerName: string; graceMs?: number }) => {
-      if (!isMe(playerIndex)) useUIStore.getState().addSeatNotice({ playerName, kind: 'away', graceMs })
+      if (isMe(playerIndex)) return
+      useUIStore.getState().addSeatNotice({ playerName, kind: 'away', graceMs })
+      playSfx('sale')
     })
 
     socket.on('connection:player_replaced', ({ playerIndex, playerName, reason }: { playerIndex: number; playerName: string; reason?: 'left' | 'timeout' }) => {
-      if (!isMe(playerIndex)) useUIStore.getState().addSeatNotice({ playerName, kind: reason === 'left' ? 'left' : 'bot' })
+      if (isMe(playerIndex)) return
+      useUIStore.getState().addSeatNotice({ playerName, kind: reason === 'left' ? 'left' : 'bot' })
+      // A drop already sounded when it happened; leaving on purpose hasn't
+      if (reason === 'left') playSfx('sale')
     })
 
     socket.on('connection:player_reconnected', ({ playerIndex, playerName }: { playerIndex: number; playerName: string }) => {
-      if (!isMe(playerIndex)) useUIStore.getState().addSeatNotice({ playerName, kind: 'back' })
+      if (isMe(playerIndex)) return
+      useUIStore.getState().addSeatNotice({ playerName, kind: 'back' })
+      playSfx('entra')
     })
 
     // Social events -- real-time friend updates
