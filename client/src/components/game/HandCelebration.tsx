@@ -51,6 +51,8 @@ const TRANQUE_START_MS = 700
 const COUNT_MS = 650
 const LAND_MS = 520
 const HOLD_MS = 1150
+// The tranque stays longer: people read who had fewer pips before it goes
+const TRANQUE_HOLD_MS = 3300
 const EXIT_MS = 300
 
 const OUT = 'cubic-bezier(0.16, 1, 0.3, 1)'
@@ -118,7 +120,7 @@ export function HandCelebration() {
         el.querySelectorAll<HTMLElement>('[data-pips]').forEach(n => { n.textContent = n.dataset.pips ?? '' })
         el.querySelectorAll<HTMLElement>('[data-won]').forEach(t => t.classList.add(t.dataset.won === 'true' ? 'hc-won' : 'hc-lost'))
         await run(words, [{ opacity: 0 }, { opacity: 1 }], { duration: 220 })
-        await sleep(HOLD_MS + 200)
+        await sleep((shown.kind === 'tranque' ? TRANQUE_HOLD_MS : HOLD_MS) + 200)
         if (cancelled) return
         await run(words, [{ opacity: 1 }, { opacity: 0 }], { duration: 220 })
         return
@@ -149,7 +151,7 @@ export function HandCelebration() {
           t.classList.add(won ? 'hc-won' : 'hc-lost')
           if (won) run(t, [{ transform: 'scale(1)' }, { transform: 'scale(1.1)' }, { transform: 'scale(1)' }], { duration: 300, easing: POP, fill: 'none' })
         })
-        await sleep(HOLD_MS)
+        await sleep(TRANQUE_HOLD_MS)
         if (cancelled) return
         run(part('dim'), [{ opacity: 1 }, { opacity: 0 }], { duration: EXIT_MS })
         await run(part('words'), [{ transform: 'none', opacity: 1 }, { transform: 'translateY(-20px)', opacity: 0 }], { duration: EXIT_MS, easing: 'ease-in' })
