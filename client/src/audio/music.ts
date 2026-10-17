@@ -1,18 +1,31 @@
+import { getAudioContext } from './audioContext'
+
+// Menu and lobby music: Pixabay 522534, «Salsa estilo New York 03» (vjgalaxy),
+// normalized to -18 LUFS like the table playlist. It goes through Web Audio
+// because iOS ignores HTMLAudioElement.volume.
+const LEVEL = 0.2
+
 let audio: HTMLAudioElement | null = null
+let gain: GainNode | null = null
 
 function getAudio(): HTMLAudioElement {
   if (!audio) {
-    audio = new Audio('/audio/salsa-menu.mp3') // Pixabay 522534, «Salsa estilo New York 03» (vjgalaxy)
+    audio = new Audio('/audio/salsa-menu.mp3')
     audio.loop = true
-    audio.volume = 0.35
+    const ctx = getAudioContext()
+    gain = ctx.createGain()
+    gain.gain.value = LEVEL
+    ctx.createMediaElementSource(audio).connect(gain)
+    gain.connect(ctx.destination)
   }
   return audio
 }
 
 /** Attempts to play. Resolves true if playing, false if autoplay blocked. */
-export async function playMusic(volume = 0.35): Promise<boolean> {
+export async function playMusic(): Promise<boolean> {
   const el = getAudio()
-  el.volume = volume
+  const ctx = getAudioContext()
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {})
   if (!el.paused) return true
   try {
     await el.play()
