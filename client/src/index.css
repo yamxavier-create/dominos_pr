@@ -814,3 +814,46 @@ body {
 }
 .turn-clock-urgent { animation: turn-clock-urgent 0.5s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .turn-clock-urgent { animation: none; } }
+
+/* ─── Capicú / chuchazo celebration (HandCelebration) ─── */
+.hand-celebration { container-type: size; }
+.hc-center { position: absolute; left: 50%; top: 50%; translate: -50% -50%; }
+.hc-word {
+  font-family: 'Lilita One', Nunito, sans-serif;
+  font-size: clamp(30px, min(14cqw, 22cqh), 62px);
+  line-height: 1;
+  white-space: nowrap;
+  color: #FDD04B;
+  -webkit-text-stroke: 7px #06140B;
+  paint-order: stroke fill;
+  text-shadow: 0 6px 0 #06140B;
+}
+.hc-chip {
+  font-family: 'Lilita One', Nunito, sans-serif;
+  font-size: 20px;
+  line-height: 1;
+  color: #06140B;
+  background: #F4EBD3;
+  border: 3px solid #06140B;
+  box-shadow: 0 4px 0 #06140B;
+  border-radius: 999px;
+  padding: 4px 14px 5px;
+}
+.hc-spark {
+  position: absolute; left: 0; top: 0;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #FFF6D8;
+  box-shadow: 0 0 0 3px #FDD04B, 0 0 18px 6px rgba(253, 208, 75, 0.85);
+  opacity: 0;
+}
+.hc-flash {
+  width: 160px; height: 160px; border-radius: 50%;
+  background: radial-gradient(circle, #FFF6D8 0%, rgba(253, 208, 75, 0.75) 35%, rgba(253, 208, 75, 0) 70%);
+  opacity: 0;
+}
+.hc-ring {
+  width: 150px; height: 150px; border-radius: 50%;
+  border: 7px solid #06140B;
+  opacity: 0;
+}
+.hc-tile { width: min(96px, 26cqh); aspect-ratio: 1 / 2; }

@@ -26,6 +26,7 @@ import { PasoChip } from './PasoChip'
 import { FloatingChatBubble } from '../chat/FloatingChatBubble'
 import { AvatarReaction } from '../player/AvatarReaction'
 import { RoundEndModal } from './RoundEndModal'
+import { HandCelebration } from './HandCelebration'
 import { GameEndModal } from './GameEndModal'
 import { SeatNotices } from './SeatNotices'
 import { useIsLandscape } from '../../hooks/useIsLandscape'
@@ -250,6 +251,7 @@ export function GameTable() {
     <div className={`club-rail min-h-0 ${portrait || compact ? 'flex-1' : 'w-full h-full'}`} style={compact ? { padding: 6, borderRadius: 10 } : undefined}>
       <div className="club-felt relative overflow-hidden w-full h-full" data-board>
         <GameBoard board={board} allowZoom={bigScreen} />
+        <HandCelebration />
         {!portrait && <TurnIndicator playerName={currentPlayerName} isMyTurn={isMyTurn} secondsLeft={turnSeconds} />}
         {is2Player && (
           <BoneyardPile
