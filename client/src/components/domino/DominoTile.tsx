@@ -81,8 +81,8 @@ export function DominoTile({
             <rect x="0.5" y="0.5" width={W - 1} height={H - 1} rx={BODY_R - 0.5} fill="none" stroke={BOARD_EDGE} strokeWidth="1" />
           )}
           <line {...divider} stroke={BODY} strokeWidth="1.5" strokeLinecap="round" />
-          <DotPattern count={pip1} xMin={face1.x} yMin={face1.y} xMax={face1.x + face1.w} yMax={face1.y + face1.h} />
-          <DotPattern count={pip2} xMin={face2.x} yMin={face2.y} xMax={face2.x + face2.w} yMax={face2.y + face2.h} />
+          <DotPattern count={pip1} xMin={face1.x} yMin={face1.y} xMax={face1.x + face1.w} yMax={face1.y + face1.h} horizontal={!vertical} />
+          <DotPattern count={pip2} xMin={face2.x} yMin={face2.y} xMax={face2.x + face2.w} yMax={face2.y + face2.h} horizontal={!vertical} />
         </>
       )}
       <circle cx={W / 2} cy={H / 2} r={RIVET_R - 0.5} fill={BRASS} stroke={BRASS_EDGE} strokeWidth="1" />

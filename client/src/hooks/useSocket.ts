@@ -161,8 +161,7 @@ export function useSocket() {
       navigate('/game')
       preloadSfx()
       playSfx('start')
-      playSfx('repartir', 250)
-      if (gameState.isMyTurn) playSfx('turno', 1300)
+      if (gameState.isMyTurn) playSfx('turno', 900)
     })
 
     socket.on('game:state_snapshot', ({
@@ -172,10 +171,7 @@ export function useSocket() {
       const prev = useGameStore.getState().gameState
       const prevIsMyTurn = prev?.isMyTurn ?? false
       setGameState(gameState)
-      // The first hand gets its sounds from game:started
-      const newHand = gameState.phase === 'playing' && !!prev && prev.handNumber !== gameState.handNumber
-      if (newHand) playSfx('repartir')
-      if (gameState.phase === 'playing' && gameState.isMyTurn && !prevIsMyTurn) playSfx('turno', newHand ? 1100 : 350)
+      if (gameState.phase === 'playing' && gameState.isMyTurn && !prevIsMyTurn) playSfx('turno', 350)
       if (!gameState.isMyTurn) stopSfx('tick')
       // Dismiss round-end modal when new hand starts (non-host players)
       if (gameState.phase === 'playing') {

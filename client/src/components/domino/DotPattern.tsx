@@ -4,6 +4,7 @@ interface DotPatternProps {
   yMin: number    // top edge
   xMax: number    // right edge
   yMax: number    // bottom edge
+  horizontal?: boolean  // the tile lies on its side: the 6 runs in rows, not columns
 }
 
 // Pips sit on a 3×3 grid (cells 0–8, row by row), as on a real tile
@@ -21,8 +22,11 @@ const GRID_CELLS: Record<number, number[]> = {
 const PAD = 5 / 36
 const PIP = 6 / 36
 
-export function DotPattern({ count, xMin, yMin, xMax, yMax }: DotPatternProps) {
-  const cells = GRID_CELLS[count] ?? []
+// Swaps rows and columns, as turning the tile on its side does to the 6
+const transpose = (cell: number) => (cell % 3) * 3 + Math.floor(cell / 3)
+
+export function DotPattern({ count, xMin, yMin, xMax, yMax, horizontal = false }: DotPatternProps) {
+  const cells = (GRID_CELLS[count] ?? []).map(cell => (horizontal ? transpose(cell) : cell))
   const w = xMax - xMin
   const h = yMax - yMin
   const size = Math.min(w, h)
