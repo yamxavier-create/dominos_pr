@@ -76,6 +76,8 @@ export interface ServerGameState {
   gameWinnerIndex: number   // player who won the last game (starts the next one)
   boneyard: Tile[]          // tiles remaining in draw pile. Empty [] in 4-player; 14 tiles in 2-player
   awaitingBoneyardDraw: boolean  // true when current player must draw before playing (2-player only)
+  awaitingPass?: boolean         // a human with nothing to play takes their time and taps Paso
+  passTilePlayerIndex?: number   // who placed the tile that started the pending pass run (Modo 200 partner rule)
   passPointsThisHand: number    // accumulated pass bonus points this hand (Modo 200)
   turnId: number                // bumps on every turn, so a stale turn clock can tell it's late
   turnDeadline: number | null   // Torneo: when the current human's turn clock runs out (epoch ms)
@@ -162,6 +164,7 @@ export interface ClientGameState {
   boneyardCount: number             // tiles remaining in boneyard. Always 0 in 4-player
   playerCount: number               // 2 or 4. Client uses this for layout mode and label changes
   awaitingBoneyardDraw: boolean     // current player must draw before playing (2-player only)
+  awaitingPass: boolean             // current player has nothing to play and must tap Paso
 }
 
 export type GameAction =

@@ -424,6 +424,7 @@ export function buildClientGameState(
     boneyardCount: game.boneyard.length,
     playerCount: game.players.length,
     awaitingBoneyardDraw: game.awaitingBoneyardDraw,
+    awaitingPass: !!game.awaitingPass,
   }
 }
 

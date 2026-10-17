@@ -97,6 +97,10 @@ function startTurnClock(io: Server, game: ServerGameState, rooms: RoomManager) {
 function executeBotPlay(io: Server, game: ServerGameState, rooms: RoomManager, timedOut = false) {
   const player = game.players[game.currentPlayerIndex]
   if (!player || (!player.isBot && !timedOut)) return
+  if (game.awaitingPass) {
+    resolvePendingPass(io, game, rooms)
+    return
+  }
 
   const play = chooseBotPlay(player.tiles, game.board, game.firstPlayMade, game.forcedFirstTileId)
   if (!play) {
@@ -156,6 +160,7 @@ function executeBotBoneyardDraw(io: Server, game: ServerGameState, rooms: RoomMa
 
   if (game.boneyard.length === 0) {
     game.awaitingBoneyardDraw = false
+    game.awaitingPass = false
     return
   }
 
@@ -251,15 +256,11 @@ function processAutoPassCascade(
 ): boolean {
   let idx = startPlayerIndex
   const playerCount = game.players.length
-  const is2Player = playerCount === 2
-  // Modo 200: the partner of the tile player gets pass protection.
-  // If the partner has to pass right after an opponent passes, that pass never
-  // counts as a point — it was caused by their own teammate's play.
-  // In 2-player mode there are no partners, so partnerOfTilePlayer = -1 (no partner).
-  const partnerOfTilePlayer = is2Player ? -1 : (tilePlayerIndex + 2) % 4
+  game.awaitingPass = false
   // A tranque: nobody can play and there's nothing to draw. The passes that close
   // it are part of the tranque, not passes, so they award no bonus — the hand is
   // scored by handleBlockedGame (+2 to the team that closed it, then the pips).
+  // Nobody has to tap Paso for it either: the hand is over.
   const tranque = game.boneyard.length === 0 && game.players.every(p =>
     getValidPlays(p.tiles, game.board, game.firstPlayMade, game.forcedFirstTileId).length === 0
   )
@@ -286,54 +287,103 @@ function processAutoPassCascade(
       return false
     }
 
-    // Auto-pass this player (boneyard empty and no valid plays)
-    let passBonusAwarded: number | null = null
-    if (game.rules.passPoints && !tranque) {
-      const isPartnerPass = idx === partnerOfTilePlayer
-
-      if (!isPartnerPass) {
-        // Normal opponent pass: award bonus
-        passBonusAwarded = game.gamePassCount === 0 ? 2 : 1
-        const updatedScores = applyPassBonus200(game.scores, idx, game.gamePassCount)
-        game.scores = updatedScores
-        game.gamePassCount++
-        game.passPointsThisHand += passBonusAwarded
-
-        if (scoresReachedTarget(game.scores, game.targetScore)) {
-          game.currentPlayerIndex = idx
-          game.consecutivePasses++
-          game.handPassCount++
-          io.to(game.roomCode).emit('game:player_passed', {
-            playerIndex: idx,
-            playerName: game.players[idx].name,
-            passBonusAwarded,
-          })
-          return handleGameEnd(io, game)
-        }
-      }
-      // Partner pass: no bonus, no gamePassCount increment — pass is free
-    }
-
-    game.consecutivePasses++
-    game.handPassCount++
-
-    io.to(game.roomCode).emit('game:player_passed', {
-      playerIndex: idx,
-      playerName: game.players[idx].name,
-      passBonusAwarded,
-    })
-
-    if (isGameBlocked(game.consecutivePasses, playerCount)) {
+    // A person at the table says "paso" themselves, after looking at the board
+    const player = game.players[idx]
+    if (!tranque && !player.isBot && player.connected) {
+      game.awaitingPass = true
+      game.passTilePlayerIndex = tilePlayerIndex
       game.currentPlayerIndex = idx
-      return handleBlockedGame(io, game)
+      return false
     }
 
+    const result = passTurn(io, game, idx, tilePlayerIndex, tranque)
+    if (result !== 'next') return result
     idx = nextPlayerIndex(idx, playerCount)
   }
 
   // All players can't play (shouldn't happen if isGameBlocked wasn't triggered)
   game.currentPlayerIndex = idx
   return handleBlockedGame(io, game)
+}
+
+/**
+ * One player passes: Modo 200 pass points, then the blocked check.
+ * Returns 'next' when play moves on, or whether the game ended.
+ */
+function passTurn(
+  io: Server,
+  game: ServerGameState,
+  idx: number,
+  tilePlayerIndex: number,
+  tranque: boolean
+): 'next' | boolean {
+  const playerCount = game.players.length
+  // Modo 200: the partner of the tile player gets pass protection.
+  // If the partner has to pass right after an opponent passes, that pass never
+  // counts as a point — it was caused by their own teammate's play.
+  // In 2-player mode there are no partners, so partnerOfTilePlayer = -1 (no partner).
+  const partnerOfTilePlayer = playerCount === 2 ? -1 : (tilePlayerIndex + 2) % 4
+
+  let passBonusAwarded: number | null = null
+  if (game.rules.passPoints && !tranque) {
+    const isPartnerPass = idx === partnerOfTilePlayer
+
+    if (!isPartnerPass) {
+      // Normal opponent pass: award bonus
+      passBonusAwarded = game.gamePassCount === 0 ? 2 : 1
+      const updatedScores = applyPassBonus200(game.scores, idx, game.gamePassCount)
+      game.scores = updatedScores
+      game.gamePassCount++
+      game.passPointsThisHand += passBonusAwarded
+
+      if (scoresReachedTarget(game.scores, game.targetScore)) {
+        game.currentPlayerIndex = idx
+        game.consecutivePasses++
+        game.handPassCount++
+        io.to(game.roomCode).emit('game:player_passed', {
+          playerIndex: idx,
+          playerName: game.players[idx].name,
+          passBonusAwarded,
+        })
+        return handleGameEnd(io, game)
+      }
+    }
+    // Partner pass: no bonus, no gamePassCount increment — pass is free
+  }
+
+  game.consecutivePasses++
+  game.handPassCount++
+
+  io.to(game.roomCode).emit('game:player_passed', {
+    playerIndex: idx,
+    playerName: game.players[idx].name,
+    passBonusAwarded,
+  })
+
+  if (isGameBlocked(game.consecutivePasses, playerCount)) {
+    game.currentPlayerIndex = idx
+    return handleBlockedGame(io, game)
+  }
+  return 'next'
+}
+
+/**
+ * The player on turn says "paso" (they tapped it, the Torneo clock ran out, or a
+ * bot took their seat), and the cascade goes on from the next player.
+ */
+function resolvePendingPass(io: Server, game: ServerGameState, rooms: RoomManager) {
+  if (!game.awaitingPass || game.phase !== 'playing') return
+  const idx = game.currentPlayerIndex
+  const tilePlayerIndex = game.passTilePlayerIndex ?? idx
+  game.awaitingPass = false
+  let ended = passTurn(io, game, idx, tilePlayerIndex, false)
+  if (ended === 'next') {
+    ended = processAutoPassCascade(io, game, nextPlayerIndex(idx, game.players.length), tilePlayerIndex)
+  }
+  if (!ended && game.phase === 'playing') {
+    broadcastState(io, game)
+    scheduleBotTurn(io, game, rooms)
+  }
 }
 
 function handleBlockedGame(io: Server, game: ServerGameState): boolean {
@@ -618,6 +668,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
       gameWinnerIndex: starterIdx,
       boneyard,
       awaitingBoneyardDraw: false,
+      awaitingPass: false,
       passPointsThisHand: 0,
       turnId: 0,
       turnDeadline: null,
@@ -747,6 +798,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     game.passPointsThisHand = 0
     game.boneyard = boneyard
     game.awaitingBoneyardDraw = false
+    game.awaitingPass = false
     // gamePassCount intentionally NOT reset — it tracks total passes for the entire game (Modo 200 bonus)
     game.firstPlayMade = false
 
@@ -819,6 +871,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     game.boneyard = boneyard
     game.firstPlayMade = false
     game.awaitingBoneyardDraw = false
+    game.awaitingPass = false
     game.currentPlayerIndex = nextStarter
     game.handStarterIndex = nextStarter
     game.gameWinnerIndex = nextStarter
@@ -888,6 +941,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
         game.boneyard = boneyard
         game.firstPlayMade = false
         game.awaitingBoneyardDraw = false
+    game.awaitingPass = false
         game.currentPlayerIndex = nextStarter
         game.handStarterIndex = nextStarter
         game.gameWinnerIndex = nextStarter
@@ -923,6 +977,19 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     }
   })
 
+  socket.on('game:pass', ({ roomCode }: { roomCode?: unknown }) => {
+    if (!isNonEmptyString(roomCode)) return
+    const room = rooms.getRoom(roomCode)
+    const game = room?.game
+    if (!room || !game || game.phase !== 'playing' || !game.awaitingPass) return
+
+    const player = game.players.find(p => p.socketId === socket.id)
+    if (!player || player.index !== game.currentPlayerIndex) return
+
+    room.lastActivity = Date.now()
+    resolvePendingPass(io, game, rooms)
+  })
+
   socket.on('game:draw_from_boneyard', ({ roomCode }: { roomCode?: unknown }) => {
     if (!isNonEmptyString(roomCode)) return
     const room = rooms.getRoom(roomCode)
@@ -941,6 +1008,7 @@ export function registerGameHandlers(socket: Socket, io: Server, rooms: RoomMana
     const drawnTile = game.boneyard.pop()!
     player.tiles.push(drawnTile)
     game.awaitingBoneyardDraw = false
+    game.awaitingPass = false
 
     room.lastActivity = Date.now()
 

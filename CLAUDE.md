@@ -31,7 +31,7 @@ No hay lint script. TypeScript strict mode más `npm test` son los checks princi
 - **Clockwise visual:** `nextPlayer = (current + 3) % 4` — bottom → right → top → left
 - **Equipos:** 0 & 2 vs 1 & 3 (partners arriba/abajo, oponentes izq/der)
 - **Server es autoridad absoluta.** Client nunca computa scores ni valid plays
-- **No existe `game:pass` del client.** Server auto-pasa después de `game:play_tile`
+- **`game:pass` solo para humanos sin jugada.** El server pausa el cascade (`awaitingPass`) cuando a una persona conectada no le queda ficha; bots, desconectados y tranques pasan solos. El reloj de Torneo y el bot que toma el asiento resuelven un pase pendiente
 - **Capicú + Chuchazo no stackean** — máximo +100 total (Modo 500)
 - **Host-only:** `game:start`, `game:next_hand`, `game:next_game`, `room:back_to_lobby`
 - **La llamada es de la sala, no de la partida.** `CallHost` (montado en `App` por `roomCode`) la mantiene desde el lobby hasta salir de la sala. Los peers se identifican por asiento; cada reindexado sube `room.callEpoch`, el client reconstruye la llamada y el server descarta señales de un epoch viejo

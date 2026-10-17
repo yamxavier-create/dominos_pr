@@ -58,6 +58,11 @@ export function useGameActions() {
     socket.emit('game:draw_from_boneyard', { roomCode })
   }, [roomCode])
 
+  // Nothing to play: the player says "paso" when they're ready
+  const pass = useCallback(() => {
+    socket.emit('game:pass', { roomCode })
+  }, [roomCode])
+
   const startGame = useCallback(() => {
     socket.emit('game:start', { roomCode })
   }, [roomCode])
@@ -72,5 +77,5 @@ export function useGameActions() {
     socket.emit('room:join', { roomCode: roomCodeArg, playerName, reconnectToken })
   }, [])
 
-  return { selectTile, playTileOnEnd, startNextHand, startGame, createRoom, joinRoom, drawFromBoneyard }
+  return { selectTile, playTileOnEnd, startNextHand, startGame, createRoom, joinRoom, drawFromBoneyard, pass }
 }

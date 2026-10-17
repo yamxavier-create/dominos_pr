@@ -75,6 +75,7 @@ export interface ClientGameState {
   boneyardCount: number             // tiles remaining in boneyard. Always 0 in 4-player
   playerCount: number               // 2 or 4. Client uses this for layout mode and label changes
   awaitingBoneyardDraw: boolean     // current player must draw before playing (2-player only)
+  awaitingPass?: boolean            // current player has nothing to play and must tap Paso
 }
 
 export interface RoomInfo {

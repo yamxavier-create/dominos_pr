@@ -146,10 +146,35 @@ describe('house rules', () => {
       rigHand(game, [tile(0, 0)], [[tile(0, 1)], [tile(3, 4)], [tile(3, 5)]])
       const passed = waitFor(seats[0].socket, 'game:player_passed')
       seats[0].socket.emit('game:play_tile', { roomCode, tileId: '1-3', targetEnd: 'right' })
+      await sleep(50)
+      seats[1].socket.emit('game:pass', { roomCode })
       assert.equal((await passed).playerIndex, 1)
       await sleep(50)
       assert.deepEqual(game.scores, passPoints ? { team0: 2, team1: 0 } : { team0: 0, team1: 0 })
     }
+  })
+
+  test('a person with nothing to play says paso themselves', async () => {
+    const { roomCode, seats, game } = await startWithRules('modo200', { passPoints: true })
+    // Seat 1 has nothing for 6 or 3; seat 2 can play 3-4
+    rigHand(game, [tile(0, 0)], [[tile(0, 1)], [tile(3, 4)], [tile(3, 5)]])
+    const events = collect(seats[0].socket, 300)
+    seats[0].socket.emit('game:play_tile', { roomCode, tileId: '1-3', targetEnd: 'right' })
+    await sleep(100)
+    // The turn waits on seat 1: no pass yet, no points
+    assert.equal(game.currentPlayerIndex, 1)
+    assert.equal(game.awaitingPass, true)
+    assert.deepEqual(game.scores, { team0: 0, team1: 0 })
+    // Only the player on turn can pass
+    seats[0].socket.emit('game:pass', { roomCode })
+    await sleep(50)
+    assert.equal(game.currentPlayerIndex, 1)
+    seats[1].socket.emit('game:pass', { roomCode })
+    await sleep(100)
+    assert.ok((await events).includes('game:player_passed'))
+    assert.equal(game.awaitingPass, false)
+    assert.equal(game.currentPlayerIndex, 2)
+    assert.deepEqual(game.scores, { team0: 2, team1: 0 })
   })
 })
 

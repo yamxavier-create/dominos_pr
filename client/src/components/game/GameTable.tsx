@@ -178,7 +178,7 @@ export function GameTable() {
       playSfx('tiempo')
     }
   }, [myClock])
-  const { drawFromBoneyard, playTileOnEnd } = useGameActions()
+  const { drawFromBoneyard, playTileOnEnd, pass } = useGameActions()
   const selectedTileId = useUIStore(s => s.selectedTileId)
 
   if (!gameState) {
@@ -292,6 +292,22 @@ export function GameTable() {
       </button>
     </div>
   )
+
+  // Nothing to play: the server waits for you to say "paso"
+  const passButton = isMyTurn && gameState.awaitingPass && (
+    <div className="flex flex-col items-center gap-1 mb-2">
+      <button
+        type="button"
+        onClick={pass}
+        className="mm-btn-gold text-[#2B1B12]"
+        style={{ width: 'auto', padding: '0.5rem 2.5rem 0.6rem' }}
+      >
+        PASO
+      </button>
+      <span className="font-club text-xs font-semibold text-club-muted">{board.leftEnd === board.rightEnd ? `No llevas ${board.leftEnd}` : `No llevas ${board.leftEnd} ni ${board.rightEnd}`}</span>
+    </div>
+  )
+  const handAction = endChooser || passButton
 
   const hand = (
     <PlayerHand
@@ -427,7 +443,7 @@ export function GameTable() {
               ))}
             </div>
             <AvatarReaction reactions={getReactions(myPlayerIndex)} position="bottom" />
-            {endChooser}
+            {handAction}
             {hand}
           </div>
 
@@ -491,7 +507,7 @@ export function GameTable() {
                   ))}
                 </div>
                 <AvatarReaction reactions={getReactions(myPlayerIndex)} position="bottom" />
-                {endChooser}
+                {handAction}
                 {hand}
               </div>
               <MediaDock size={34} direction="row" callControls />
@@ -646,7 +662,7 @@ export function GameTable() {
             <FloatingChatBubble key={msg.id} message={msg} />
           ))}
           <div className={compact ? 'flex-1 min-w-0 flex flex-col items-center' : 'contents'}>
-            {endChooser}
+            {handAction}
             {hand}
           </div>
         </div>
