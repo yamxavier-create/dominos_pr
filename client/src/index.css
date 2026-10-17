@@ -857,3 +857,34 @@ body {
   opacity: 0;
 }
 .hc-tile { width: min(96px, 26cqh); aspect-ratio: 1 / 2; }
+.hc-dim { position: absolute; inset: 0; background: rgba(3, 12, 7, 0.55); opacity: 0; }
+.hc-tally {
+  min-width: 112px;
+  max-width: 40cqw;
+  padding: 8px 14px 10px;
+  border-radius: 14px;
+  text-align: center;
+  background: linear-gradient(180deg, rgba(18,70,40,0.97) 0%, rgba(8,32,17,0.97) 100%);
+  border: 3px solid #06140B;
+  box-shadow: 0 4px 0 #06140B;
+  transition: opacity 0.3s;
+}
+.hc-tally-label {
+  font: 800 12px/1.2 Nunito, sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #B9C9B4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hc-tally-pips {
+  font-family: 'Lilita One', Nunito, sans-serif;
+  font-size: 40px;
+  line-height: 1;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+.hc-tally.hc-won { background: linear-gradient(180deg, #FFE27A 0%, #FDD04B 28%, #F2B51C 60%, #D18F0E 100%); }
+.hc-tally.hc-won .hc-tally-label, .hc-tally.hc-won .hc-tally-pips { color: #06140B; }
+.hc-tally.hc-lost { opacity: 0.6; }

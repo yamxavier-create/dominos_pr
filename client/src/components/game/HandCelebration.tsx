@@ -1,17 +1,54 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useGameStore } from '../../store/gameStore'
+import { useRoomStore } from '../../store/roomStore'
+import type { RoundEndPayload, ClientGameState } from '../../types/game'
 import { DominoTile } from '../domino/DominoTile'
 
-type Kind = 'capicu' | 'chuchazo'
+type Kind = 'capicu' | 'chuchazo' | 'tranque'
+
+interface Tally {
+  label: string
+  pips: number
+  won: boolean
+}
 
 interface Shown {
   kind: Kind
   bonus: boolean
+  tallies?: Tally[]
 }
 
-// The capicú sound plays 700 ms after the hand ends (useSocket); both
-// animations take ~520 ms to land, so they start early enough to hit with it
+/**
+ * What a tranque compared, from your side of the table: the two teams' pips
+ * (each team's lightest hand when the table plays it individual), or the two
+ * hands in a 2-player game. The server already picked the winner.
+ */
+function tranqueTallies(data: RoundEndPayload, game: ClientGameState, me: number): Tally[] {
+  const pips = (i: number) => data.remainingTiles.find(r => r.playerIndex === i)?.pipSum ?? 0
+  if (game.playerCount === 2) {
+    const rival = 1 - me
+    return [
+      { label: 'Tú', pips: pips(me), won: data.winnerIndex === me },
+      { label: game.players[rival]?.name ?? 'Rival', pips: pips(rival), won: data.winnerIndex === rival },
+    ]
+  }
+  const myTeam = me % 2
+  const team = (t: number) => {
+    const hands = [t, t + 2].map(pips)
+    return game.rules.tranque === 'individual' ? Math.min(...hands) : hands[0] + hands[1]
+  }
+  return [
+    { label: 'Nosotros', pips: team(myTeam), won: data.winningTeam === myTeam },
+    { label: 'Ellos', pips: team(1 - myTeam), won: data.winningTeam === 1 - myTeam },
+  ]
+}
+
+// The capicú and tranque sounds play 700 ms after the hand ends (useSocket).
+// Capicú and chuchazo take ~520 ms to land, so they start early enough to hit
+// with it; the tranque one lands as it starts
 const START_MS = 180
+const TRANQUE_START_MS = 700
+const COUNT_MS = 650
 const LAND_MS = 520
 const HOLD_MS = 1150
 const EXIT_MS = 300
@@ -38,21 +75,30 @@ function shake(rail: Element | null) {
 /**
  * Capicú: a spark leaves each end of the line of play, they meet in the middle
  * and the word bursts out. Chuchazo: a giant double blank drops spinning onto
- * the felt and the word stamps across it. Both leave on their own in ~2 s.
+ * the felt and the word stamps across it. Tranque: the word drops and each
+ * side's pips count up; the side that takes the hand lights up gold. All of
+ * them leave on their own.
  */
 export function HandCelebration() {
   const roundEndData = useGameStore(s => s.roundEndData)
-  const gameMode = useGameStore(s => s.gameState?.gameMode)
+  const gameState = useGameStore(s => s.gameState)
+  const myPlayerIndex = useRoomStore(s => s.myPlayerIndex)
   const [shown, setShown] = useState<Shown | null>(null)
   const root = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!roundEndData || !(roundEndData.isCapicu || roundEndData.isChuchazo)) return
+    if (!roundEndData || !gameState) return
+    if (roundEndData.reason === 'blocked') {
+      const tallies = tranqueTallies(roundEndData, gameState, myPlayerIndex ?? gameState.myPlayerIndex)
+      const timer = setTimeout(() => setShown({ kind: 'tranque', bonus: false, tallies }), TRANQUE_START_MS)
+      return () => clearTimeout(timer)
+    }
+    if (!(roundEndData.isCapicu || roundEndData.isChuchazo)) return
     const timer = setTimeout(() => {
-      setShown({ kind: roundEndData.isChuchazo ? 'chuchazo' : 'capicu', bonus: gameMode === 'modo500' })
+      setShown({ kind: roundEndData.isChuchazo ? 'chuchazo' : 'capicu', bonus: gameState.gameMode === 'modo500' })
     }, START_MS)
     return () => clearTimeout(timer)
-    // Only a new hand result starts it, not a mode change
+    // Only a new hand result starts it, not every new snapshot
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roundEndData])
 
@@ -67,12 +113,46 @@ export function HandCelebration() {
     const play = async () => {
       if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
         const words = part('words')
-        await sleep(LAND_MS)
-        for (const name of ['word', 'chip']) (part(name) as HTMLElement | null)?.style.setProperty('opacity', '1')
+        if (shown.kind !== 'tranque') await sleep(LAND_MS)
+        for (const name of ['word', 'chip', 'tallies', 'dim']) (part(name) as HTMLElement | null)?.style.setProperty('opacity', '1')
+        el.querySelectorAll<HTMLElement>('[data-pips]').forEach(n => { n.textContent = n.dataset.pips ?? '' })
+        el.querySelectorAll<HTMLElement>('[data-won]').forEach(t => t.classList.add(t.dataset.won === 'true' ? 'hc-won' : 'hc-lost'))
         await run(words, [{ opacity: 0 }, { opacity: 1 }], { duration: 220 })
         await sleep(HOLD_MS + 200)
         if (cancelled) return
         await run(words, [{ opacity: 1 }, { opacity: 0 }], { duration: 220 })
+        return
+      }
+
+      if (shown.kind === 'tranque') {
+        // The word drops with the door slam, then each side's pips count up and
+        // the lighter side lights up gold: that side takes the hand
+        run(part('dim'), [{ opacity: 0 }, { opacity: 1 }], { duration: 260 })
+        run(part('word'), [{ transform: 'translateY(-20px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 320, easing: OUT })
+        await run(part('tallies'), [{ transform: 'translateY(16px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 300, delay: 120, easing: OUT })
+        if (cancelled) return
+        const counters = [...el.querySelectorAll<HTMLElement>('[data-pips]')]
+        const t0 = performance.now()
+        await new Promise<void>(done => {
+          const tick = (now: number) => {
+            const k = Math.min(1, (now - t0) / COUNT_MS)
+            const eased = 1 - Math.pow(1 - k, 3)
+            counters.forEach(n => { n.textContent = String(Math.round(Number(n.dataset.pips) * eased)) })
+            if (k < 1 && !cancelled) requestAnimationFrame(tick)
+            else done()
+          }
+          requestAnimationFrame(tick)
+        })
+        if (cancelled) return
+        el.querySelectorAll<HTMLElement>('[data-won]').forEach(t => {
+          const won = t.dataset.won === 'true'
+          t.classList.add(won ? 'hc-won' : 'hc-lost')
+          if (won) run(t, [{ transform: 'scale(1)' }, { transform: 'scale(1.1)' }, { transform: 'scale(1)' }], { duration: 300, easing: POP, fill: 'none' })
+        })
+        await sleep(HOLD_MS)
+        if (cancelled) return
+        run(part('dim'), [{ opacity: 1 }, { opacity: 0 }], { duration: EXIT_MS })
+        await run(part('words'), [{ transform: 'none', opacity: 1 }, { transform: 'translateY(-20px)', opacity: 0 }], { duration: EXIT_MS, easing: 'ease-in' })
         return
       }
 
@@ -143,11 +223,14 @@ export function HandCelebration() {
   }, [shown])
 
   if (!shown) return null
-  const text = shown.kind === 'capicu' ? '¡CAPICÚ!' : '¡CHUCHAZO!'
+  const text = { capicu: '¡CAPICÚ!', chuchazo: '¡CHUCHAZO!', tranque: '¡TRANQUE!' }[shown.kind]
+  const label = { capicu: 'Capicú', chuchazo: 'Chuchazo', tranque: 'Tranque' }[shown.kind]
 
   return (
-    <div ref={root} className="hand-celebration absolute inset-0 z-30 pointer-events-none overflow-hidden" role="status" aria-label={shown.kind === 'capicu' ? 'Capicú' : 'Chuchazo'}>
-      {shown.kind === 'capicu' ? (
+    <div ref={root} className="hand-celebration absolute inset-0 z-30 pointer-events-none overflow-hidden" role="status" aria-label={label}>
+      {shown.kind === 'tranque' ? (
+        <span data-part="dim" className="hc-dim" />
+      ) : shown.kind === 'capicu' ? (
         <>
           <span data-part="spark-left" className="hc-spark" />
           <span data-part="spark-right" className="hc-spark" />
@@ -166,6 +249,16 @@ export function HandCelebration() {
       <div data-part="words" className="hc-center flex flex-col items-center gap-2" style={shown.kind === 'chuchazo' ? { rotate: '-8deg' } : undefined}>
         <div data-part="word" className="hc-word" style={{ opacity: 0 }}>{text}</div>
         {shown.bonus && <div data-part="chip" className="hc-chip" style={{ opacity: 0 }}>+100</div>}
+        {shown.tallies && (
+          <div data-part="tallies" className="flex gap-2.5 mt-1" style={{ opacity: 0 }}>
+            {shown.tallies.map(t => (
+              <div key={t.label} data-won={t.won} className="hc-tally">
+                <div className="hc-tally-label">{t.label}</div>
+                <div data-pips={t.pips} className="hc-tally-pips">0</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
