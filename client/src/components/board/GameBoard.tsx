@@ -1,319 +1,9 @@
 import { useRef, useEffect, useState, useMemo } from 'react'
 import { BoardState, BoardTile as BoardTileType } from '../../types/game'
-import { BoardTileItem, TILE_H_W, TILE_H_H, TILE_V_W, TILE_V_H } from './BoardTile'
+import { BoardTileItem } from './BoardTile'
+import { computeSnakeLayout, displaySize, EDGE_INSET, LayoutItem, REFERENCE_HAND, SNAKE_WIDTHS } from './snakeLayout'
 import { useGameStore } from '../../store/gameStore'
 import { useUIStore } from '../../store/uiStore'
-
-const GAP = 1
-// Snake widths tried for each board: from 3 tiles per row up to a single long line
-const SNAKE_WIDTHS = Array.from({ length: 24 }, (_, i) => 240 + i * 80)
-// The snake width is fixed per board size, so the snake bends where it will
-// bend for the rest of the hand instead of starting as a straight line and
-// reflowing once it gets too long. It's the width that draws a full hand biggest:
-// 24 tiles played to both ends with a few doubles. That runs the rows across
-// the whole board from the first tiles.
-const REFERENCE_SIDES = 'RLRLRRLLRLRLRRLLRLRLRLRL'
-const REFERENCE_DOUBLES = [0, 5, 11]
-const REFERENCE_HAND: BoardTileType[] = (() => {
-  let tiles: BoardTileType[] = []
-  for (let k = 0; k < REFERENCE_SIDES.length; k++) {
-    const bt: BoardTileType = {
-      tile: { id: `ref-${k}`, high: 0, low: 0, isDouble: false },
-      orientation: REFERENCE_DOUBLES.includes(k) ? 'vertical' : 'horizontal',
-      leftPip: 0,
-      rightPip: 0,
-      playedByIndex: 0,
-      sequence: k,
-    }
-    tiles = REFERENCE_SIDES[k] === 'L' ? [bt, ...tiles] : [...tiles, bt]
-  }
-  return tiles
-})()
-const EDGE_INSET = 14 // the felt's brass lip plus breathing room
-
-interface TilePos { x: number; y: number }
-interface LayoutItem { pos: TilePos; flipped: boolean; corner: boolean }
-
-/** Effective display size after applying corner rotation */
-function tileDisplaySize(bt: BoardTileType, corner: boolean) {
-  if (corner && bt.orientation === 'horizontal') {
-    return { w: TILE_V_W, h: TILE_V_H }
-  }
-  return tileSize(bt)
-}
-
-function tileSize(bt: BoardTileType) {
-  return bt.orientation === 'vertical'
-    ? { w: TILE_V_W, h: TILE_V_H }
-    : { w: TILE_H_W, h: TILE_H_H }
-}
-
-/**
- * Snake layout around the first-played tile (lowest sequence) at the origin.
- *
- * The right arm (tiles added to right end) extends rightward from the anchor;
- * the left arm (tiles added to left end) extends leftward. Each arm wraps
- * independently at ±snakeW/2 from the anchor, so adding tiles to one side
- * never shifts tiles on the other side.
- */
-function computeSnakeLayout(tiles: BoardTileType[], snakeW: number): LayoutItem[] {
-  const n = tiles.length
-  if (n === 0) return []
-
-  const EDGE_PAD = 6
-  const half = snakeW / 2  // each arm gets ±half from anchor
-
-  // Find anchor: first-played tile = lowest sequence number
-  let anchorIdx = 0
-  for (let i = 1; i < n; i++) {
-    if (tiles[i].sequence < tiles[anchorIdx].sequence) anchorIdx = i
-  }
-
-  const raw: TilePos[] = new Array(n)
-  const flippedFlags: boolean[] = new Array(n).fill(false)
-  const cornerFlags: boolean[] = new Array(n).fill(false)
-
-  // Anchor at origin — offset applied at the end
-  raw[anchorIdx] = { x: 0, y: 0 }
-  const { w: anchorW, h: anchorH } = tileSize(tiles[anchorIdx])
-
-  // ── Right arm: tiles[anchorIdx+1 … n-1], extending rightward ───────────────
-  {
-    let x = anchorW / 2 + GAP  // cursor starts at anchor's right edge
-    let y = 0
-    let dir = 1
-    let rowMaxH = anchorH
-    let tilesInRow = 0  // don't count anchor — need 2 tiles before first corner
-    let pendingCorner = false  // true = next tile is the 2nd vertical tile of a corner pair
-
-    for (let i = anchorIdx + 1; i < n; i++) {
-      const { w: tileW, h: tileH } = tileSize(tiles[i])
-      const isHorizontal = tiles[i].orientation === 'horizontal'
-      let cx: number
-      let isCorner = false
-
-      if (pendingCorner) {
-        // 2nd tile of the corner pair — flush against the 1st corner tile (no gap)
-        isCorner = true
-        const effW = isHorizontal ? TILE_V_W : tileW
-        const effH = isHorizontal ? TILE_V_H : tileH
-        const prevCorner = raw[i - 1]
-        const prevH = tileDisplaySize(tiles[i - 1], cornerFlags[i - 1]).h
-        cx = prevCorner.x
-        const tileY = prevCorner.y + prevH / 2 + effH / 2  // center of 2nd corner tile (with gap)
-        // Place the 2nd corner tile at its true center
-        raw[i] = { x: cx, y: tileY }
-        cornerFlags[i] = true
-        flippedFlags[i] = false
-        // New horizontal row aligns with the bottom pip of this corner tile
-        y = tileY + (effH - TILE_H_H) / 2
-        // Now start the new horizontal row
-        if (dir === -1) {
-          x = cx - effW / 2 - GAP
-        } else {
-          x = cx + effW / 2 + GAP
-        }
-        rowMaxH = TILE_H_H
-        tilesInRow = 0
-        pendingCorner = false
-        continue  // already placed raw[i], skip the common assignment below
-      } else if (dir === 1) {
-        cx = x + tileW / 2
-        if (cx + tileW / 2 + EDGE_PAD > half && tilesInRow >= 2) {
-          // 1st corner tile — extends downward
-          isCorner = true
-          const effW = isHorizontal ? TILE_V_W : tileW
-          const effH = isHorizontal ? TILE_V_H : tileH
-
-          // If previous tile is a double, place directly below it
-          if (tiles[i - 1].orientation === 'vertical') {
-            cx = raw[i - 1].x
-            const prevH = tileDisplaySize(tiles[i - 1], cornerFlags[i - 1]).h
-            const tileY = raw[i - 1].y + prevH / 2 + effH / 2
-            raw[i] = { x: cx, y: tileY }
-            cornerFlags[i] = true
-            flippedFlags[i] = false
-            dir = -1
-            pendingCorner = true
-            continue
-          }
-
-          const prevW = tileDisplaySize(tiles[i - 1], cornerFlags[i - 1]).w
-          cx = raw[i - 1].x + prevW / 2 + effW / 2
-          // Top pip aligns with row center, tile extends downward
-          y += (effH - TILE_H_H) / 2
-          rowMaxH = effH
-          dir = -1
-          pendingCorner = true
-        } else {
-          rowMaxH = Math.max(rowMaxH, tileH)
-          x = cx + tileW / 2 + GAP
-          tilesInRow++
-        }
-      } else {
-        cx = x - tileW / 2
-        if (cx - tileW / 2 - EDGE_PAD < -half && tilesInRow >= 2) {
-          // 1st corner tile — extends downward
-          isCorner = true
-          const effW = isHorizontal ? TILE_V_W : tileW
-          const effH = isHorizontal ? TILE_V_H : tileH
-
-          // If previous tile is a double, place directly below it
-          if (tiles[i - 1].orientation === 'vertical') {
-            cx = raw[i - 1].x
-            const prevH = tileDisplaySize(tiles[i - 1], cornerFlags[i - 1]).h
-            const tileY = raw[i - 1].y + prevH / 2 + effH / 2
-            raw[i] = { x: cx, y: tileY }
-            cornerFlags[i] = true
-            flippedFlags[i] = false
-            dir = 1
-            pendingCorner = true
-            continue
-          }
-
-          const prevW = tileDisplaySize(tiles[i - 1], cornerFlags[i - 1]).w
-          cx = raw[i - 1].x - prevW / 2 - effW / 2
-          // Top pip aligns with row center, tile extends downward
-          y += (effH - TILE_H_H) / 2
-          rowMaxH = effH
-          dir = 1
-          pendingCorner = true
-        } else {
-          rowMaxH = Math.max(rowMaxH, tileH)
-          x = cx - tileW / 2 - GAP
-          tilesInRow++
-        }
-      }
-
-      raw[i] = { x: cx, y }
-      cornerFlags[i] = isCorner
-      flippedFlags[i] = !isCorner && dir === -1
-    }
-  }
-
-  // ── Left arm: tiles[anchorIdx-1 … 0], extending leftward ───────────────────
-  // Iterate closest-to-anchor first (anchorIdx-1 down to 0).
-  // Left arm wraps UPWARD (y decreases) so it never collides with the right arm.
-  // Left-end tiles: leftPip=exposed, rightPip=connecting — flipped when dir=1.
-  {
-    let x = -(anchorW / 2 + GAP)  // cursor starts at anchor's left edge
-    let y = 0
-    let dir = -1
-    let rowMaxH = anchorH
-    let tilesInRow = 0  // don't count anchor — need 2 tiles before first corner
-    let pendingCorner = false  // true = next tile is the 2nd vertical tile of a corner pair
-
-    for (let i = anchorIdx - 1; i >= 0; i--) {
-      const { w: tileW, h: tileH } = tileSize(tiles[i])
-      const isHorizontal = tiles[i].orientation === 'horizontal'
-      let cx: number
-      let isCorner = false
-
-      if (pendingCorner) {
-        // 2nd tile of the corner pair — flush against the 1st corner tile (no gap)
-        isCorner = true
-        const effW = isHorizontal ? TILE_V_W : tileW
-        const effH = isHorizontal ? TILE_V_H : tileH
-        const prevCorner = raw[i + 1]
-        const prevH = tileDisplaySize(tiles[i + 1], cornerFlags[i + 1]).h
-        cx = prevCorner.x
-        const tileY = prevCorner.y - prevH / 2 - effH / 2  // center of 2nd corner tile (with gap)
-        // Place the 2nd corner tile at its true center
-        raw[i] = { x: cx, y: tileY }
-        cornerFlags[i] = true
-        flippedFlags[i] = false
-        // New horizontal row aligns with the top pip of this corner tile
-        y = tileY - (effH - TILE_H_H) / 2
-        // Now start the new horizontal row
-        if (dir === 1) {
-          x = cx + effW / 2 + GAP
-        } else {
-          x = cx - effW / 2 - GAP
-        }
-        rowMaxH = TILE_H_H
-        tilesInRow = 0
-        pendingCorner = false
-        continue  // already placed raw[i], skip the common assignment below
-      } else if (dir === -1) {
-        cx = x - tileW / 2
-        if (cx - tileW / 2 - EDGE_PAD < -half && tilesInRow >= 2) {
-          // 1st corner tile — extends upward
-          isCorner = true
-          const effW = isHorizontal ? TILE_V_W : tileW
-          const effH = isHorizontal ? TILE_V_H : tileH
-
-          // If previous tile is a double, place directly above it
-          if (tiles[i + 1].orientation === 'vertical') {
-            cx = raw[i + 1].x
-            const prevH = tileDisplaySize(tiles[i + 1], cornerFlags[i + 1]).h
-            const tileY = raw[i + 1].y - prevH / 2 - effH / 2
-            raw[i] = { x: cx, y: tileY }
-            cornerFlags[i] = true
-            flippedFlags[i] = false
-            dir = 1
-            pendingCorner = true
-            continue
-          }
-
-          const prevW = tileDisplaySize(tiles[i + 1], cornerFlags[i + 1]).w
-          cx = raw[i + 1].x - prevW / 2 - effW / 2
-          // Bottom pip aligns with row center, tile extends upward
-          y -= (effH - TILE_H_H) / 2
-          rowMaxH = effH
-          dir = 1
-          pendingCorner = true
-        } else {
-          rowMaxH = Math.max(rowMaxH, tileH)
-          x = cx - tileW / 2 - GAP
-          tilesInRow++
-        }
-      } else {
-        cx = x + tileW / 2
-        if (cx + tileW / 2 + EDGE_PAD > half && tilesInRow >= 2) {
-          // 1st corner tile — extends upward
-          isCorner = true
-          const effW = isHorizontal ? TILE_V_W : tileW
-          const effH = isHorizontal ? TILE_V_H : tileH
-
-          // If previous tile is a double, place directly above it
-          if (tiles[i + 1].orientation === 'vertical') {
-            cx = raw[i + 1].x
-            const prevH = tileDisplaySize(tiles[i + 1], cornerFlags[i + 1]).h
-            const tileY = raw[i + 1].y - prevH / 2 - effH / 2
-            raw[i] = { x: cx, y: tileY }
-            cornerFlags[i] = true
-            flippedFlags[i] = false
-            dir = -1
-            pendingCorner = true
-            continue
-          }
-
-          const prevW = tileDisplaySize(tiles[i + 1], cornerFlags[i + 1]).w
-          cx = raw[i + 1].x + prevW / 2 + effW / 2
-          // Bottom pip aligns with row center, tile extends upward
-          y -= (effH - TILE_H_H) / 2
-          rowMaxH = effH
-          dir = -1
-          pendingCorner = true
-        } else {
-          rowMaxH = Math.max(rowMaxH, tileH)
-          x = cx + tileW / 2 + GAP
-          tilesInRow++
-        }
-      }
-
-      raw[i] = { x: cx, y }
-      cornerFlags[i] = isCorner
-      flippedFlags[i] = !isCorner && dir === 1
-    }
-  }
-
-  return raw.map((p, i) => ({
-    pos: p,
-    flipped: flippedFlags[i],
-    corner: cornerFlags[i],
-  }))
-}
 
 interface FittedLayout {
   layout: LayoutItem[]
@@ -328,10 +18,10 @@ interface FittedLayout {
 function fitLayout(tiles: BoardTileType[], snakeW: number, boardW: number, boardH: number): FittedLayout {
   const layout = computeSnakeLayout(tiles, snakeW)
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
-  tiles.forEach((bt, idx) => {
+  tiles.forEach((_bt, idx) => {
     const item = layout[idx]
     if (!item) return
-    const { w, h } = tileDisplaySize(bt, item.corner)
+    const { w, h } = displaySize(item.display)
     minX = Math.min(minX, item.pos.x - w / 2)
     minY = Math.min(minY, item.pos.y - h / 2)
     maxX = Math.max(maxX, item.pos.x + w / 2)
@@ -375,6 +65,7 @@ export function GameBoard({ board, allowZoom }: GameBoardProps) {
   const vw = dims.w / zoom
   const vh = dims.h / zoom
   const snakeW = useMemo(() => snakeWidthFor(vw, vh), [vw, vh])
+  const handScale = useMemo(() => fitLayout(REFERENCE_HAND, snakeW, vw, vh).scale, [snakeW, vw, vh])
 
   useEffect(() => {
     const el = containerRef.current
@@ -404,7 +95,10 @@ export function GameBoard({ board, allowZoom }: GameBoardProps) {
 
   const fitted = fitLayout(board.tiles, snakeW, vw, vh)
   const { layout } = fitted
-  const scale = fitted.scale * zoom
+  // Tiles keep one size for the whole hand: the size a full hand needs on this
+  // board, so the snake grows without shrinking. Only a hand that outgrows the
+  // reference (more doubles on the columns) shrinks further.
+  const scale = Math.min(handScale, fitted.scale) * zoom
   // Center the snake's bounding box on the board, not the first tile
   const offsetX = vw / 2 - fitted.cx
   const offsetY = vh / 2 - fitted.cy
@@ -427,8 +121,8 @@ export function GameBoard({ board, allowZoom }: GameBoardProps) {
         {board.tiles.map((bt, idx) => {
           const item = layout[idx]
           if (!item) return null
-          const { pos, flipped, corner } = item
-          const { w, h } = tileDisplaySize(bt, corner)
+          const { pos, flipped, display } = item
+          const { w, h } = displaySize(display)
           const isFlying = bt.tile.id === flyingTileId
           // Mark the end tiles so drag-drop and fly animation can find them
           const isLeftEnd = idx === 0 && board.tiles.length > 1
@@ -450,7 +144,7 @@ export function GameBoard({ board, allowZoom }: GameBoardProps) {
                 opacity: isFlying ? 0 : undefined,
               }}
             >
-              <BoardTileItem boardTile={bt} isNew={bt.sequence === lastTileSequence} flipped={flipped} corner={corner} />
+              <BoardTileItem boardTile={bt} isNew={bt.sequence === lastTileSequence} flipped={flipped} display={display} />
             </div>
           )
         })}
