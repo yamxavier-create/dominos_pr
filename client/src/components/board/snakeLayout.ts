@@ -52,12 +52,13 @@ function rowDisplay(bt: BoardTileType): Display {
 /**
  * Lay out one arm of the snake from the tile next to the anchor outward.
  *
- * A double always lies across the line: standing in a row, lying flat in the
- * column that joins two rows. The column is a pair of tiles. A double never
- * starts the column: it ends the row standing and the column starts straight
- * off it. A double that follows the
- * column stays on it, lying flat, and the next row starts from its side, so it
- * never sits beside the last upright tile.
+ * A double always lies across the line, and the line goes on through it:
+ * standing in a row with the next tile beside it, lying flat on the column
+ * with the next tile upright under it. The column joining two rows is an
+ * upright pair; a flat double on it adds one more upright before the row
+ * starts, so a double never ends up in line with the tile that follows. A
+ * double never turns the corner: it ends the row standing and the column
+ * starts straight off it.
  *
  * `step` walks the array (+1 right arm, -1 left arm) and `vSign` is the way the
  * arm wraps (+1 down, -1 up), so the arms never run into each other.
@@ -73,7 +74,19 @@ function layoutArm(
   let y = 0
   let dir: 1 | -1 = startDir
   let tilesInRow = 0  // the anchor doesn't count: a row needs 2 tiles before it can turn
+  // 'column': the next tile goes on the column. 'rowStart': the first tile of a
+  // new row, which a double turns back into a column tile.
   let phase: 'row' | 'column' | 'rowStart' = 'row'
+  let afterFlat = false  // the last column tile is a flat double: the next one stands
+
+  /** Puts the tile on the column, flush against the previous one */
+  const onColumn = (i: number, d: Display) => {
+    const prevPos = raw[i - step]
+    const { h } = displaySize(d)
+    raw[i] = { x: prevPos.x, y: prevPos.y + vSign * (displaySize(displays[i - step]).h / 2 + h / 2) }
+    displays[i] = d
+    flipped[i] = false
+  }
 
   for (let i = anchorIdx + step; i >= 0 && i < tiles.length; i += step) {
     const isDouble = tiles[i].orientation === 'vertical'
@@ -81,33 +94,28 @@ function layoutArm(
     const prevSize = displaySize(displays[i - step])
 
     if (phase === 'column') {
-      // 2nd tile of the column, flush against the 1st
-      const d: Display = isDouble ? 'h' : 'v'
-      const { w, h } = displaySize(d)
-      const cy = prevPos.y + vSign * (prevSize.h / 2 + h / 2)
-      raw[i] = { x: prevPos.x, y: cy }
-      displays[i] = d
-      flipped[i] = false
-      // The new row lines up with the pip that faces away from the 1st column tile
-      y = cy + vSign * (h - TILE_H_H) / 2
-      x = prevPos.x + dir * (w / 2 + GAP)
+      if (isDouble && !afterFlat) {
+        onColumn(i, 'h')
+        afterFlat = true
+        continue
+      }
+      // Upright, or a double standing after a flat one; the row starts from its far pip
+      onColumn(i, 'v')
+      afterFlat = false
+      y = raw[i].y + vSign * (TILE_V_H - TILE_H_H) / 2
+      x = raw[i].x + dir * (TILE_V_W / 2 + GAP)
       tilesInRow = 0
-      phase = d === 'v' ? 'rowStart' : 'row'
+      phase = isDouble ? 'row' : 'rowStart'
       continue
     }
 
     if (phase === 'rowStart') {
       phase = 'row'
       if (isDouble) {
-        // A double right after an upright column tile stays on the column, lying flat
-        const { w, h } = displaySize('h')
-        const cy = prevPos.y + vSign * (prevSize.h / 2 + h / 2)
-        raw[i] = { x: prevPos.x, y: cy }
-        displays[i] = 'h'
-        flipped[i] = false
-        y = cy
-        x = prevPos.x + dir * (w / 2 + GAP)
-        tilesInRow = 1
+        // A double right after the column lies flat on it; one more upright follows
+        onColumn(i, 'h')
+        afterFlat = true
+        phase = 'column'
         continue
       }
     }
@@ -125,17 +133,16 @@ function layoutArm(
       // 1st tile of the column
       if (displays[i - step] === 'v') {
         // The row ended on a double: the column starts straight off it
-        const d: Display = isDouble ? 'h' : 'v'
-        const { h } = displaySize(d)
-        raw[i] = { x: prevPos.x, y: prevPos.y + vSign * (prevSize.h / 2 + h / 2) }
-        displays[i] = d
+        onColumn(i, isDouble ? 'h' : 'v')
+        afterFlat = isDouble
       } else {
         // Upright at the row's end, its near pip on the row
         cx = prevPos.x + dir * (prevSize.w / 2 + TILE_V_W / 2)
         raw[i] = { x: cx, y: y + vSign * (TILE_V_H - TILE_H_H) / 2 }
         displays[i] = 'v'
+        flipped[i] = false
+        afterFlat = false
       }
-      flipped[i] = false
       dir = dir === 1 ? -1 : 1
       phase = 'column'
       continue

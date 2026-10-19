@@ -53,31 +53,46 @@ describe('snake layout doubles', () => {
     assert.equal(at(1).display, 'h')
   })
 
-  test('a double as the 2nd tile of the column lies flat on it, on both arms', () => {
+  test('a double as the 2nd tile of the column lies flat, and an upright follows before the row', () => {
     // Right arm turns down at play 3; left arm turns up at play 10
     const tiles = board('RRRRRRRRLLLLLLLL', [4, 11])
     const layout = computeSnakeLayout(tiles, SNAKE_W)
     const at = bySequence(tiles, layout)
-    for (const [first, dbl, next] of [[3, 4, 5], [10, 11, 12]]) {
+    for (const [first, dbl, upright, row] of [[3, 4, 5, 6], [10, 11, 12, 13]]) {
       assert.equal(at(first).display, 'v')
       assert.equal(at(dbl).display, 'h', `play ${dbl} lies flat`)
       assert.equal(at(dbl).pos.x, at(first).pos.x, `play ${dbl} stays on the column`)
-      // The next row starts beside the flat double, at its height
-      assert.equal(at(next).pos.y, at(dbl).pos.y)
+      assert.equal(at(upright).display, 'v', `play ${upright} stands under the flat double`)
+      assert.equal(at(upright).pos.x, at(dbl).pos.x)
+      assert.equal(at(row).display, 'h', `play ${row} starts the row`)
+      assert.notEqual(at(row).pos.x, at(upright).pos.x)
     }
     assertNoOverlap(tiles, layout)
   })
 
-  test('a double right after the column stays on it instead of beside the upright tile', () => {
+  test('a double right after the column lies flat on it, and an upright follows', () => {
     const tiles = board('RRRRRRRRLLLLLLLL', [5, 12])
     const layout = computeSnakeLayout(tiles, SNAKE_W)
     const at = bySequence(tiles, layout)
-    for (const [second, dbl, next] of [[4, 5, 6], [11, 12, 13]]) {
+    for (const [second, dbl, upright, row] of [[4, 5, 6, 7], [11, 12, 13, 14]]) {
       assert.equal(at(dbl).display, 'h', `play ${dbl} lies flat`)
       assert.equal(at(dbl).pos.x, at(second).pos.x, `play ${dbl} stays on the column`)
-      assert.equal(at(next).pos.y, at(dbl).pos.y, `play ${next} starts the row from its side`)
-      assert.equal(at(next).display, 'h')
+      assert.equal(at(upright).display, 'v', `play ${upright} stands under it`)
+      assert.equal(at(upright).pos.x, at(dbl).pos.x)
+      assert.equal(at(row).display, 'h')
+      assert.notEqual(at(row).pos.x, at(upright).pos.x)
     }
+    assertNoOverlap(tiles, layout)
+  })
+
+  test('two doubles on the column: flat, then standing, then the row', () => {
+    const tiles = board('RRRRRRRRR', [4, 5])
+    const layout = computeSnakeLayout(tiles, SNAKE_W)
+    const at = bySequence(tiles, layout)
+    assert.equal(at(4).display, 'h')
+    assert.equal(at(5).display, 'v')
+    assert.equal(at(5).pos.x, at(4).pos.x)
+    assert.equal(at(6).display, 'h')
     assertNoOverlap(tiles, layout)
   })
 
@@ -90,6 +105,7 @@ describe('snake layout doubles', () => {
     assert.equal(at(4).display, 'h', 'a double as 1st column tile lies flat')
     assert.equal(at(4).pos.x, at(3).pos.x)
     assert.ok(at(4).pos.y > at(3).pos.y, 'right arm wraps down')
+    assert.equal(at(5).display, 'v', 'an upright follows the flat double')
     assert.equal(at(10).display, 'v')
     assert.equal(at(11).display, 'h')
     assert.equal(at(11).pos.x, at(10).pos.x)
