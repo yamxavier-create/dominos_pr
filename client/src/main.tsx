@@ -20,8 +20,6 @@ function fitStandalone() {
     const full = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height)
     const height = Math.max(innerHeight, full)
     root.style.setProperty('--app-h', `${height}px`)
-    // What bottom-anchored fixed elements must drop to reach the real bottom
-    root.style.setProperty('--vp-gap', `${height - innerHeight}px`)
   }
   fit()
   addEventListener('resize', fit)

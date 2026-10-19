@@ -17,8 +17,6 @@
 
   /* Safe-area top — 0 in browser (chrome handles it), real value in standalone PWA */
   --safe-top: 0px;
-  /* How much the viewport falls short of the screen bottom (see below) */
-  --vp-gap: 0px;
 }
 
 /*
@@ -571,10 +569,16 @@ body {
   }
 }
 
-/* Hand-end bar: over the bottom buttons; a phone held sideways keeps its hand there, so the bar goes on top */
-.hand-end-bar { bottom: calc(8px + env(safe-area-inset-bottom, 0px) - var(--vp-gap)); }
+/*
+ * Hand-end bar: over the bottom buttons; a phone held sideways keeps its hand
+ * there, so the bar goes on top. It sits at the end of a full-screen layer
+ * (fixed inset-0, sized from the top like the game screen) instead of using a
+ * fixed bottom: on an iOS home-screen app a fixed bottom lands wherever iOS
+ * thinks the viewport ends, which has cut the bar off below the screen.
+ */
+.hand-end-bar { justify-content: flex-end; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
 @media (orientation: landscape) and (max-height: 600px) {
-  .hand-end-bar { bottom: auto; top: calc(4px + var(--safe-top)); }
+  .hand-end-bar { justify-content: flex-start; padding-bottom: 0; padding-top: calc(4px + var(--safe-top)); }
 }
 
 /* ─── Main menu «Escenario»: glow stage, floating tiles, play dock ─── */

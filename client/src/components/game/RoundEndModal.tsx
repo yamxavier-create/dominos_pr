@@ -65,7 +65,7 @@ export function RoundEndModal() {
       <div
         // A full-width band over the bottom button row (over the score sign on a
         // phone held sideways, where the bottom row is your hand)
-        className="hand-end-bar fixed inset-x-0 z-40 flex justify-center px-3 pointer-events-none"
+        className="hand-end-bar fixed inset-0 z-40 flex flex-col items-center px-3 pointer-events-none"
       >
         <div
           className="mm-rise mm-panel pointer-events-auto flex items-center justify-between gap-3 w-full max-w-lg pl-4 pr-2 py-2 font-club"

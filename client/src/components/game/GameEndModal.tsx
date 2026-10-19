@@ -103,13 +103,18 @@ export function GameEndModal() {
 
   if (peek) {
     return (
-      <button
-        onClick={() => setPeek(false)}
-        className="mm-btn-gold mm-stroke mm-rise fixed z-50 left-1/2 -translate-x-1/2 !w-auto px-6"
-        style={{ bottom: 'calc(1.5rem + env(safe-area-inset-bottom) - var(--vp-gap))' }}
+      // Full-screen layer sized from the top, like the hand-end bar: a fixed bottom can land below the screen on iOS
+      <div
+        className="fixed inset-0 z-50 flex flex-col items-center justify-end pointer-events-none"
+        style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}
       >
-        Ver resumen
-      </button>
+        <button
+          onClick={() => setPeek(false)}
+          className="mm-btn-gold mm-stroke mm-rise pointer-events-auto !w-auto px-6"
+        >
+          Ver resumen
+        </button>
+      </div>
     )
   }
 
