@@ -37,15 +37,30 @@ function fitLayout(tiles: BoardTileType[], snakeW: number, boardW: number, board
   }
 }
 
-/** Pick the snake width that draws the reference hand biggest on this board */
+/** Rows the reference hand runs in at this width: distinct heights of its row tiles */
+function referenceRows(layout: LayoutItem[]): number {
+  const ys = new Set<number>()
+  REFERENCE_HAND.forEach((bt, i) => {
+    if (bt.orientation === 'horizontal' && layout[i].display === 'h') ys.add(Math.round(layout[i].pos.y))
+  })
+  return ys.size
+}
+
+/**
+ * Pick the snake width for this board: the one that draws a full hand as three
+ * rows (two bends) biggest. That's the shape of the snake on the phone, so a
+ * hand never comes out as two long rows or a tight S. If no width gives three
+ * rows, the one that draws the hand biggest wins.
+ */
 function snakeWidthFor(boardW: number, boardH: number): number {
   let best: FittedLayout | null = null
+  let bestThreeRows: FittedLayout | null = null
   for (const w of SNAKE_WIDTHS) {
     const fit = fitLayout(REFERENCE_HAND, w, boardW, boardH)
-    // Among near-equal widths the widest wins (fewer bends)
-    if (!best || fit.scale >= best.scale * 0.995) best = fit
+    if (!best || fit.scale > best.scale) best = fit
+    if (referenceRows(fit.layout) === 3 && (!bestThreeRows || fit.scale > bestThreeRows.scale)) bestThreeRows = fit
   }
-  return best!.snakeW
+  return (bestThreeRows ?? best!).snakeW
 }
 
 interface GameBoardProps {

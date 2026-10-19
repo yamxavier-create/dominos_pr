@@ -272,8 +272,8 @@ export function GameTable() {
     </div>
   )
 
-  const endChooser = showEndChooser && (
-    <div className="flex justify-center gap-2 mb-1" role="group" aria-label="¿En qué punta?">
+  const endButtons = (
+    <>
       <button
         type="button"
         onClick={() => playTileOnEnd('left')}
@@ -292,11 +292,18 @@ export function GameTable() {
       >
         <span className="font-club-display text-base">{board.rightEnd}</span> ▶
       </button>
+    </>
+  )
+  const endChooser = showEndChooser && (
+    <div className="flex justify-center gap-2 mb-1" role="group" aria-label="¿En qué punta?">
+      {endButtons}
     </div>
   )
 
   // Nothing to play: the server waits for you to say "paso"
-  const passButton = isMyTurn && gameState.awaitingPass && (
+  const mustPass = isMyTurn && gameState.awaitingPass
+  const passHint = board.leftEnd === board.rightEnd ? `No llevas ${board.leftEnd}` : `No llevas ${board.leftEnd} ni ${board.rightEnd}`
+  const passButton = mustPass && (
     <div className="flex flex-col items-center gap-1 mb-2">
       <button
         type="button"
@@ -306,10 +313,48 @@ export function GameTable() {
       >
         PASO
       </button>
-      <span className="font-club text-xs font-semibold text-club-muted">{board.leftEnd === board.rightEnd ? `No llevas ${board.leftEnd}` : `No llevas ${board.leftEnd} ni ${board.rightEnd}`}</span>
+      <span className="font-club text-xs font-semibold text-club-muted">{passHint}</span>
     </div>
   )
   const handAction = endChooser || passButton
+
+  /**
+   * Phone portrait: the action takes the status line's slot instead of pushing
+   * the hand down. The slot has one height, so the table keeps its size and the
+   * snake keeps its shape when PASO or the end chooser appears.
+   */
+  const portraitStatus = (
+    <div className="min-h-[44px] flex items-center justify-center">
+      {showEndChooser ? (
+        <div className="flex items-center justify-center gap-2 px-3 font-club" role="group" aria-label="¿En qué punta?">
+          <span className="font-club-display text-[22px] leading-tight shrink-0 mm-stroke" style={{ color: '#FDD04B' }}>¿Punta?</span>
+          {endButtons}
+        </div>
+      ) : mustPass ? (
+        <div className="flex items-center justify-center gap-2.5 px-3 min-w-0 font-club">
+          <span className="font-club-display text-[22px] leading-tight shrink-0 mm-stroke" style={{ color: '#FDD04B' }}>Te toca</span>
+          <span className="text-sm text-club-muted truncate">{passHint}</span>
+          <button
+            type="button"
+            onClick={pass}
+            className="mm-btn-gold text-[#2B1B12] shrink-0"
+            style={{ width: 'auto', padding: '0.3rem 1.4rem 0.4rem', fontSize: '1.15rem', borderRadius: 12, boxShadow: '0 3px 0 #06140B, inset 0 2px 0 rgba(255,255,255,0.45), inset 0 -3px 0 rgba(120,70,0,0.35)' }}
+          >
+            PASO
+          </button>
+        </div>
+      ) : (
+        <TurnStatus
+          isMyTurn={isMyTurn}
+          currentPlayerName={currentPlayerName}
+          nextPlayerName={nextPlayerName}
+          leftEnd={board.leftEnd}
+          rightEnd={board.rightEnd}
+          secondsLeft={turnSeconds}
+        />
+      )}
+    </div>
+  )
 
   const hand = (
     <PlayerHand
@@ -425,14 +470,7 @@ export function GameTable() {
 
           {board_}
 
-          <TurnStatus
-            isMyTurn={isMyTurn}
-            currentPlayerName={currentPlayerName}
-            nextPlayerName={nextPlayerName}
-            leftEnd={board.leftEnd}
-            rightEnd={board.rightEnd}
-            secondsLeft={turnSeconds}
-          />
+          {portraitStatus}
 
           {/* My hand on the shelf. data-seat="bottom" anchors my animations and overlays */}
           <div className="relative min-w-0" data-seat="bottom">
@@ -445,7 +483,6 @@ export function GameTable() {
               ))}
             </div>
             <AvatarReaction reactions={getReactions(myPlayerIndex)} position="bottom" />
-            {handAction}
             {hand}
           </div>
 
