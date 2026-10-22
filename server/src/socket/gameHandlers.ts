@@ -389,12 +389,15 @@ function resolvePendingPass(io: Server, game: ServerGameState, rooms: RoomManage
 function handleBlockedGame(io: Server, game: ServerGameState): boolean {
   const { rules } = game
 
-  // +2 for the team that closed the tranque (last tile played)
+  // The last tile played closed the tranque
+  const lastTile = game.board.tiles.reduce((a, b) => a.sequence > b.sequence ? a : b)
+  const closedByIndex = lastTile.playedByIndex
+
+  // +2 for the team that closed the tranque
   let blockBonusPoints = 0
   if (rules.blockBonus) {
-    const lastTile = game.board.tiles.reduce((a, b) => a.sequence > b.sequence ? a : b)
     blockBonusPoints = 2
-    game.scores = addPoints(game.scores, playerTeam(lastTile.playedByIndex), blockBonusPoints)
+    game.scores = addPoints(game.scores, playerTeam(closedByIndex), blockBonusPoints)
   }
 
   // Individual: the lightest hand wins. Pareja: the lighter team sum wins.
@@ -425,6 +428,7 @@ function handleBlockedGame(io: Server, game: ServerGameState): boolean {
     reason: 'blocked',
     winnerIndex,
     winningTeam,
+    closedByIndex,
     rawPipCount: rawPips,
     pointsFromPips,
     bonusPoints: blockBonusPoints,
@@ -448,6 +452,7 @@ function finishPlayedOutHand(io: Server, game: ServerGameState, winnerIndex: num
     reason: 'played_out',
     winnerIndex,
     winningTeam,
+    closedByIndex: winnerIndex,
     rawPipCount: rawPips,
     pointsFromPips,
     bonusPoints,
@@ -497,6 +502,8 @@ interface HandResult {
   reason: 'played_out' | 'blocked'
   winnerIndex: number | null
   winningTeam: 0 | 1 | null
+  /** Who placed the last tile: the one who dominó, or who trancó */
+  closedByIndex: number
   rawPipCount: number
   pointsFromPips: number
   bonusPoints: number
@@ -532,6 +539,8 @@ function endHand(io: Server, game: ServerGameState, hand: HandResult) {
       winningTeam: winTeam,
       finalScores: game.scores,
       totalRounds: game.handNumber,
+      endReason: hand.reason,
+      closedByIndex: hand.closedByIndex,
     })
     persistMatchResult(matchResultFrom(game, winTeam))
   }
@@ -545,6 +554,8 @@ function handleGameEnd(io: Server, game: ServerGameState): boolean {
     winningTeam: winTeam,
     finalScores: game.scores,
     totalRounds: game.handNumber,
+    endReason: 'passes',
+    closedByIndex: game.currentPlayerIndex,
   })
   persistMatchResult(matchResultFrom(game, winTeam))
   return true

@@ -7,6 +7,7 @@ import { useAuthStore } from '../../store/authStore'
 import { socket } from '../../socket'
 import { GoldCTA, GoldCaption } from '../ui/GoldCTA'
 import { leaveRoomLocally } from '../../store/leaveRoom'
+import { closedByLine } from './handClose'
 
 export function GameEndModal() {
   const gameEndData = useGameStore(s => s.gameEndData)
@@ -100,6 +101,8 @@ export function GameEndModal() {
   const winnerText = is2Player
     ? (weWon ? '¡Ganaste el partido!' : 'Perdiste el partido')
     : (weWon ? 'Nosotros ganamos el partido' : 'Ellos ganaron el partido')
+  // How it closed: "Trancó Bebo", "Dominaste", "Terminó con el pase de Cuco"
+  const closing = closedByLine(gameEndData.endReason, gameEndData.closedByIndex, gameState?.players ?? [], myPlayerIndex)
 
   if (peek) {
     return (
@@ -145,7 +148,7 @@ export function GameEndModal() {
               {weWon ? (is2Player ? '¡GANASTE!' : '¡GANAMOS!') : (is2Player ? 'PERDISTE' : 'PERDIMOS')}
             </h1>
             <p className="font-body font-bold text-white/80 mt-1 text-sm">
-              {winnerText}
+              {winnerText}{closing && <span className="text-white/60"> · {closing}</span>}
             </p>
           </div>
 

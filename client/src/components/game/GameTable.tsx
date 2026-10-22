@@ -15,6 +15,7 @@ import { PlayerSeat } from '../player/PlayerSeat'
 import { SocialDock, MediaDock } from './GameDock'
 import { TurnIndicator } from '../player/TurnIndicator'
 import { TurnStatus } from '../player/TurnStatus'
+import { closedByLine } from './handClose'
 import { useTurnClock } from '../../hooks/useTurnClock'
 import { playSfx, stopSfx } from '../../audio/sfx'
 import { CameraSeat } from '../player/CameraSeat'
@@ -107,6 +108,7 @@ function LeaveGameButton({ compact }: { compact?: boolean }) {
 
 export function GameTable() {
   const gameState = useGameStore(s => s.gameState)
+  const roundEndData = useGameStore(s => s.roundEndData)
   const scoreHistory = useGameStore(s => s.scoreHistory)
   const myPlayerIndex = useRoomStore(s => s.myPlayerIndex) ?? 0
   const pasoNotifications = useUIStore(s => s.pasoNotifications)
@@ -235,6 +237,10 @@ export function GameTable() {
 
   const portrait = !compact && !isDesktop
   const nextPlayerName = players[(currentPlayerIndex + 1) % playerCount]?.name ?? ''
+  // Once the hand is over, the status line says who closed it, not whose turn it is
+  const closing = gameState.phase !== 'playing' && roundEndData
+    ? closedByLine(roundEndData.reason, roundEndData.closedByIndex, players, myPlayerIndex)
+    : null
 
   const overlaysFor = (idx: number, seat: 'top' | 'left' | 'right', anchored: boolean) => (
     <>
@@ -351,6 +357,7 @@ export function GameTable() {
           leftEnd={board.leftEnd}
           rightEnd={board.rightEnd}
           secondsLeft={turnSeconds}
+          closing={closing}
         />
       )}
     </div>

@@ -52,6 +52,7 @@ describe('tranque (Modo 200)', () => {
     assert.equal(result.reason, 'blocked')
     assert.equal(result.bonusPoints, 2)
     assert.equal(result.winnerIndex, 0)
+    assert.equal(result.closedByIndex, 0)
     // 3 + 6 + 11 = 20 pips → 2 points
     assert.equal(result.pointsFromPips, 2)
     assert.equal(result.passPointsThisHand, 0)

@@ -6,6 +6,7 @@ import { useGameActions } from '../../hooks/useGameActions'
 import { DominoTile } from '../domino/DominoTile'
 import { socket } from '../../socket'
 import { GoldCTA, GoldCaption } from '../ui/GoldCTA'
+import { closedByLine } from './handClose'
 
 export function RoundEndModal() {
   const roundEndData = useGameStore(s => s.roundEndData)
@@ -58,6 +59,8 @@ export function RoundEndModal() {
     : 'from-[#E5534A]/30 to-transparent'
 
   const outcome = blocked ? 'Trancado' : weWon ? (is2Player ? 'Ganaste' : 'Ganamos') : (is2Player ? 'Perdiste' : 'Perdimos')
+  // "Trancó Bebo" / "Dominaste": who placed the last tile
+  const closing = closedByLine(roundEndData.reason, roundEndData.closedByIndex, gameState?.players ?? [], myPlayerIndex)
   // Only what the hand's close scored. Pass points (Modo 200) already went
   // onto the scoreboard as each pass happened, so they stay out of this total.
   const handPoints = roundEndData.totalPointsScored
@@ -76,7 +79,7 @@ export function RoundEndModal() {
         >
           <div className="min-w-0 leading-tight">
             <p className="font-body text-[11px] font-extrabold uppercase tracking-[0.08em] text-white/75">
-              {isFinalHand ? 'Última mano' : 'Fin de mano'}
+              {isFinalHand ? 'Última mano' : 'Fin de mano'}{closing && ` · ${closing}`}
             </p>
             <p className="font-chunky text-lg tracking-wide mm-stroke truncate">
               {outcome}{handPoints > 0 && <span style={{ color: '#FDD04B' }}> · +{handPoints}</span>}
@@ -109,7 +112,7 @@ export function RoundEndModal() {
               >
                 ¡Trancado!
               </h2>
-              <p className="font-body font-bold text-white/75 text-sm">Nadie puede jugar</p>
+              <p className="font-body font-bold text-white/75 text-sm">{closing ? `${closing} · nadie puede jugar` : 'Nadie puede jugar'}</p>
             </>
           ) : weWon ? (
             <>
@@ -119,6 +122,7 @@ export function RoundEndModal() {
               >
                 {is2Player ? '¡Ganaste!' : '¡Ganamos!'}
               </h2>
+              {closing && <p className="font-body font-bold text-white/75 text-sm">{closing}</p>}
             </>
           ) : (
             <>
@@ -129,6 +133,7 @@ export function RoundEndModal() {
               >
                 {is2Player ? 'Perdiste' : 'Perdimos'}
               </h2>
+              {closing && <p className="font-body font-bold text-white/75 text-sm">{closing}</p>}
             </>
           )}
         </div>

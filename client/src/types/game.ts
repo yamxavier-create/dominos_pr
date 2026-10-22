@@ -121,12 +121,17 @@ export interface RoundEndPayload {
   scores: TeamScores
   passPointsThisHand?: number
   nextStarterIndex: number
+  /** Who placed the last tile: the one who dominó, or who trancó */
+  closedByIndex?: number
 }
 
 export interface GameEndPayload {
   winningTeam: 0 | 1
   finalScores: TeamScores
   totalRounds: number
+  /** How the game closed: the last hand, or a pass that reached the target (Modo 200) */
+  endReason?: 'played_out' | 'blocked' | 'passes'
+  closedByIndex?: number
 }
 
 // ─── Rematch Payloads ─────────────────────────────────────────────────────────
