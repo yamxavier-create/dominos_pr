@@ -33,3 +33,7 @@ client/android/
 test-results/
 .playwright/
 .playwright-mcp/
+server/dist/
+
+# Impeccable (design plugin) local state
+.impeccable/
