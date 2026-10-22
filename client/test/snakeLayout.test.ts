@@ -4,7 +4,7 @@
  */
 import { test, describe } from 'node:test'
 import assert from 'node:assert/strict'
-import { computeSnakeLayout, displaySize, LayoutItem } from '../src/components/board/snakeLayout'
+import { boardFit, computeSnakeLayout, displaySize, LayoutItem, snakeExtents } from '../src/components/board/snakeLayout'
 import type { BoardTile } from '../src/types/game'
 
 const SNAKE_W = 480  // ±240 around the anchor: three 80px tiles per row, then it turns
@@ -130,5 +130,24 @@ describe('snake layout doubles', () => {
   test('a full hand with doubles everywhere never overlaps', () => {
     const tiles = board('RLRLRRLLRLRLRRLLRLRLRLRLRLRL', [0, 3, 4, 5, 6, 11, 12, 13, 20, 21])
     assertNoOverlap(tiles, computeSnakeLayout(tiles, SNAKE_W))
+  })
+})
+
+describe('board fit', () => {
+  test('a phone held upright gets short rows at a fixed size; a wide table gets full-size tiles', () => {
+    const phone = boardFit(351, 311)
+    assert.equal(phone.snakeW, 480)
+    assert.ok(phone.scale > 0.5 && phone.scale < 0.6, `phone scale ${phone.scale}`)
+    const desktop = boardFit(1240, 330)
+    assert.equal(desktop.scale, 1)
+    assert.ok(desktop.snakeW >= 960)
+  })
+
+  test('a hand played evenly to both ends fits the phone board at its fixed size', () => {
+    const { scale, snakeW } = boardFit(351, 311)
+    const tiles = board('RLRLRRLLRLRLRRLLRLRLRLRL', [0, 5, 11])
+    const { halfW, minY, maxY } = snakeExtents(tiles, computeSnakeLayout(tiles, snakeW))
+    assert.ok(halfW * scale <= 351 / 2 - 10 + 0.5)
+    assert.ok((maxY - minY) * scale <= 311 - 20 + 0.5)
   })
 })

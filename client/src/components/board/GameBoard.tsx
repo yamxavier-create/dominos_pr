@@ -1,67 +1,9 @@
 import { useRef, useEffect, useState, useMemo } from 'react'
 import { BoardState, BoardTile as BoardTileType } from '../../types/game'
 import { BoardTileItem } from './BoardTile'
-import { computeSnakeLayout, displaySize, EDGE_INSET, LayoutItem, REFERENCE_HAND, SNAKE_WIDTHS } from './snakeLayout'
+import { computeSnakeLayout, displaySize, EDGE_INSET, boardFit, snakeExtents } from './snakeLayout'
 import { useGameStore } from '../../store/gameStore'
 import { useUIStore } from '../../store/uiStore'
-
-interface FittedLayout {
-  layout: LayoutItem[]
-  snakeW: number
-  scale: number
-  // Center of the snake's bounding box, in layout coordinates
-  cx: number
-  cy: number
-}
-
-/** Lay the snake out at one width and measure how big it can be drawn on the board */
-function fitLayout(tiles: BoardTileType[], snakeW: number, boardW: number, boardH: number): FittedLayout {
-  const layout = computeSnakeLayout(tiles, snakeW)
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
-  tiles.forEach((_bt, idx) => {
-    const item = layout[idx]
-    if (!item) return
-    const { w, h } = displaySize(item.display)
-    minX = Math.min(minX, item.pos.x - w / 2)
-    minY = Math.min(minY, item.pos.y - h / 2)
-    maxX = Math.max(maxX, item.pos.x + w / 2)
-    maxY = Math.max(maxY, item.pos.y + h / 2)
-  })
-  const raw = Math.min(1, (boardW - 2 * EDGE_INSET) / (maxX - minX), (boardH - 2 * EDGE_INSET) / (maxY - minY))
-  return {
-    layout,
-    snakeW,
-    scale: Number.isFinite(raw) ? Math.max(0.15, raw) : 1,
-    cx: (minX + maxX) / 2,
-    cy: (minY + maxY) / 2,
-  }
-}
-
-/** Rows the reference hand runs in at this width: distinct heights of its row tiles */
-function referenceRows(layout: LayoutItem[]): number {
-  const ys = new Set<number>()
-  REFERENCE_HAND.forEach((bt, i) => {
-    if (bt.orientation === 'horizontal' && layout[i].display === 'h') ys.add(Math.round(layout[i].pos.y))
-  })
-  return ys.size
-}
-
-/**
- * Pick the snake width for this board: the one that draws a full hand as three
- * rows (two bends) biggest. That's the shape of the snake on the phone, so a
- * hand never comes out as two long rows or a tight S. If no width gives three
- * rows, the one that draws the hand biggest wins.
- */
-function snakeWidthFor(boardW: number, boardH: number): number {
-  let best: FittedLayout | null = null
-  let bestThreeRows: FittedLayout | null = null
-  for (const w of SNAKE_WIDTHS) {
-    const fit = fitLayout(REFERENCE_HAND, w, boardW, boardH)
-    if (!best || fit.scale > best.scale) best = fit
-    if (referenceRows(fit.layout) === 3 && (!bestThreeRows || fit.scale > bestThreeRows.scale)) bestThreeRows = fit
-  }
-  return (bestThreeRows ?? best!).snakeW
-}
 
 interface GameBoardProps {
   board: BoardState
@@ -79,8 +21,7 @@ export function GameBoard({ board, allowZoom }: GameBoardProps) {
   const zoom = allowZoom ? Math.min(1.6, Math.max(1, Math.min(dims.w / 760, dims.h / 480))) : 1
   const vw = dims.w / zoom
   const vh = dims.h / zoom
-  const snakeW = useMemo(() => snakeWidthFor(vw, vh), [vw, vh])
-  const handScale = useMemo(() => fitLayout(REFERENCE_HAND, snakeW, vw, vh).scale, [snakeW, vw, vh])
+  const { scale: handScale, snakeW } = useMemo(() => boardFit(vw, vh), [vw, vh])
 
   useEffect(() => {
     const el = containerRef.current
@@ -108,16 +49,17 @@ export function GameBoard({ board, allowZoom }: GameBoardProps) {
     return <div ref={containerRef} className="w-full h-full" />
   }
 
-  const fitted = fitLayout(board.tiles, snakeW, vw, vh)
-  const { layout } = fitted
-  // Tiles keep one size for the whole hand: the size a full hand needs on this
-  // board, so the snake grows without shrinking. Only a hand that outgrows the
-  // reference (more doubles on the columns) shrinks further.
-  const scale = Math.min(handScale, fitted.scale) * zoom
-  // Center the snake's bounding box on the board, not the first tile
-  const offsetX = vw / 2 - fitted.cx
-  const offsetY = vh / 2 - fitted.cy
-
+  // Tiles stay where they were put, at one size, like on a real table. The
+  // first tile sits on the board's center line and the rows run out from it to
+  // both sides, so a tile never slides sideways; the snake only moves down or
+  // up, as one, when an arm turns into a new row. A hand that outgrows the
+  // board (a row too many, doubles lying on the columns) is drawn smaller.
+  const layout = computeSnakeLayout(board.tiles, snakeW)
+  const { halfW, minY, maxY } = snakeExtents(board.tiles, layout)
+  const fitScale = Math.min(1, (vw / 2 - EDGE_INSET) / halfW, (vh - 2 * EDGE_INSET) / (maxY - minY))
+  const scale = Math.min(handScale, Number.isFinite(fitScale) ? Math.max(0.15, fitScale) : 1) * zoom
+  const offsetX = vw / 2
+  const offsetY = vh / 2 - (minY + maxY) / 2
 
   return (
     <div ref={containerRef} className="w-full h-full overflow-hidden relative">
@@ -130,6 +72,7 @@ export function GameBoard({ board, allowZoom }: GameBoardProps) {
           height: vh,
           transform: scale !== 1 ? `scale(${scale})` : undefined,
           transformOrigin: 'center center',
+          transition: 'transform 350ms ease-out',
         }}
       >
         {/* Tiles */}
@@ -157,6 +100,7 @@ export function GameBoard({ board, allowZoom }: GameBoardProps) {
                 // No overflow clipping: the tile's edge (thickness) is a shadow
                 // below its box, and clipping it left only two points at the corners
                 opacity: isFlying ? 0 : undefined,
+                transition: 'left 350ms ease-out, top 350ms ease-out',
               }}
             >
               <BoardTileItem boardTile={bt} isNew={bt.sequence === lastTileSequence} flipped={flipped} display={display} />

@@ -7,31 +7,7 @@ export const TILE_V_W = 40   // vertical tile width
 export const TILE_V_H = 80   // vertical tile height
 
 const GAP = 1
-// Snake widths tried for each board: from 3 tiles per row up to a single long line
-export const SNAKE_WIDTHS = Array.from({ length: 24 }, (_, i) => 240 + i * 80)
-// The snake width is fixed per board size, so the snake bends where it will
-// bend for the rest of the hand instead of starting as a straight line and
-// reflowing once it gets too long. It's the width that draws a full hand biggest:
-// 24 tiles played to both ends with a few doubles. That runs the rows across
-// the whole board from the first tiles.
-const REFERENCE_SIDES = 'RLRLRRLLRLRLRRLLRLRLRLRL'
-const REFERENCE_DOUBLES = [0, 5, 11]
-export const REFERENCE_HAND: BoardTileType[] = (() => {
-  let tiles: BoardTileType[] = []
-  for (let k = 0; k < REFERENCE_SIDES.length; k++) {
-    const bt: BoardTileType = {
-      tile: { id: `ref-${k}`, high: 0, low: 0, isDouble: false },
-      orientation: REFERENCE_DOUBLES.includes(k) ? 'vertical' : 'horizontal',
-      leftPip: 0,
-      rightPip: 0,
-      playedByIndex: 0,
-      sequence: k,
-    }
-    tiles = REFERENCE_SIDES[k] === 'L' ? [bt, ...tiles] : [...tiles, bt]
-  }
-  return tiles
-})()
-export const EDGE_INSET = 14 // the felt's brass lip plus breathing room
+export const EDGE_INSET = 10 // the felt's brass lip plus breathing room
 
 export interface TilePos { x: number; y: number }
 /** How a tile is drawn: lying along the row ('h') or standing across it ('v') */
@@ -186,4 +162,84 @@ export function computeSnakeLayout(tiles: BoardTileType[], snakeW: number): Layo
   layoutArm(tiles, anchorIdx, -1, -1, half, raw, flipped, displays)
 
   return raw.map((p, i) => ({ pos: p, flipped: flipped[i], display: displays[i] }))
+}
+
+/** From one row's center line to the next: the row, plus the two uprights of the column */
+const ROW_PITCH = TILE_V_H + TILE_H_H
+
+/** A hand to size the board for: which side each play went to and which plays were doubles */
+function referenceHand(sides: string, doubles: number[]): BoardTileType[] {
+  let tiles: BoardTileType[] = []
+  for (let k = 0; k < sides.length; k++) {
+    const bt: BoardTileType = {
+      tile: { id: `ref-${k}`, high: 0, low: 0, isDouble: doubles.includes(k) },
+      orientation: doubles.includes(k) ? 'vertical' : 'horizontal',
+      leftPip: 0,
+      rightPip: 0,
+      playedByIndex: 0,
+      sequence: k,
+    }
+    tiles = sides[k] === 'L' ? [bt, ...tiles] : [...tiles, bt]
+  }
+  return tiles
+}
+
+/**
+ * The hands the board must hold without shrinking: 24 tiles played evenly to
+ * both ends, and 24 played mostly to one end, each with a few doubles. One of
+ * the doubles lands on a column and lies flat there.
+ */
+const REFERENCE_HANDS: BoardTileType[][] = [
+  referenceHand('RLRLRRLLRLRLRRLLRLRLRLRL', [0, 5, 11]),
+  referenceHand('RRLRRRLRRRLRRRLRRLRRRLRR', [0, 4, 9, 15]),
+  referenceHand('LLRLLLRLLLRLLLRLLRLLLRLL', [0, 4, 9, 15]),
+]
+
+/** How far the snake reaches from its first tile: sideways to either side, up and down */
+export function snakeExtents(tiles: BoardTileType[], layout: LayoutItem[]) {
+  let halfW = 0, minY = Infinity, maxY = -Infinity
+  tiles.forEach((_bt, idx) => {
+    const item = layout[idx]
+    if (!item) return
+    const { w, h } = displaySize(item.display)
+    halfW = Math.max(halfW, Math.abs(item.pos.x) + w / 2)
+    minY = Math.min(minY, item.pos.y - h / 2)
+    maxY = Math.max(maxY, item.pos.y + h / 2)
+  })
+  return { halfW, minY, maxY }
+}
+
+export interface BoardFit {
+  /** Tile size on this board, 1 = full size */
+  scale: number
+  /** Width the rows run across, in layout units */
+  snakeW: number
+}
+
+/**
+ * Tile size and snake width for a board. Tiles keep one size for the whole
+ * hand, so the board is sized for whole rows: the fewest rows whose tiles,
+ * drawn as big as those rows allow, still hold the reference hands. A wide
+ * table gets three long rows; a phone held upright gets five short ones.
+ */
+export function boardFit(boardW: number, boardH: number): BoardFit {
+  const innerW = boardW - 2 * EDGE_INSET
+  const innerH = boardH - 2 * EDGE_INSET
+  let fallback: BoardFit | null = null
+  for (let rows = 3; rows <= 7; rows++) {
+    const byHeight = innerH / (TILE_H_H + (rows - 1) * ROW_PITCH)
+    // A row holds at least three tiles between its two uprights
+    const byWidth = innerW / (3 * TILE_H_W + 2 * TILE_V_W)
+    const scale = Math.min(1, byHeight, byWidth)
+    const snakeW = Math.max(3 * TILE_H_W, Math.floor((innerW / scale - 2 * TILE_V_W) / TILE_H_W) * TILE_H_W)
+    const fit = { scale, snakeW }
+    fallback ??= fit
+    const holdsAll = REFERENCE_HANDS.every(hand => {
+      const { halfW, minY, maxY } = snakeExtents(hand, computeSnakeLayout(hand, snakeW))
+      return halfW * scale <= innerW / 2 + 0.5 && (maxY - minY) * scale <= innerH + 0.5
+    })
+    if (holdsAll) return fit
+    fallback = fit
+  }
+  return fallback!
 }
