@@ -58,7 +58,9 @@ export function RoundEndModal() {
     : 'from-[#E5534A]/30 to-transparent'
 
   const outcome = blocked ? 'Trancado' : weWon ? (is2Player ? 'Ganaste' : 'Ganamos') : (is2Player ? 'Perdiste' : 'Perdimos')
-  const handPoints = roundEndData.totalPointsScored + (roundEndData.passPointsThisHand ?? 0)
+  // Only what the hand's close scored. Pass points (Modo 200) already went
+  // onto the scoreboard as each pass happened, so they stay out of this total.
+  const handPoints = roundEndData.totalPointsScored
 
   if (peek) {
     return (
@@ -163,12 +165,6 @@ export function RoundEndModal() {
             </span>
             <span className="font-chunky text-base text-white">+{roundEndData.pointsFromPips}</span>
           </div>
-          {(roundEndData.passPointsThisHand ?? 0) > 0 && (
-            <div className="flex justify-between items-center text-sm font-body font-bold mb-1">
-              <span className="text-white/75">Pases</span>
-              <span className="font-chunky text-base text-white">+{roundEndData.passPointsThisHand}</span>
-            </div>
-          )}
           {roundEndData.bonusPoints > 0 && (
             <div className="flex justify-between items-center text-sm font-body font-bold mb-1">
               <span style={{ color: '#FDD04B' }}>{roundEndData.reason === 'blocked' ? 'Bono por trancar' : 'Bonificación'}</span>
@@ -177,7 +173,7 @@ export function RoundEndModal() {
           )}
           <div className="flex justify-between items-center font-body border-t-2 border-[#06140B] pt-1.5 mt-1.5">
             <span className="text-white font-extrabold">Total ganado</span>
-            <span className="font-chunky text-3xl leading-none mm-stroke !text-[#FDD04B]">+{roundEndData.totalPointsScored + (roundEndData.passPointsThisHand ?? 0)}</span>
+            <span className="font-chunky text-3xl leading-none mm-stroke !text-[#FDD04B]">+{handPoints}</span>
           </div>
         </div>
 
