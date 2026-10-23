@@ -7,7 +7,7 @@ const config: CapacitorConfig = {
   server: {
     // On native, load from the deployed server instead of local files
     // This ensures socket.io and API calls work without CORS issues
-    url: 'https://server-production-b2a8.up.railway.app',
+    url: 'https://dominopr.app',
     cleartext: false,
   },
   ios: {
