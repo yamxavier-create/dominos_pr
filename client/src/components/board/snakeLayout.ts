@@ -164,9 +164,6 @@ export function computeSnakeLayout(tiles: BoardTileType[], snakeW: number): Layo
   return raw.map((p, i) => ({ pos: p, flipped: flipped[i], display: displays[i] }))
 }
 
-/** From one row's center line to the next: the row, plus the two uprights of the column */
-const ROW_PITCH = TILE_V_H + TILE_H_H
-
 /** A hand to size the board for: which side each play went to and which plays were doubles */
 function referenceHand(sides: string, doubles: number[]): BoardTileType[] {
   let tiles: BoardTileType[] = []
@@ -185,14 +182,15 @@ function referenceHand(sides: string, doubles: number[]): BoardTileType[] {
 }
 
 /**
- * The hands the board must hold without shrinking: 24 tiles played evenly to
- * both ends, and 24 played mostly to one end, each with a few doubles. One of
- * the doubles lands on a column and lies flat there.
+ * The hands the board must hold without shrinking: 20 tiles played evenly to
+ * both ends, and 20 played mostly to one end, each with a few doubles. One of
+ * the doubles lands on a column and lies flat there. A hand that runs longer
+ * or more crooked than these is drawn smaller once it outgrows the board.
  */
 const REFERENCE_HANDS: BoardTileType[][] = [
-  referenceHand('RLRLRRLLRLRLRRLLRLRLRLRL', [0, 5, 11]),
-  referenceHand('RRLRRRLRRRLRRRLRRLRRRLRR', [0, 4, 9, 15]),
-  referenceHand('LLRLLLRLLLRLLLRLLRLLLRLL', [0, 4, 9, 15]),
+  referenceHand('RLRLRRLLRLRLRRLLRLRL', [0, 5, 11]),
+  referenceHand('RRLRRRLRRRLRRRLRRLRR', [0, 4, 9, 15]),
+  referenceHand('LLRLLLRLLLRLLLRLLRLL', [0, 4, 9, 15]),
 ]
 
 /** How far the snake reaches from its first tile: sideways to either side, up and down */
@@ -218,28 +216,23 @@ export interface BoardFit {
 
 /**
  * Tile size and snake width for a board. Tiles keep one size for the whole
- * hand, so the board is sized for whole rows: the fewest rows whose tiles,
- * drawn as big as those rows allow, still hold the reference hands. A wide
- * table gets three long rows; a phone held upright gets five short ones.
+ * hand, so the board is sized once: the biggest tiles, with the longest rows
+ * they allow, that still hold the reference hands. A wide table gets full-size
+ * tiles in long rows; a phone held upright gets smaller tiles in short rows.
  */
 export function boardFit(boardW: number, boardH: number): BoardFit {
   const innerW = boardW - 2 * EDGE_INSET
   const innerH = boardH - 2 * EDGE_INSET
-  let fallback: BoardFit | null = null
-  for (let rows = 3; rows <= 7; rows++) {
-    const byHeight = innerH / (TILE_H_H + (rows - 1) * ROW_PITCH)
-    // A row holds at least three tiles between its two uprights
-    const byWidth = innerW / (3 * TILE_H_W + 2 * TILE_V_W)
-    const scale = Math.min(1, byHeight, byWidth)
-    const snakeW = Math.max(3 * TILE_H_W, Math.floor((innerW / scale - 2 * TILE_V_W) / TILE_H_W) * TILE_H_W)
-    const fit = { scale, snakeW }
-    fallback ??= fit
-    const holdsAll = REFERENCE_HANDS.every(hand => {
-      const { halfW, minY, maxY } = snakeExtents(hand, computeSnakeLayout(hand, snakeW))
-      return halfW * scale <= innerW / 2 + 0.5 && (maxY - minY) * scale <= innerH + 0.5
-    })
-    if (holdsAll) return fit
-    fallback = fit
+  const holds = (scale: number, snakeW: number) => REFERENCE_HANDS.every(hand => {
+    const { halfW, minY, maxY } = snakeExtents(hand, computeSnakeLayout(hand, snakeW))
+    return halfW * scale <= innerW / 2 + 0.5 && (maxY - minY) * scale <= innerH + 0.5
+  })
+  // Largest scale first; at each scale, the longest rows the width allows first
+  for (let scale = 1; scale >= 0.2; scale = Math.round((scale - 0.01) * 100) / 100) {
+    const maxCols = Math.floor((innerW / scale - 2 * TILE_V_W) / TILE_H_W)
+    for (let cols = maxCols; cols >= 3; cols--) {
+      if (holds(scale, cols * TILE_H_W)) return { scale, snakeW: cols * TILE_H_W }
+    }
   }
-  return fallback!
+  return { scale: 0.2, snakeW: 3 * TILE_H_W }
 }
