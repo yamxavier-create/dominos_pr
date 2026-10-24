@@ -214,11 +214,15 @@ export interface BoardFit {
   snakeW: number
 }
 
+/** Rows are made as long as they can be while the tiles keep at least this much of their best size */
+const ROW_LENGTH_COST = 0.85
+
 /**
  * Tile size and snake width for a board. Tiles keep one size for the whole
- * hand, so the board is sized once: the biggest tiles, with the longest rows
- * they allow, that still hold the reference hands. A wide table gets full-size
- * tiles in long rows; a phone held upright gets smaller tiles in short rows.
+ * hand, so the board is sized once. Long rows come first: the snake turns as
+ * late as the width allows, as long as the tiles stay within ROW_LENGTH_COST
+ * of the biggest they could be. A wide table gets full-size tiles in long
+ * rows; a phone held upright gets smaller tiles in rows of about five.
  */
 export function boardFit(boardW: number, boardH: number): BoardFit {
   const innerW = boardW - 2 * EDGE_INSET
@@ -227,12 +231,25 @@ export function boardFit(boardW: number, boardH: number): BoardFit {
     const { halfW, minY, maxY } = snakeExtents(hand, computeSnakeLayout(hand, snakeW))
     return halfW * scale <= innerW / 2 + 0.5 && (maxY - minY) * scale <= innerH + 0.5
   })
-  // Largest scale first; at each scale, the longest rows the width allows first
-  for (let scale = 1; scale >= 0.2; scale = Math.round((scale - 0.01) * 100) / 100) {
-    const maxCols = Math.floor((innerW / scale - 2 * TILE_V_W) / TILE_H_W)
-    for (let cols = maxCols; cols >= 3; cols--) {
-      if (holds(scale, cols * TILE_H_W)) return { scale, snakeW: cols * TILE_H_W }
+  /** The biggest tiles that fit `cols` tiles plus the two uprights across the board and still hold the hands */
+  const scaleFor = (cols: number) => {
+    const cap = Math.min(1, innerW / (cols * TILE_H_W + 2 * TILE_V_W))
+    for (let scale = Math.floor(cap * 100) / 100; scale >= 0.2; scale = Math.round((scale - 0.01) * 100) / 100) {
+      if (holds(scale, cols * TILE_H_W)) return scale
     }
+    return 0
   }
-  return { scale: 0.2, snakeW: 3 * TILE_H_W }
+  let best: BoardFit = { scale: 0.2, snakeW: 3 * TILE_H_W }
+  let bestScale = 0
+  for (let cols = 3; ; cols++) {
+    // Longer rows can only cap the tiles lower; stop once the cap alone costs too much
+    if (cols > 3 && innerW / (cols * TILE_H_W + 2 * TILE_V_W) < (bestScale === 1 ? 1 : bestScale * ROW_LENGTH_COST)) break
+    const scale = scaleFor(cols)
+    if (scale === 0) { if (cols > 3) break; continue }
+    bestScale = Math.max(bestScale, scale)
+    // Full-size tiles are never traded for longer rows
+    const floor = bestScale === 1 ? 1 : bestScale * ROW_LENGTH_COST
+    if (scale >= floor) best = { scale, snakeW: cols * TILE_H_W }
+  }
+  return best
 }

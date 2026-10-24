@@ -136,8 +136,10 @@ describe('snake layout doubles', () => {
 describe('board fit', () => {
   test('a phone held upright gets short rows at a fixed size; a wide table gets full-size tiles', () => {
     const phone = boardFit(351, 311)
-    assert.ok(phone.snakeW >= 320 && phone.snakeW <= 480, `phone snakeW ${phone.snakeW}`)
-    assert.ok(phone.scale > 0.55 && phone.scale < 0.75, `phone scale ${phone.scale}`)
+    assert.ok(phone.snakeW >= 400 && phone.snakeW <= 560, `phone snakeW ${phone.snakeW}`)
+    assert.ok(phone.scale > 0.45 && phone.scale < 0.75, `phone scale ${phone.scale}`)
+    // Five tiles and the two uprights fit across the phone at that size
+    assert.ok((phone.snakeW + 2 * 40) * phone.scale <= 351 - 20 + 0.5)
     const desktop = boardFit(1240, 330)
     assert.equal(desktop.scale, 1)
     assert.ok(desktop.snakeW >= 960)
@@ -149,6 +151,12 @@ describe('board fit', () => {
     const { halfW, minY, maxY } = snakeExtents(tiles, computeSnakeLayout(tiles, snakeW))
     assert.ok(halfW * scale <= 351 / 2 - 10 + 0.5)
     assert.ok((maxY - minY) * scale <= 311 - 20 + 0.5)
+  })
+
+  test('rows get longer only while the tiles keep most of their size', () => {
+    const { scale, snakeW } = boardFit(345, 366)
+    assert.equal(snakeW, 400, `phone rows hold five tiles, got ${snakeW / 80}`)
+    assert.ok(scale > 0.6, `phone scale ${scale}`)
   })
 
   test('a taller board never gives smaller tiles', () => {

@@ -43,9 +43,10 @@ export function CameraSeat({ player, seat, isPartner, isSelf, isCurrentTurn, str
   return (
     <div className={`relative min-w-0 flex flex-col items-stretch gap-1.5 ${fill ? 'flex-1 min-h-0' : ''}`} data-seat={seat}>
       <div
-        // Sized from the screen, not in fixed pixels: portrait keeps a 5:6 box
-        // whose width comes from the row; landscape fills its half of the column
-        className={`relative box-border overflow-hidden flex items-center justify-center [container-type:inline-size] ${fill ? 'flex-1 min-h-0' : 'aspect-[5/6]'} ${isCurrentTurn ? 'turn-breathe' : ''}`}
+        // Sized from the screen, not in fixed pixels: portrait keeps a square box
+        // whose width comes from the row (low, so the table gets the height);
+        // landscape fills its half of the column
+        className={`relative box-border overflow-hidden flex items-center justify-center [container-type:inline-size] ${fill ? 'flex-1 min-h-0' : 'aspect-square'} ${isCurrentTurn ? 'turn-breathe' : ''}`}
         style={{
           borderRadius: 12,
           background: isPartner
@@ -66,7 +67,7 @@ export function CameraSeat({ player, seat, isPartner, isSelf, isCurrentTurn, str
             style={isSelf ? { transform: 'scaleX(-1)' } : undefined}
           />
         ) : (
-          <span className="font-club-display text-[30cqw] leading-none mb-[18px] mm-stroke" aria-hidden>{initials}</span>
+          <span className="font-club-display text-[26cqw] leading-none mb-[14px] mm-stroke" aria-hidden>{initials}</span>
         )}
 
         {isCurrentTurn && (
